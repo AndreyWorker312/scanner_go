@@ -1,4 +1,4 @@
-.PHONY: build run test migrate-up migrate-down docker-up docker-down
+.PHONY: build run test migrate-up migrate-down docker-up docker-down docker-logs
 
 build:
 	go build -o bin/network-scanner ./cmd/server/main.go

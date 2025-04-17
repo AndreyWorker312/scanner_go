@@ -6,6 +6,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -14,8 +15,10 @@ type PortScanner interface {
 }
 
 type portScanner struct {
-	timeout time.Duration
-	logger  Logger
+	timeout    time.Duration
+	logger     Logger
+	maxRetries int
+	retryDelay time.Duration
 }
 
 type Logger interface {
@@ -23,10 +26,12 @@ type Logger interface {
 	Errorf(format string, args ...interface{})
 }
 
-func NewPortScanner(logger Logger, timeout time.Duration) PortScanner {
+func NewPortScanner(logger Logger, timeout time.Duration, maxRetries int, retryDelay time.Duration) PortScanner {
 	return &portScanner{
-		timeout: timeout,
-		logger:  logger,
+		timeout:    timeout,
+		logger:     logger,
+		maxRetries: maxRetries,
+		retryDelay: retryDelay,
 	}
 }
 
@@ -37,22 +42,45 @@ func (s *portScanner) ScanPorts(ctx context.Context, ip string, ports string) ([
 	}
 
 	var openPorts []int
+	var mu sync.Mutex
+	var wg sync.WaitGroup
 
 	for _, port := range portList {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-			address := fmt.Sprintf("%s:%d", ip, port)
-			conn, err := net.DialTimeout("tcp", address, s.timeout)
-			if err == nil {
+		wg.Add(1)
+		go func(port int) {
+			defer wg.Done()
+			if isPortOpen(ctx, ip, port, s.timeout, s.maxRetries, s.retryDelay) {
+				mu.Lock()
 				openPorts = append(openPorts, port)
-				conn.Close()
+				mu.Unlock()
 			}
-		}
+		}(port)
 	}
 
+	wg.Wait()
 	return openPorts, nil
+}
+
+func isPortOpen(ctx context.Context, ip string, port int, timeout time.Duration, maxRetries int, retryDelay time.Duration) bool {
+	var attempts int
+	for {
+		select {
+		case <-ctx.Done():
+			return false
+		default:
+			address := fmt.Sprintf("%s:%d", ip, port)
+			conn, err := net.DialTimeout("tcp", address, timeout)
+			if err == nil {
+				conn.Close()
+				return true
+			}
+			attempts++
+			if attempts >= maxRetries {
+				return false
+			}
+			time.Sleep(retryDelay)
+		}
+	}
 }
 
 func parsePorts(ports string) ([]int, error) {
@@ -60,7 +88,6 @@ func parsePorts(ports string) ([]int, error) {
 		return nil, fmt.Errorf("ports string is empty")
 	}
 
-	// Обработка диапазона портов (например, "1-1024")
 	if strings.Contains(ports, "-") {
 		parts := strings.Split(ports, "-")
 		if len(parts) != 2 {
@@ -92,7 +119,6 @@ func parsePorts(ports string) ([]int, error) {
 		return result, nil
 	}
 
-	// Обработка списка портов через запятую (например, "80,443,8080")
 	if strings.Contains(ports, ",") {
 		var result []int
 		for _, p := range strings.Split(ports, ",") {
@@ -108,7 +134,6 @@ func parsePorts(ports string) ([]int, error) {
 		return result, nil
 	}
 
-	// Одиночный порт
 	port, err := strconv.Atoi(ports)
 	if err != nil {
 		return nil, fmt.Errorf("invalid port number: %v", err)

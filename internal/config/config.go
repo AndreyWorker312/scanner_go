@@ -2,24 +2,22 @@ package config
 
 import (
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/joho/godotenv"
 )
 
-// Config - конфигурация приложения (экспортируемая структура)
 type Config struct {
 	Server  ServerConfig
 	DB      DBConfig
 	Scanner ScannerConfig
 }
 
-// ServerConfig - конфигурация сервера
 type ServerConfig struct {
 	Port string
 }
 
-// DBConfig - конфигурация базы данных
 type DBConfig struct {
 	Host     string
 	Port     string
@@ -28,33 +26,30 @@ type DBConfig struct {
 	Name     string
 }
 
-// ScannerConfig - конфигурация сканера
 type ScannerConfig struct {
-	Timeout time.Duration
+	Timeout    time.Duration
+	MaxRetries int
+	RetryDelay time.Duration
 }
 
 func Load() (*Config, error) {
-	// Загрузка .env файла
 	if err := godotenv.Load(); err != nil {
 		return nil, err
 	}
 
 	var cfg Config
 
-	// Настройки сервера
 	cfg.Server.Port = os.Getenv("SERVER_PORT")
 	if cfg.Server.Port == "" {
-		cfg.Server.Port = "8006"
+		cfg.Server.Port = "8006" // Default port
 	}
 
-	// Настройки базы данных
 	cfg.DB.Host = os.Getenv("DB_HOST")
 	cfg.DB.Port = os.Getenv("DB_PORT")
 	cfg.DB.User = os.Getenv("DB_USER")
 	cfg.DB.Password = os.Getenv("DB_PASSWORD")
 	cfg.DB.Name = os.Getenv("DB_NAME")
 
-	// Настройки сканера
 	timeoutStr := os.Getenv("SCANNER_TIMEOUT")
 	if timeoutStr == "" {
 		timeoutStr = "500ms"
@@ -64,6 +59,26 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 	cfg.Scanner.Timeout = timeout
+
+	maxRetriesStr := os.Getenv("SCANNER_MAX_RETRIES")
+	if maxRetriesStr == "" {
+		maxRetriesStr = "3"
+	}
+	maxRetries, err := strconv.Atoi(maxRetriesStr)
+	if err != nil {
+		return nil, err
+	}
+	cfg.Scanner.MaxRetries = maxRetries
+
+	retryDelayStr := os.Getenv("SCANNER_RETRY_DELAY")
+	if retryDelayStr == "" {
+		retryDelayStr = "1s"
+	}
+	retryDelay, err := time.ParseDuration(retryDelayStr)
+	if err != nil {
+		return nil, err
+	}
+	cfg.Scanner.RetryDelay = retryDelay
 
 	return &cfg, nil
 }

@@ -4,15 +4,17 @@ services:
   app:
     build: .
     ports:
-      - "8006:8006"
+      - "${SERVER_PORT}:${SERVER_PORT}"
     environment:
-      - SERVER_PORT=8006
+      - SERVER_PORT=${SERVER_PORT}
       - DB_HOST=db
       - DB_PORT=5432
       - DB_USER=postgres
       - DB_PASSWORD=postgres
       - DB_NAME=network_scanner
       - SCANNER_TIMEOUT=500ms
+      - SCANNER_MAX_RETRIES=3
+      - SCANNER_RETRY_DELAY=1s
     depends_on:
       - db
     restart: unless-stopped
