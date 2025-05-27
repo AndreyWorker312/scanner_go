@@ -1,0 +1,142 @@
+basePath: /api/v1
+definitions:
+  models.ScanRequest:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      ip_address:
+        type: string
+      ports:
+        description: Может быть "80,443" или "1-1024"
+        type: string
+    type: object
+  models.ScanRequestSwagger:
+    properties:
+      ip:
+        example: 192.168.1.1
+        type: string
+      ports:
+        example: 22,80,443
+        type: string
+    type: object
+  models.ScanResponseSwagger:
+    properties:
+      ip:
+        example: 192.168.1.1
+        type: string
+      open_ports:
+        description: <--- так
+        example:
+        - 22
+        - 80
+        items:
+          type: integer
+        type: array
+      ports:
+        example: 22,80,443
+        type: string
+      request_id:
+        example: 1
+        type: integer
+    type: object
+  models.ScanResult:
+    properties:
+      id:
+        type: integer
+      is_open:
+        type: boolean
+      port:
+        type: integer
+      request_id:
+        type: integer
+      scanned_at:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API для сканирования портов и просмотра истории запросов
+  title: Network Scanner API
+  version: "1.0"
+paths:
+  /history:
+    get:
+      description: Получить историю всех сканирований
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.ScanRequest'
+            type: array
+        "500":
+          description: internal error
+          schema:
+            type: string
+      summary: История сканирований
+      tags:
+      - scan
+  /results/{id}:
+    get:
+      description: Получить результаты по request_id
+      parameters:
+      - description: ID запроса
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.ScanResult'
+            type: array
+        "400":
+          description: bad request
+          schema:
+            type: string
+        "500":
+          description: internal error
+          schema:
+            type: string
+      summary: Результаты сканирования
+      tags:
+      - scan
+  /scan:
+    post:
+      consumes:
+      - application/json
+      description: Сканирует указанные порты на IP и сохраняет результат
+      parameters:
+      - description: Запрос на сканирование
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.ScanRequestSwagger'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ScanResponseSwagger'
+        "400":
+          description: bad request
+          schema:
+            type: string
+        "500":
+          description: internal error
+          schema:
+            type: string
+      summary: Сканировать порты
+      tags:
+      - scan
+swagger: "2.0"

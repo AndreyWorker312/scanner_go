@@ -51,6 +51,17 @@ func (h *Handler) InitRoutes() *mux.Router {
 	return r
 }
 
+// scan godoc
+// @Summary Сканировать порты
+// @Description Сканирует указанные порты на IP и сохраняет результат
+// @Tags scan
+// @Accept  json
+// @Produce  json
+// @Param request body models.ScanRequestSwagger true "Запрос на сканирование"
+// @Success 200 {object} models.ScanResponseSwagger
+// @Failure 400 {string} string "bad request"
+// @Failure 500 {string} string "internal error"
+// @Router /scan [post]
 func (h *Handler) scan(w http.ResponseWriter, r *http.Request) {
 	var request struct {
 		IP    string `json:"ip"`
@@ -104,22 +115,14 @@ func (h *Handler) scan(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	// Для закрытых портов (опционально, если нужно сохранять все результаты)
-	// В текущей реализации сохраняем только открытые порты
-
 	if err := h.repo.SaveScanResults(r.Context(), scanResults); err != nil {
 		h.logger.Errorf("Failed to save scan results: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	// Формируем ответ
-	response := struct {
-		RequestID int64  `json:"request_id"`
-		IP        string `json:"ip"`
-		Ports     string `json:"ports"`
-		OpenPorts []int  `json:"open_ports"`
-	}{
+	// Формируем ответ (теперь используем именованную структуру)
+	response := models.ScanResponseSwagger{
 		RequestID: requestID,
 		IP:        request.IP,
 		Ports:     request.Ports,
@@ -130,6 +133,14 @@ func (h *Handler) scan(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// history godoc
+// @Summary История сканирований
+// @Description Получить историю всех сканирований
+// @Tags scan
+// @Produce  json
+// @Success 200 {array} models.ScanRequest
+// @Failure 500 {string} string "internal error"
+// @Router /history [get]
 func (h *Handler) history(w http.ResponseWriter, r *http.Request) {
 	history, err := h.repo.GetScanHistory(r.Context())
 	if err != nil {
@@ -142,6 +153,16 @@ func (h *Handler) history(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(history)
 }
 
+// results godoc
+// @Summary Результаты сканирования
+// @Description Получить результаты по request_id
+// @Tags scan
+// @Produce  json
+// @Param id path int true "ID запроса"
+// @Success 200 {array} models.ScanResult
+// @Failure 400 {string} string "bad request"
+// @Failure 500 {string} string "internal error"
+// @Router /results/{id} [get]
 func (h *Handler) results(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]

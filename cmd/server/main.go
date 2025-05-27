@@ -13,8 +13,16 @@ import (
 	"network-scanner/internal/repository"
 	"network-scanner/internal/scanner"
 	"network-scanner/pkg/logger"
+
+	httpSwagger "github.com/swaggo/http-swagger" // SWAGGER
+	_ "network-scanner/docs"                     // SWAGGER
 )
 
+// @title Network Scanner API
+// @version 1.0
+// @description API для сканирования портов и просмотра истории запросов
+// @host localhost:8080
+// @BasePath /api/v1
 func main() {
 	log := logger.New()
 
@@ -33,9 +41,12 @@ func main() {
 
 	handlers := handler.NewHandler(log, repo, portScanner)
 
+	r := handlers.InitRoutes()
+	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler) // SWAGGER
+
 	srv := &http.Server{
 		Addr:         ":" + cfg.Server.Port,
-		Handler:      handlers.InitRoutes(),
+		Handler:      r,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}

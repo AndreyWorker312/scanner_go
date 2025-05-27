@@ -18,7 +18,21 @@ type ScanResult struct {
 }
 
 type ScanResponse struct {
-	Request   *ScanRequest  `json:"request"` // Изменено на указатель
-	Results   []*ScanResult `json:"results"` // Изменено на указатель
+	Request   *ScanRequest  `json:"request"`
+	Results   []*ScanResult `json:"results"`
 	OpenPorts []int         `json:"open_ports"`
+}
+
+// --- ДОБАВЬ ЭТО ДЛЯ SWAGGER ---
+
+type ScanRequestSwagger struct {
+	IP    string `json:"ip" example:"192.168.1.1"`
+	Ports string `json:"ports" example:"22,80,443"`
+}
+
+type ScanResponseSwagger struct {
+	RequestID int64  `json:"request_id" example:"1"`
+	IP        string `json:"ip" example:"192.168.1.1"`
+	Ports     string `json:"ports" example:"22,80,443"`
+	OpenPorts []int  `json:"open_ports" example:"22,80"` // <--- так
 }
