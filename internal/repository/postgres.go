@@ -3,9 +3,14 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"github.com/lib/pq"
 	"network-scanner/internal/models"
+)
+
+var (
+	ErrNotFound = errors.New("not found")
 )
 
 type PostgresRepository struct {
@@ -38,31 +43,37 @@ func (r *PostgresRepository) SaveScanRequest(ctx context.Context, req *models.Sc
 	query := `INSERT INTO scan_requests (ip_address, ports) VALUES ($1, $2) RETURNING id`
 	var id int64
 	err := r.db.QueryRowContext(ctx, query, req.IPAddress, req.Ports).Scan(&id)
-	return id, err
+	if err != nil {
+		return 0, fmt.Errorf("failed to save scan request: %w", err)
+	}
+	return id, nil
 }
 
 func (r *PostgresRepository) SaveScanResults(ctx context.Context, results []*models.ScanResult) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
 	stmt, err := tx.PrepareContext(ctx,
 		`INSERT INTO scan_results (request_id, port, is_open) VALUES ($1, $2, $3)`)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to prepare statement: %w", err)
 	}
 	defer stmt.Close()
 
 	for _, result := range results {
-		_, err = stmt.ExecContext(ctx, result.RequestID, result.Port, result.IsOpen)
-		if err != nil {
-			return err
+		if _, err = stmt.ExecContext(ctx, result.RequestID, result.Port, result.IsOpen); err != nil {
+			return fmt.Errorf("failed to execute statement: %w", err)
 		}
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
 }
 
 func (r *PostgresRepository) GetScanHistory(ctx context.Context) ([]*models.ScanResponse, error) {
@@ -81,7 +92,7 @@ func (r *PostgresRepository) GetScanHistory(ctx context.Context) ([]*models.Scan
 
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to query scan history: %w", err)
 	}
 	defer rows.Close()
 
@@ -91,15 +102,14 @@ func (r *PostgresRepository) GetScanHistory(ctx context.Context) ([]*models.Scan
 		var req models.ScanRequest
 		var openPorts []int64
 
-		err = rows.Scan(
+		if err := rows.Scan(
 			&req.ID,
 			&req.IPAddress,
 			&req.Ports,
 			&req.CreatedAt,
 			pq.Array(&openPorts),
-		)
-		if err != nil {
-			return nil, err
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
 
 		resp.Request = &req
@@ -109,6 +119,10 @@ func (r *PostgresRepository) GetScanHistory(ctx context.Context) ([]*models.Scan
 		}
 
 		history = append(history, &resp)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
 	}
 
 	return history, nil
@@ -123,14 +137,18 @@ func (r *PostgresRepository) GetScanResults(ctx context.Context, requestID int64
 		&req.Ports,
 		&req.CreatedAt,
 	)
+
 	if err != nil {
-		return nil, err
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("failed to get scan request: %w", err)
 	}
 
-	resultsQuery := `SELECT id, request_id, port, is_open, scanned_at FROM scan_results WHERE request_id = $1`
+	resultsQuery := `SELECT port, is_open FROM scan_results WHERE request_id = $1`
 	rows, err := r.db.QueryContext(ctx, resultsQuery, requestID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to query scan results: %w", err)
 	}
 	defer rows.Close()
 
@@ -138,21 +156,22 @@ func (r *PostgresRepository) GetScanResults(ctx context.Context, requestID int64
 	var openPorts []int
 	for rows.Next() {
 		var res models.ScanResult
-		err = rows.Scan(
-			&res.ID,
-			&res.RequestID,
+		if err := rows.Scan(
 			&res.Port,
 			&res.IsOpen,
-			&res.ScannedAt,
-		)
-		if err != nil {
-			return nil, err
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan result row: %w", err)
 		}
+		res.RequestID = requestID
 
 		results = append(results, &res)
 		if res.IsOpen {
 			openPorts = append(openPorts, res.Port)
 		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
 	}
 
 	return &models.ScanResponse{
@@ -163,5 +182,8 @@ func (r *PostgresRepository) GetScanResults(ctx context.Context, requestID int64
 }
 
 func (r *PostgresRepository) Close() error {
-	return r.db.Close()
+	if err := r.db.Close(); err != nil {
+		return fmt.Errorf("failed to close database connection: %w", err)
+	}
+	return nil
 }

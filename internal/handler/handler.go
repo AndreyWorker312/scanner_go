@@ -41,8 +41,8 @@ func (h *Handler) InitRoutes() *mux.Router {
 	// API routes
 	api := r.PathPrefix("/api/v1").Subrouter()
 	api.HandleFunc("/scan", h.scan).Methods("POST")
-	api.HandleFunc("/history", h.history).Methods("GET")
-	api.HandleFunc("/results/{id}", h.results).Methods("GET")
+	api.HandleFunc("/scan/history", h.getHistory).Methods("GET") // Изменено на /scan/history
+	api.HandleFunc("/scan/{id}", h.getScanByID).Methods("GET")   // Изменено на /scan/{id}
 
 	// Middleware
 	api.Use(h.loggingMiddleware)
@@ -69,12 +69,12 @@ func (h *Handler) scan(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		h.respondWithError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
 	if request.IP == "" {
-		http.Error(w, "IP address is required", http.StatusBadRequest)
+		h.respondWithError(w, http.StatusBadRequest, "IP address is required")
 		return
 	}
 
@@ -82,7 +82,7 @@ func (h *Handler) scan(w http.ResponseWriter, r *http.Request) {
 		request.Ports = "1-1024" // Default ports to scan
 	}
 
-	// Сохраняем запрос в базу данных
+	// Save scan request
 	scanReq := models.ScanRequest{
 		IPAddress: request.IP,
 		Ports:     request.Ports,
@@ -92,19 +92,19 @@ func (h *Handler) scan(w http.ResponseWriter, r *http.Request) {
 	requestID, err := h.repo.SaveScanRequest(r.Context(), &scanReq)
 	if err != nil {
 		h.logger.Errorf("Failed to save scan request: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		h.respondWithError(w, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 
-	// Сканируем порты
+	// Scan ports
 	openPorts, err := h.portScanner.ScanPorts(r.Context(), request.IP, request.Ports)
 	if err != nil {
 		h.logger.Errorf("Failed to scan ports: %v", err)
-		http.Error(w, "Failed to scan ports", http.StatusInternalServerError)
+		h.respondWithError(w, http.StatusInternalServerError, "Failed to scan ports")
 		return
 	}
 
-	// Сохраняем результаты сканирования
+	// Save scan results
 	var scanResults []*models.ScanResult
 	for _, port := range openPorts {
 		scanResults = append(scanResults, &models.ScanResult{
@@ -117,11 +117,11 @@ func (h *Handler) scan(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.repo.SaveScanResults(r.Context(), scanResults); err != nil {
 		h.logger.Errorf("Failed to save scan results: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		h.respondWithError(w, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 
-	// Формируем ответ (теперь используем именованную структуру)
+	// Prepare response
 	response := models.ScanResponseSwagger{
 		RequestID: requestID,
 		IP:        request.IP,
@@ -129,59 +129,61 @@ func (h *Handler) scan(w http.ResponseWriter, r *http.Request) {
 		OpenPorts: openPorts,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	h.respondWithJSON(w, http.StatusOK, response)
 }
 
-// history godoc
+// getHistory godoc
 // @Summary История сканирований
 // @Description Получить историю всех сканирований
 // @Tags scan
 // @Produce  json
-// @Success 200 {array} models.ScanRequest
+// @Success 200 {array} models.ScanResponse
 // @Failure 500 {string} string "internal error"
-// @Router /history [get]
-func (h *Handler) history(w http.ResponseWriter, r *http.Request) {
+// @Router /scan/history [get]
+func (h *Handler) getHistory(w http.ResponseWriter, r *http.Request) {
 	history, err := h.repo.GetScanHistory(r.Context())
 	if err != nil {
 		h.logger.Errorf("Failed to get scan history: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		h.respondWithError(w, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(history)
+	h.respondWithJSON(w, http.StatusOK, history)
 }
 
-// results godoc
-// @Summary Результаты сканирования
-// @Description Получить результаты по request_id
+// getScanByID godoc
+// @Summary Получить сканирование по ID
+// @Description Получить детали сканирования по его ID
 // @Tags scan
 // @Produce  json
-// @Param id path int true "ID запроса"
-// @Success 200 {array} models.ScanResult
+// @Param id path int true "ID сканирования"
+// @Success 200 {object} models.ScanResponse
 // @Failure 400 {string} string "bad request"
+// @Failure 404 {string} string "not found"
 // @Failure 500 {string} string "internal error"
-// @Router /results/{id} [get]
-func (h *Handler) results(w http.ResponseWriter, r *http.Request) {
+// @Router /scan/{id} [get]
+func (h *Handler) getScanByID(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
 
 	requestID, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		http.Error(w, "Invalid request ID", http.StatusBadRequest)
+		h.respondWithError(w, http.StatusBadRequest, "Invalid scan ID")
 		return
 	}
 
-	results, err := h.repo.GetScanResults(r.Context(), requestID)
+	scanResponse, err := h.repo.GetScanResults(r.Context(), requestID)
 	if err != nil {
-		h.logger.Errorf("Failed to get scan results: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		if err == repository.ErrNotFound {
+			h.respondWithError(w, http.StatusNotFound, "Scan not found")
+		} else {
+			h.logger.Errorf("Failed to get scan results: %v", err)
+			h.respondWithError(w, http.StatusInternalServerError, "Internal server error")
+		}
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(results)
+	h.respondWithJSON(w, http.StatusOK, scanResponse)
 }
 
 func (h *Handler) loggingMiddleware(next http.Handler) http.Handler {
@@ -196,4 +198,14 @@ func (h *Handler) contentTypeMiddleware(next http.Handler) http.Handler {
 		w.Header().Set("Content-Type", "application/json")
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (h *Handler) respondWithError(w http.ResponseWriter, code int, message string) {
+	h.respondWithJSON(w, code, map[string]string{"error": message})
+}
+
+func (h *Handler) respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(payload)
 }

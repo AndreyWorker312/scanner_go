@@ -15,9 +15,10 @@ import (
 	"network-scanner/internal/scanner"
 	"network-scanner/pkg/logger"
 
-	"github.com/golang-migrate/migrate/v4"                     // Добавлено для миграций
+	"github.com/golang-migrate/migrate/v4"                     // Для миграций
 	_ "github.com/golang-migrate/migrate/v4/database/postgres" // Драйвер для PostgreSQL
 	_ "github.com/golang-migrate/migrate/v4/source/file"       // Источник файловых миграций
+	"github.com/rs/cors"                                       // Для CORS
 	httpSwagger "github.com/swaggo/http-swagger"               // SWAGGER
 	_ "network-scanner/docs"                                   // SWAGGER
 )
@@ -55,11 +56,25 @@ func main() {
 	handlers := handler.NewHandler(log, repo, portScanner)
 
 	r := handlers.InitRoutes()
-	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler) // SWAGGER
+
+	// Настройка CORS middleware
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"*"}, // Разрешить все origins (для разработки)
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
+		AllowedHeaders:   []string{"Content-Type"},
+		AllowCredentials: true,
+	})
+
+	// Обертываем роутер в CORS handler
+	handler := c.Handler(r)
+
+	// Добавляем Swagger после CORS
+	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
+	handler = c.Handler(r)
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Server.Port,
-		Handler:      r,
+		Handler:      handler, // Используем handler с CORS
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}

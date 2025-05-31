@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Scanner</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .container { display: flex; flex-direction: column; gap: 20px; }
+        .form-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 15px; }
+        button { padding: 10px 15px; background-color: #4CAF50; color: white; border: none; cursor: pointer; max-width: 200px; }
+        button:hover { background-color: #45a049; }
+        pre { background-color: #f5f5f5; padding: 15px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Network Scanner</h1>
+
+    <div class="form-group">
+        <h2>New Scan</h2>
+        <label for="ip">IP Address/Hostname:</label>
+        <input type="text" id="ip" placeholder="e.g., google.com" value="google.com">
+
+        <label for="ports">Ports (comma separated):</label>
+        <input type="text" id="ports" placeholder="e.g., 80,443" value="80,443">
+
+        <button onclick="startScan()">Start Scan</button>
+    </div>
+
+    <div class="form-group">
+        <h2>Get Scan by ID</h2>
+        <label for="scanId">Scan ID:</label>
+        <input type="number" id="scanId" placeholder="Enter scan ID">
+        <button onclick="getScanById()">Get Scan</button>
+    </div>
+
+    <div>
+        <h2>Scan History</h2>
+        <button onclick="getHistory()">Refresh History</button>
+        <pre id="historyOutput">History will appear here...</pre>
+    </div>
+
+    <div>
+        <h2>Response</h2>
+        <pre id="responseOutput">Response will appear here...</pre>
+    </div>
+</div>
+
+<script>
+    const API_BASE_URL = 'http://localhost:8080/api/v1'; // Убедитесь что порт совпадает с вашим сервером
+
+    function displayResponse(data) {
+        document.getElementById('responseOutput').textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function startScan() {
+        const ip = document.getElementById('ip').value;
+        const ports = document.getElementById('ports').value;
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/scan`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ip: ip, ports: ports }),
+            });
+
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            displayResponse(data);
+            getHistory();
+        } catch (error) {
+            displayResponse({ error: error.message });
+        }
+    }
+
+    async function getScanById() {
+        const scanId = document.getElementById('scanId').value;
+        if (!scanId) {
+            alert('Please enter a scan ID');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/scan/${scanId}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            displayResponse(data);
+        } catch (error) {
+            displayResponse({ error: error.message });
+        }
+    }
+
+    async function getHistory() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/scan/history`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            document.getElementById('historyOutput').textContent = JSON.stringify(data, null, 2);
+        } catch (error) {
+            document.getElementById('historyOutput').textContent = 'Error: ' + error.message;
+        }
+    }
+
+    // Загружаем историю при старте
+    getHistory();
+</script>
+</body>
+</html>
