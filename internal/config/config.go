@@ -41,7 +41,7 @@ func Load() (*Config, error) {
 
 	cfg.Server.Port = os.Getenv("SERVER_PORT")
 	if cfg.Server.Port == "" {
-		cfg.Server.Port = "8006" // Default port
+		cfg.Server.Port = "8080" // Default port
 	}
 
 	cfg.DB.Host = os.Getenv("DB_HOST")

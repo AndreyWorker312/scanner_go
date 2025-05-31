@@ -19,6 +19,6 @@ COPY --from=builder /app/network-scanner .
 COPY --from=builder /app/migrations ./migrations
 COPY .env .env
 
-EXPOSE 8006
+EXPOSE 8080
 
 CMD ["./network-scanner"]
