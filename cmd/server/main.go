@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,8 +15,11 @@ import (
 	"network-scanner/internal/scanner"
 	"network-scanner/pkg/logger"
 
-	httpSwagger "github.com/swaggo/http-swagger" // SWAGGER
-	_ "network-scanner/docs"                     // SWAGGER
+	"github.com/golang-migrate/migrate/v4"                     // Добавлено для миграций
+	_ "github.com/golang-migrate/migrate/v4/database/postgres" // Драйвер для PostgreSQL
+	_ "github.com/golang-migrate/migrate/v4/source/file"       // Источник файловых миграций
+	httpSwagger "github.com/swaggo/http-swagger"               // SWAGGER
+	_ "network-scanner/docs"                                   // SWAGGER
 )
 
 // @title Network Scanner API
@@ -29,6 +33,15 @@ func main() {
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	// Применяем миграции перед созданием репозитория
+	if err := applyMigrations(cfg.DB); err != nil && err != migrate.ErrNoChange {
+		log.Fatalf("Failed to apply migrations: %v", err)
+	} else if err == nil {
+		log.Info("Migrations applied successfully")
+	} else {
+		log.Info("Database is up to date")
 	}
 
 	repo, err := repository.NewPostgresRepository(cfg.DB)
@@ -72,4 +85,16 @@ func main() {
 	}
 
 	log.Info("Server exited properly")
+}
+
+func applyMigrations(cfg config.DBConfig) error {
+	d, err := migrate.New(
+		"file://migrations",
+		fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+			cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Name))
+	if err != nil {
+		return err
+	}
+	defer d.Close()
+	return d.Up()
 }

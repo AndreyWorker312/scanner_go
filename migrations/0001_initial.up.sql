@@ -15,8 +15,6 @@ CREATE TABLE scan_results (
                               scanned_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Индекс для быстрого поиска результатов по ID запроса
+-- Индексы
 CREATE INDEX idx_scan_results_request_id ON scan_results(request_id);
-
--- Индекс для быстрого поиска открытых портов
 CREATE INDEX idx_scan_results_is_open ON scan_results(is_open) WHERE is_open = true;

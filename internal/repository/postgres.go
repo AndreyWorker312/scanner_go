@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 	"network-scanner/internal/models"
 )
 
@@ -67,8 +67,12 @@ func (r *PostgresRepository) SaveScanResults(ctx context.Context, results []*mod
 
 func (r *PostgresRepository) GetScanHistory(ctx context.Context) ([]*models.ScanResponse, error) {
 	query := `
-		SELECT r.id, r.ip_address, r.ports, r.created_at, 
-		       array_agg(sr.port) FILTER (WHERE sr.is_open = true) as open_ports
+		SELECT 
+			r.id, 
+			r.ip_address, 
+			r.ports, 
+			r.created_at, 
+			COALESCE(array_agg(sr.port) FILTER (WHERE sr.is_open = true), '{}'::int[]) as open_ports
 		FROM scan_requests r
 		LEFT JOIN scan_results sr ON r.id = sr.request_id
 		GROUP BY r.id
@@ -85,24 +89,23 @@ func (r *PostgresRepository) GetScanHistory(ctx context.Context) ([]*models.Scan
 	for rows.Next() {
 		var resp models.ScanResponse
 		var req models.ScanRequest
-		var openPorts []sql.NullInt64
+		var openPorts []int64
 
 		err = rows.Scan(
 			&req.ID,
 			&req.IPAddress,
 			&req.Ports,
 			&req.CreatedAt,
-			&openPorts,
+			pq.Array(&openPorts),
 		)
 		if err != nil {
 			return nil, err
 		}
 
 		resp.Request = &req
-		for _, port := range openPorts {
-			if port.Valid {
-				resp.OpenPorts = append(resp.OpenPorts, int(port.Int64))
-			}
+		resp.OpenPorts = make([]int, len(openPorts))
+		for i, port := range openPorts {
+			resp.OpenPorts[i] = int(port)
 		}
 
 		history = append(history, &resp)
@@ -112,7 +115,6 @@ func (r *PostgresRepository) GetScanHistory(ctx context.Context) ([]*models.Scan
 }
 
 func (r *PostgresRepository) GetScanResults(ctx context.Context, requestID int64) (*models.ScanResponse, error) {
-	// Получаем информацию о запросе
 	var req models.ScanRequest
 	query := `SELECT id, ip_address, ports, created_at FROM scan_requests WHERE id = $1`
 	err := r.db.QueryRowContext(ctx, query, requestID).Scan(
@@ -125,7 +127,6 @@ func (r *PostgresRepository) GetScanResults(ctx context.Context, requestID int64
 		return nil, err
 	}
 
-	// Получаем результаты сканирования
 	resultsQuery := `SELECT id, request_id, port, is_open, scanned_at FROM scan_results WHERE request_id = $1`
 	rows, err := r.db.QueryContext(ctx, resultsQuery, requestID)
 	if err != nil {
