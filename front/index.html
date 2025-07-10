@@ -3,151 +3,544 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Network Scanner</title>
+    <title>Network Scanner - Real-time Port Scanner</title>
     <style>
+        :root {
+            --primary-color: #4a6fa5;
+            --secondary-color: #166088;
+            --success-color: #4CAF50;
+            --danger-color: #f44336;
+            --light-color: #f8f9fa;
+            --dark-color: #343a40;
+        }
+        
         body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
+            background-color: #f5f7fa;
         }
+        
         .container {
-            display: flex;
-            flex-direction: column;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 20px;
         }
+        
+        .panel {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        h1, h2, h3 {
+            color: var(--secondary-color);
+            margin-top: 0;
+        }
+        
+        h1 {
+            grid-column: 1 / -1;
+            text-align: center;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+        }
+        
         .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
             margin-bottom: 15px;
         }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        
+        input[type="text"],
+        input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
         button {
             padding: 10px 15px;
-            background-color: #4CAF50;
+            background-color: var(--primary-color);
             color: white;
             border: none;
+            border-radius: 4px;
             cursor: pointer;
-            max-width: 200px;
+            font-size: 16px;
+            transition: background-color 0.3s;
         }
+        
         button:hover {
-            background-color: #45a049;
+            background-color: var(--secondary-color);
         }
-        pre {
-            background-color: #f5f5f5;
+        
+        button.danger {
+            background-color: var(--danger-color);
+        }
+        
+        button.danger:hover {
+            background-color: #d32f2f;
+        }
+        
+        .output {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
             padding: 15px;
-            border-radius: 5px;
-            overflow-x: auto;
+            min-height: 100px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            white-space: pre-wrap;
         }
-        .history-container {
-            display: none; /* Скрываем историю по умолчанию */
+        
+        .progress-container {
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .progress-bar {
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+        
+        .progress {
+            height: 100%;
+            background-color: var(--success-color);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        .status {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .port-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 10px;
+        }
+        
+        .port {
+            padding: 3px 8px;
+            background-color: var(--success-color);
+            color: white;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+        
+        .active-scans {
+            margin-top: 20px;
+        }
+        
+        .scan-item {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            background-color: #f8f9fa;
+        }
+        
+        .history-item {
+            cursor: pointer;
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .history-item:hover {
+            background-color: #f0f0f0;
+        }
+        
+        #terminal {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+            height: 300px;
+            overflow-y: auto;
+        }
+        
+        .terminal-line {
+            margin-bottom: 5px;
+            line-height: 1.4;
+        }
+        
+        .info-line {
+            color: #569cd6;
+        }
+        
+        .success-line {
+            color: #6a9955;
+        }
+        
+        .error-line {
+            color: #f44747;
+        }
+        
+        .tab-container {
+            display: flex;
+            margin-bottom: 15px;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+            margin-right: 5px;
+            background-color: #f8f9fa;
+        }
+        
+        .tab.active {
+            background-color: white;
+            border-bottom: 1px solid white;
+            margin-bottom: -1px;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
-<div class="container">
     <h1>Network Scanner</h1>
-
-    <div class="form-group">
-        <h2>New Scan</h2>
-        <label for="ip">IP Address/Hostname:</label>
-        <input type="text" id="ip" placeholder="e.g., google.com" value="google.com">
-
-        <label for="ports">Ports (comma separated):</label>
-        <input type="text" id="ports" placeholder="e.g., 80,443" value="80,443">
-
-        <button onclick="startScan()">Start Scan</button>
-    </div>
-
-    <div class="form-group">
-        <h2>Get Scan by ID</h2>
-        <label for="scanId">Scan ID:</label>
-        <input type="number" id="scanId" placeholder="Enter scan ID">
-        <button onclick="getScanById()">Get Scan</button>
-    </div>
-
-    <div>
-        <h2>Scan History</h2>
-        <button onclick="loadHistory()">Load History</button>
-        <div id="historyContainer" class="history-container">
-            <pre id="historyOutput">No history loaded</pre>
+    
+    <div class="container">
+        <div class="panel">
+            <h2>New Scan</h2>
+            <div class="form-group">
+                <label for="ip">IP Address/Hostname:</label>
+                <input type="text" id="ip" placeholder="e.g., google.com or 8.8.8.8" value="google.com">
+            </div>
+            
+            <div class="form-group">
+                <label for="ports">Ports:</label>
+                <input type="text" id="ports" placeholder="e.g., 80,443 or 1-100" value="80,443">
+                <small>Enter ports as comma-separated (80,443) or range (1-100)</small>
+            </div>
+            
+            <button id="scanButton" onclick="startScan()">Start Scan</button>
+            <button id="cancelButton" class="danger" onclick="cancelScan()" style="display: none;">Cancel Scan</button>
+            
+            <div id="progressContainer" class="progress-container">
+                <div class="status">Scanning: <span id="scanTarget"></span></div>
+                <div class="progress-bar">
+                    <div class="progress" id="progressBar"></div>
+                </div>
+                <div>Progress: <span id="progressText">0%</span></div>
+                <div>Open ports: <span id="openPortsCount">0</span></div>
+                <div class="port-list" id="openPortsList"></div>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <div class="tab-container">
+                <div class="tab active" onclick="switchTab('terminal')">Terminal</div>
+                <div class="tab" onclick="switchTab('history')">History</div>
+                <div class="tab" onclick="switchTab('details')">Scan Details</div>
+            </div>
+            
+            <div id="terminal" class="tab-content active">
+                <!-- Terminal output will appear here -->
+            </div>
+            
+            <div id="history" class="tab-content">
+                <button onclick="loadHistory()">Refresh History</button>
+                <div id="historyList" style="margin-top: 15px;"></div>
+            </div>
+            
+            <div id="details" class="tab-content">
+                <div class="output" id="scanDetails">
+                    Select a scan from history to view details
+                </div>
+            </div>
         </div>
     </div>
-
-    <div>
-        <h2>Response</h2>
-        <pre id="responseOutput">Response will appear here...</pre>
-    </div>
-</div>
-<script>
-    const API_BASE_URL = 'http://localhost:8080/api/v1';
-
-    function displayResponse(data) {
-        document.getElementById('responseOutput').textContent = JSON.stringify(data, null, 2);
-    }
-
-    async function startScan() {
-        const ip = document.getElementById('ip').value;
-        const ports = document.getElementById('ports').value;
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/scan`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    ip: ip,
-                    ports: ports
-                }),
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
-            displayResponse(data);
-        } catch (error) {
-            displayResponse({ error: error.message });
+    
+    <script>
+        const API_BASE_URL = 'http://localhost:8080/api/v1';
+        const WS_URL = 'ws://localhost:8080/api/v1/ws';
+        
+        let socket = null;
+        let currentScanId = null;
+        
+        // Initialize WebSocket connection
+        function initWebSocket() {
+            socket = new WebSocket(WS_URL);
+            
+            socket.onopen = function(e) {
+                addTerminalLine('WebSocket connected', 'info-line');
+            };
+            
+            socket.onclose = function(e) {
+                if (e.wasClean) {
+                    addTerminalLine(`WebSocket connection closed cleanly, code=${e.code}, reason=${e.reason}`, 'info-line');
+                } else {
+                    addTerminalLine('WebSocket connection died', 'error-line');
+                }
+                
+                // Try to reconnect after 5 seconds
+                setTimeout(initWebSocket, 5000);
+            };
+            
+            socket.onerror = function(error) {
+                addTerminalLine(`WebSocket error: ${error.message}`, 'error-line');
+            };
+            
+            socket.onmessage = function(event) {
+                const message = JSON.parse(event.data);
+                handleWebSocketMessage(message);
+            };
         }
-    }
+        
+        // Handle incoming WebSocket messages
+        function handleWebSocketMessage(message) {
+            switch (message.type) {
+                case 'start_scan':
+                    handleStartScan(message);
+                    break;
+                case 'progress':
+                    handleScanProgress(message);
+                    break;
+                case 'open_port':
+                    handleOpenPort(message);
+                    break;
+                case 'scan_complete':
+                    handleScanComplete(message);
+                    break;
+                case 'error':
+                    handleScanError(message);
+                    break;
+                default:
+                    addTerminalLine(`Unknown message type: ${message.type}`, 'error-line');
+            }
+        }
+        
+        function handleStartScan(message) {
+            currentScanId = message.data.request_id;
+            document.getElementById('scanTarget').textContent = message.data.ip;
+            
+            const progressContainer = document.getElementById('progressContainer');
+            progressContainer.style.display = 'block';
+            
+            document.getElementById('scanButton').style.display = 'none';
+            document.getElementById('cancelButton').style.display = 'inline-block';
+            
+            addTerminalLine(`Started scan #${currentScanId} on ${message.data.ip} (ports: ${message.data.ports})`, 'info-line');
+        }
+        
+        function handleScanProgress(message) {
+            const progress = Math.round((message.data.current / message.data.total) * 100);
+            document.getElementById('progressBar').style.width = `${progress}%`;
+            document.getElementById('progressText').textContent = `${progress}% (${message.data.current}/${message.data.total})`;
+        }
+        
+        function handleOpenPort(message) {
+            const openPortsCount = document.getElementById('openPortsCount');
+            const count = parseInt(openPortsCount.textContent) + 1;
+            openPortsCount.textContent = count;
+            
+            const openPortsList = document.getElementById('openPortsList');
+            const portElement = document.createElement('span');
+            portElement.className = 'port';
+            portElement.textContent = message.data;
+            openPortsList.appendChild(portElement);
+            
+            addTerminalLine(`Port ${message.data} is open`, 'success-line');
+        }
+        
+        function handleScanComplete(message) {
+            addTerminalLine(`Scan #${message.data.request_id} completed. Found ${message.data.open_ports.length} open ports.`, 'info-line');
+            
+            document.getElementById('scanButton').style.display = 'inline-block';
+            document.getElementById('cancelButton').style.display = 'none';
+            
+            // Add to history immediately
+            loadHistory();
+        }
+        
+        function handleScanError(message) {
+            addTerminalLine(`Error: ${message.data}`, 'error-line');
+            
+            document.getElementById('scanButton').style.display = 'inline-block';
+            document.getElementById('cancelButton').style.display = 'none';
+        }
+        
+        // Start a new scan
+        async function startScan() {
+            const ip = document.getElementById('ip').value.trim();
+            const ports = document.getElementById('ports').value.trim();
+            
+            if (!ip) {
+                alert('Please enter an IP address or hostname');
+                return;
+            }
+            
+            if (!ports) {
+                alert('Please enter ports to scan');
+                return;
+            }
+            
+            // Reset UI
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('progressText').textContent = '0%';
+            document.getElementById('openPortsCount').textContent = '0';
+            document.getElementById('openPortsList').innerHTML = '';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/scan`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        ip: ip,
+                        ports: ports
+                    }),
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                currentScanId = data.request_id;
+                addTerminalLine(`Scan initiated with ID: ${currentScanId}`, 'info-line');
+            } catch (error) {
+                addTerminalLine(`Error starting scan: ${error.message}`, 'error-line');
+            }
+        }
+        
+        // Cancel current scan
+        function cancelScan() {
+            if (socket && socket.readyState === WebSocket.OPEN && currentScanId) {
+                socket.send(JSON.stringify({
+                    type: 'cancel_scan',
+                    data: {
+                        request_id: currentScanId
+                    }
+                }));
+                addTerminalLine(`Cancellation requested for scan #${currentScanId}`, 'info-line');
+            }
+        }
+        
+        // Load scan history
+async function loadHistory() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/scan/history`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-    async function getScanById() {
-        const scanId = document.getElementById('scanId').value;
+        const history = await response.json();
+        const historyList = document.getElementById('historyList');
+        historyList.innerHTML = '';
 
-        if (!scanId) {
-            alert('Please enter a scan ID');
+        if (history.length === 0) {
+            historyList.innerHTML = '<p>No scan history available</p>';
             return;
         }
 
-        try {
-            const response = await fetch(`${API_BASE_URL}/scan/${scanId}`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
-            displayResponse(data);
-        } catch (error) {
-            displayResponse({ error: error.message });
-        }
+        history.forEach(scan => {
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            item.innerHTML = `
+                <strong>Scan #${scan.id || 'N/A'}</strong> - ${scan.ip_address || 'N/A'} (${scan.ports || 'N/A'})
+                <br><small>${scan.created_at ? new Date(scan.created_at).toLocaleString() : 'Invalid Date'}</small>
+            `;
+            item.onclick = () => showScanDetails(scan.id);
+            historyList.appendChild(item);
+        });
+    } catch (error) {
+        addTerminalLine(`Error loading history: ${error.message}`, 'error-line');
     }
+}
 
-    async function loadHistory() {
-        try {
-            const response = await fetch(`${API_BASE_URL}/scan/history`); // Исправленный путь
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
-            document.getElementById('historyOutput').textContent = JSON.stringify(data, null, 2);
-
-            // Показываем контейнер с историей
-            document.getElementById('historyContainer').style.display = 'block';
-        } catch (error) {
-            document.getElementById('historyOutput').textContent = 'Error: ' + error.message;
-            document.getElementById('historyContainer').style.display = 'block';
+    // Show details for a specific scan
+async function showScanDetails(scanId) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/scan/${scanId}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
+
+        const scanDetails = await response.json();
+        const scanDetailsElement = document.getElementById('scanDetails');
+
+        // Format the scan details for better readability
+        let detailsText = `Scan ID: ${scanDetails.id || 'N/A'}\n`;
+        detailsText += `IP Address: ${scanDetails.ip_address || 'N/A'}\n`;
+        detailsText += `Ports: ${scanDetails.ports || 'N/A'}\n`;
+        detailsText += `Created At: ${scanDetails.created_at ? new Date(scanDetails.created_at).toLocaleString() : 'Invalid Date'}\n`;
+        detailsText += `Open Ports: ${scanDetails.open_ports ? scanDetails.open_ports.join(', ') : 'None'}\n`;
+
+        scanDetailsElement.textContent = detailsText;
+        switchTab('details');
+    } catch (error) {
+        addTerminalLine(`Error loading scan details: ${error.message}`, 'error-line');
     }
-</script>
+}
+
+        
+        // Add a line to the terminal
+        function addTerminalLine(text, className = '') {
+            const terminal = document.getElementById('terminal');
+            const line = document.createElement('div');
+            line.className = `terminal-line ${className}`;
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+            terminal.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+        
+        // Switch between tabs
+        function switchTab(tabId) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Deactivate all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Activate selected tab
+            document.getElementById(tabId).classList.add('active');
+            document.querySelector(`.tab[onclick="switchTab('${tabId}')"]`).classList.add('active');
+        }
+        
+        // Initialize the app
+        window.onload = function() {
+            initWebSocket();
+            addTerminalLine('Network Scanner initialized', 'info-line');
+        };
+    </script>
 </body>
 </html>
