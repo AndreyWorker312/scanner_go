@@ -120,28 +120,32 @@ func (m *WSManager) Broadcast(message interface{}) {
 // @Success 101 {string} string "Switching Protocols"
 // @Router /ws [get]
 func (h *Handler) handleWebSocket(w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		h.logger.Errorf("WebSocket upgrade failed: %v", err)
-		return
-	}
-	defer conn.Close()
+    conn, err := upgrader.Upgrade(w, r, nil)
+    if err != nil {
+        h.logger.Errorf("WebSocket upgrade failed: %v", err)
+        return
+    }
+    defer conn.Close()
 
-	h.wsManager.AddClient(conn)
-	defer h.wsManager.RemoveClient(conn)
+    h.wsManager.AddClient(conn)
+    defer h.wsManager.RemoveClient(conn)
 
-	// Отправляем приветственное сообщение
-	if err := conn.WriteJSON(map[string]string{"status": "connected"}); err != nil {
-		h.logger.Errorf("WebSocket write error: %v", err)
-		return
-	}
+    // Отправляем приветственное сообщение
+    if err := conn.WriteJSON(map[string]string{
+    "type":    "welcome",
+    "message": "connected",
+}); err != nil {
+    h.logger.Errorf("WebSocket write error: %v", err)
+    return
+}
 
-	// Читаем сообщения от клиента
-	for {
-		if _, _, err := conn.ReadMessage(); err != nil {
-			break
-		}
-	}
+
+    // Читаем сообщения от клиента
+    for {
+        if _, _, err := conn.ReadMessage(); err != nil {
+            break
+        }
+    }
 }
 
 // scan обрабатывает запрос на сканирование портов
