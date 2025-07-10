@@ -154,4 +154,17 @@ paths:
       summary: История сканирований
       tags:
       - scan
+  /ws:
+    get:
+      description: Устанавливает WebSocket соединение для получения уведомлений
+      produces:
+      - application/json
+      responses:
+        "101":
+          description: Switching Protocols
+          schema:
+            type: string
+      summary: WebSocket соединение
+      tags:
+      - websocket
 swagger: "2.0"
