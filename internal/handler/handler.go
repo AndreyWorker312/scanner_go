@@ -41,8 +41,8 @@ func (h *Handler) InitRoutes() *mux.Router {
 	// API routes
 	api := r.PathPrefix("/api/v1").Subrouter()
 	api.HandleFunc("/scan", h.scan).Methods("POST")
-	api.HandleFunc("/history", h.getHistory).Methods("GET") // Изменено на /scan/history
-	api.HandleFunc("/results/{id}", h.getScanByID).Methods("GET")   // Изменено на /scan/{id}
+	api.HandleFunc("/scan/history", h.getHistory).Methods("GET") // Изменено на /scan/history
+	api.HandleFunc("/scan/{id}", h.getScanByID).Methods("GET")   // Изменено на /scan/{id}
 
 	// Middleware
 	api.Use(h.loggingMiddleware)

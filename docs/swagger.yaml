@@ -21,6 +21,19 @@ definitions:
         example: 22,80,443
         type: string
     type: object
+  models.ScanResponse:
+    properties:
+      open_ports:
+        items:
+          type: integer
+        type: array
+      request:
+        $ref: '#/definitions/models.ScanRequest'
+      results:
+        items:
+          $ref: '#/definitions/models.ScanResult'
+        type: array
+    type: object
   models.ScanResponseSwagger:
     properties:
       ip:
@@ -61,54 +74,6 @@ info:
   title: Network Scanner API
   version: "1.0"
 paths:
-  /history:
-    get:
-      description: Получить историю всех сканирований
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/models.ScanRequest'
-            type: array
-        "500":
-          description: internal error
-          schema:
-            type: string
-      summary: История сканирований
-      tags:
-      - scan
-  /results/{id}:
-    get:
-      description: Получить результаты по request_id
-      parameters:
-      - description: ID запроса
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/models.ScanResult'
-            type: array
-        "400":
-          description: bad request
-          schema:
-            type: string
-        "500":
-          description: internal error
-          schema:
-            type: string
-      summary: Результаты сканирования
-      tags:
-      - scan
   /scan:
     post:
       consumes:
@@ -137,6 +102,56 @@ paths:
           schema:
             type: string
       summary: Сканировать порты
+      tags:
+      - scan
+  /scan/{id}:
+    get:
+      description: Получить детали сканирования по его ID
+      parameters:
+      - description: ID сканирования
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ScanResponse'
+        "400":
+          description: bad request
+          schema:
+            type: string
+        "404":
+          description: not found
+          schema:
+            type: string
+        "500":
+          description: internal error
+          schema:
+            type: string
+      summary: Получить сканирование по ID
+      tags:
+      - scan
+  /scan/history:
+    get:
+      description: Получить историю всех сканирований
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.ScanResponse'
+            type: array
+        "500":
+          description: internal error
+          schema:
+            type: string
+      summary: История сканирований
       tags:
       - scan
 swagger: "2.0"

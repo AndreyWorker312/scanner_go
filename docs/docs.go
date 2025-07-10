@@ -15,79 +15,6 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/history": {
-            "get": {
-                "description": "Получить историю всех сканирований",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "scan"
-                ],
-                "summary": "История сканирований",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/models.ScanRequest"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "internal error",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/results/{id}": {
-            "get": {
-                "description": "Получить результаты по request_id",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "scan"
-                ],
-                "summary": "Результаты сканирования",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID запроса",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/models.ScanResult"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "bad request",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "500": {
-                        "description": "internal error",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
         "/scan": {
             "post": {
                 "description": "Сканирует указанные порты на IP и сохраняет результат",
@@ -133,6 +60,82 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/scan/history": {
+            "get": {
+                "description": "Получить историю всех сканирований",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "scan"
+                ],
+                "summary": "История сканирований",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.ScanResponse"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "internal error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/scan/{id}": {
+            "get": {
+                "description": "Получить детали сканирования по его ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "scan"
+                ],
+                "summary": "Получить сканирование по ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID сканирования",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.ScanResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "bad request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "internal error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -164,6 +167,26 @@ const docTemplate = `{
                 "ports": {
                     "type": "string",
                     "example": "22,80,443"
+                }
+            }
+        },
+        "models.ScanResponse": {
+            "type": "object",
+            "properties": {
+                "open_ports": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "request": {
+                    "$ref": "#/definitions/models.ScanRequest"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ScanResult"
+                    }
                 }
             }
         },
