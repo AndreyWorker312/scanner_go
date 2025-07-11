@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Network Scanner - Real-time Port Scanner</title>
     <style>
+        #connectionStatus {
+        position: fixed;
+        bottom: 10px;
+        right: 10px;
+        padding: 5px 10px;
+        border-radius: 4px;
+        color: white;
+        font-weight: bold;
+        z-index: 1000;
+    }
         :root {
             --primary-color: #4a6fa5;
             --secondary-color: #166088;
@@ -283,282 +293,267 @@
             </div>
         </div>
     </div>
-    
     <script>
-        const API_BASE_URL = 'http://localhost:8080/api/v1';
-        const WS_URL = 'ws://localhost:8080/api/v1/ws';
-        
-        let socket = null;
-        let currentScanId = null;
-        
-        // Initialize WebSocket connection
-        function initWebSocket() {
-            socket = new WebSocket(WS_URL);
-            
-            socket.onopen = function(e) {
-                addTerminalLine('WebSocket connected', 'info-line');
-            };
-            
-            socket.onclose = function(e) {
-                if (e.wasClean) {
-                    addTerminalLine(`WebSocket connection closed cleanly, code=${e.code}, reason=${e.reason}`, 'info-line');
-                } else {
-                    addTerminalLine('WebSocket connection died', 'error-line');
-                }
-                
-                // Try to reconnect after 5 seconds
-                setTimeout(initWebSocket, 5000);
-            };
-            
-            socket.onerror = function(error) {
-                addTerminalLine(`WebSocket error: ${error.message}`, 'error-line');
-            };
-            
-            socket.onmessage = function(event) {
-    try {
-        const message = JSON.parse(event.data);
-        console.log('Received WS message:', message);
-        handleWebSocketMessage(message);
-    } catch (e) {
-        addTerminalLine(`Invalid JSON message received: ${event.data}`, 'error-line');
-    }
-};
+    const WS_URL = 'ws://localhost:8080/api/v1/ws';
 
+let socket = null;
+let currentScanId = null;
+let pingInterval = null;
+let reconnectAttempts = 0;
+const maxReconnectAttempts = 5;
+const reconnectDelay = 5000;
+
+// Инициализация WebSocket соединения
+function initWebSocket() {
+    socket = new WebSocket(WS_URL);
+    
+    socket.onopen = function(e) {
+        addTerminalLine('WebSocket connected', 'info-line');
+        reconnectAttempts = 0;
+        updateConnectionStatus(true);
+        
+        pingInterval = setInterval(() => {
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({action: "ping"}));
+            }
+        }, 30000);
+    };
+    
+    socket.onclose = function(e) {
+        addTerminalLine(`WebSocket disconnected`, 'error-line');
+        clearInterval(pingInterval);
+        updateConnectionStatus(false);
+        
+        if (reconnectAttempts < maxReconnectAttempts) {
+            reconnectAttempts++;
+            setTimeout(initWebSocket, reconnectDelay);
         }
-        
-        // Handle incoming WebSocket messages
-        function handleWebSocketMessage(message) {
-    const messageType = message.type || message.event;
-    if (!messageType) {
-        addTerminalLine(`Received message without type or event field`, 'error-line');
-        return;
-    }
+    };
+    
+    socket.onerror = function(error) {
+        addTerminalLine(`WebSocket error`, 'error-line');
+        updateConnectionStatus(false);
+    };
+    
+    socket.onmessage = function(event) {
+        try {
+            const message = JSON.parse(event.data);
+            console.log('Received message:', message);
+            
+            if (message.type === "pong") return;
+            
+            if (message.type) {
+                // Обработка сообщений с полем type (от сервера)
+                handleServerMessage(message);
+            } else if (message.action) {
+                // Обработка сообщений с полем action (от клиента)
+                handleClientMessage(message);
+            } else {
+                addTerminalLine('Invalid message format', 'error-line');
+            }
+        } catch (e) {
+            addTerminalLine('Error parsing message', 'error-line');
+        }
+    };
+}
 
-    switch (messageType) {
+// Обработка сообщений от сервера
+function handleServerMessage(message) {
+    switch (message.type) {
         case 'welcome':
             addTerminalLine(message.message || 'Connected to server', 'info-line');
             break;
-        case 'start_scan':
-            handleStartScan(message);
+            
+        case 'scan_started':
+            currentScanId = message.request_id || Date.now();
+            document.getElementById('scanTarget').textContent = message.ip;
+            document.getElementById('progressContainer').style.display = 'block';
+            document.getElementById('scanButton').style.display = 'none';
+            document.getElementById('cancelButton').style.display = 'inline-block';
+            addTerminalLine(`Scan started for ${message.ip} (ports: ${message.ports})`, 'info-line');
             break;
-        case 'progress':
+            
+        case 'scan_result':
             handleScanProgress(message);
             break;
-        case 'open_port':
-            handleOpenPort(message);
-            break;
-        case 'scan_complete':
+            
         case 'scan_completed':
             handleScanComplete(message);
             break;
-        case 'error':
-            handleScanError(message);
+            
+        case 'history_result':
+            displayHistory(message.data);
             break;
+            
+        case 'scan_details':
+            displayScanDetails(message);
+            break;
+            
+        case 'error':
+            addTerminalLine(`Error: ${message.message}`, 'error-line');
+            resetScanUI();
+            break;
+            
         default:
-            addTerminalLine(`Unknown message type: ${messageType}`, 'error-line');
+            addTerminalLine(`Unknown message type: ${message.type}`, 'error-line');
     }
 }
 
-
-        
-        function handleStartScan(message) {
-            currentScanId = message.data.request_id;
-            document.getElementById('scanTarget').textContent = message.data.ip;
-            
-            const progressContainer = document.getElementById('progressContainer');
-            progressContainer.style.display = 'block';
-            
-            document.getElementById('scanButton').style.display = 'none';
-            document.getElementById('cancelButton').style.display = 'inline-block';
-            
-            addTerminalLine(`Started scan #${currentScanId} on ${message.data.ip} (ports: ${message.data.ports})`, 'info-line');
-        }
-        
-        function handleScanProgress(message) {
-            const progress = Math.round((message.data.current / message.data.total) * 100);
-            document.getElementById('progressBar').style.width = `${progress}%`;
-            document.getElementById('progressText').textContent = `${progress}% (${message.data.current}/${message.data.total})`;
-        }
-        
-        function handleOpenPort(message) {
-            const openPortsCount = document.getElementById('openPortsCount');
-            const count = parseInt(openPortsCount.textContent) + 1;
-            openPortsCount.textContent = count;
-            
-            const openPortsList = document.getElementById('openPortsList');
+// Обработка прогресса сканирования
+function handleScanProgress(data) {
+    if (data.progress) {
+        const progress = Math.round(data.progress * 100);
+        document.getElementById('progressBar').style.width = `${progress}%`;
+        document.getElementById('progressText').textContent = `${progress}%`;
+    }
+    
+    if (data.open_ports && data.open_ports.length > 0) {
+        document.getElementById('openPortsCount').textContent = data.open_ports.length;
+        const portsList = document.getElementById('openPortsList');
+        portsList.innerHTML = '';
+        data.open_ports.forEach(port => {
             const portElement = document.createElement('span');
             portElement.className = 'port';
-            portElement.textContent = message.data;
-            openPortsList.appendChild(portElement);
-            
-            addTerminalLine(`Port ${message.data} is open`, 'success-line');
-        }
-        
-        function handleScanComplete(message) {
-            addTerminalLine(`Scan #${message.data.request_id} completed. Found ${message.data.open_ports.length} open ports.`, 'info-line');
-            
-            document.getElementById('scanButton').style.display = 'inline-block';
-            document.getElementById('cancelButton').style.display = 'none';
-            
-            // Add to history immediately
-            loadHistory();
-        }
-        
-        function handleScanError(message) {
-            addTerminalLine(`Error: ${message.data}`, 'error-line');
-            
-            document.getElementById('scanButton').style.display = 'inline-block';
-            document.getElementById('cancelButton').style.display = 'none';
-        }
-        
-        // Start a new scan
-        async function startScan() {
-            const ip = document.getElementById('ip').value.trim();
-            const ports = document.getElementById('ports').value.trim();
-            
-            if (!ip) {
-                alert('Please enter an IP address or hostname');
-                return;
-            }
-            
-            if (!ports) {
-                alert('Please enter ports to scan');
-                return;
-            }
-            
-            // Reset UI
-            document.getElementById('progressBar').style.width = '0%';
-            document.getElementById('progressText').textContent = '0%';
-            document.getElementById('openPortsCount').textContent = '0';
-            document.getElementById('openPortsList').innerHTML = '';
-            
-            try {
-                const response = await fetch(`${API_BASE_URL}/scan`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        ip: ip,
-                        ports: ports
-                    }),
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                currentScanId = data.request_id;
-                addTerminalLine(`Scan initiated with ID: ${currentScanId}`, 'info-line');
-            } catch (error) {
-                addTerminalLine(`Error starting scan: ${error.message}`, 'error-line');
-            }
-        }
-        
-        // Cancel current scan
-        function cancelScan() {
-            if (socket && socket.readyState === WebSocket.OPEN && currentScanId) {
-                socket.send(JSON.stringify({
-                    type: 'cancel_scan',
-                    data: {
-                        request_id: currentScanId
-                    }
-                }));
-                addTerminalLine(`Cancellation requested for scan #${currentScanId}`, 'info-line');
-            }
-        }
-        
-        // Load scan history
-async function loadHistory() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/scan/history`);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const history = await response.json();
-        const historyList = document.getElementById('historyList');
-        historyList.innerHTML = '';
-
-        if (history.length === 0) {
-            historyList.innerHTML = '<p>No scan history available</p>';
-            return;
-        }
-
-        history.forEach(scan => {
-            const item = document.createElement('div');
-            item.className = 'history-item';
-            item.innerHTML = `
-                <strong>Scan #${scan.id || 'N/A'}</strong> - ${scan.ip_address || 'N/A'} (${scan.ports || 'N/A'})
-                <br><small>${scan.created_at ? new Date(scan.created_at).toLocaleString() : 'Invalid Date'}</small>
-            `;
-            item.onclick = () => showScanDetails(scan.id);
-            historyList.appendChild(item);
+            portElement.textContent = port;
+            portsList.appendChild(portElement);
         });
-    } catch (error) {
-        addTerminalLine(`Error loading history: ${error.message}`, 'error-line');
     }
 }
 
-    // Show details for a specific scan
-async function showScanDetails(scanId) {
-    try {
-        const response = await fetch(`${API_BASE_URL}/scan/${scanId}`);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+// Обработка завершения сканирования
+function handleScanComplete(data) {
+    addTerminalLine(`Scan completed. Found ${data.open_ports.length} open ports.`, 'success-line');
+    resetScanUI();
+    loadHistory();
+}
 
-        const scanDetails = await response.json();
-        const scanDetailsElement = document.getElementById('scanDetails');
+// Отображение истории сканирований
+function displayHistory(history) {
+    const historyList = document.getElementById('historyList');
+    historyList.innerHTML = '';
+    
+    if (!history || history.length === 0) {
+        historyList.innerHTML = '<p>No scan history available</p>';
+        return;
+    }
+    
+    history.forEach(scan => {
+        const item = document.createElement('div');
+        item.className = 'history-item';
+        item.innerHTML = `
+            <strong>Scan #${scan.id || 'N/A'}</strong> - ${scan.ip_address || 'N/A'} (${scan.ports || 'N/A'})
+            <br><small>${scan.created_at || 'Unknown date'}</small>
+        `;
+        item.onclick = () => getScanDetails(scan.id);
+        historyList.appendChild(item);
+    });
+}
 
-        // Format the scan details for better readability
-        let detailsText = `Scan ID: ${scanDetails.id || 'N/A'}\n`;
-        detailsText += `IP Address: ${scanDetails.ip_address || 'N/A'}\n`;
-        detailsText += `Ports: ${scanDetails.ports || 'N/A'}\n`;
-        detailsText += `Created At: ${scanDetails.created_at ? new Date(scanDetails.created_at).toLocaleString() : 'Invalid Date'}\n`;
-        detailsText += `Open Ports: ${scanDetails.open_ports ? scanDetails.open_ports.join(', ') : 'None'}\n`;
+// Отображение деталей сканирования
+function displayScanDetails(details) {
+    const detailsElement = document.getElementById('scanDetails');
+    let detailsText = `Scan ID: ${details.id}\n`;
+    detailsText += `IP: ${details.ip_address}\n`;
+    detailsText += `Ports: ${details.ports}\n`;
+    detailsText += `Open ports: ${details.open_ports.join(', ') || 'None'}\n`;
+    detailsText += `Date: ${details.created_at || 'Unknown'}`;
+    
+    detailsElement.textContent = detailsText;
+    switchTab('details');
+}
 
-        scanDetailsElement.textContent = detailsText;
-        switchTab('details');
-    } catch (error) {
-        addTerminalLine(`Error loading scan details: ${error.message}`, 'error-line');
+// Запрос на сканирование
+function startScan() {
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+        addTerminalLine('Not connected to server', 'error-line');
+        return;
+    }
+
+    const ip = document.getElementById('ip').value.trim();
+    const ports = document.getElementById('ports').value.trim();
+
+    if (!ip) {
+        alert('Please enter IP address');
+        return;
+    }
+
+    resetScanUI();
+    document.getElementById('progressContainer').style.display = 'block';
+
+    socket.send(JSON.stringify({
+        action: 'scan',
+        data: { ip, ports }
+    }));
+}
+
+// Загрузка истории
+function loadHistory() {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({action: 'history'}));
     }
 }
 
-        
-        // Add a line to the terminal
-        function addTerminalLine(text, className = '') {
-            const terminal = document.getElementById('terminal');
-            const line = document.createElement('div');
-            line.className = `terminal-line ${className}`;
-            line.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
-            terminal.appendChild(line);
-            terminal.scrollTop = terminal.scrollHeight;
-        }
-        
-        // Switch between tabs
-        function switchTab(tabId) {
-            // Hide all tab contents
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.remove('active');
-            });
-            
-            // Deactivate all tabs
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            
-            // Activate selected tab
-            document.getElementById(tabId).classList.add('active');
-            document.querySelector(`.tab[onclick="switchTab('${tabId}')"]`).classList.add('active');
-        }
-        
-        // Initialize the app
-        window.onload = function() {
-            initWebSocket();
-            addTerminalLine('Network Scanner initialized', 'info-line');
-        };
-    </script>
+// Получение деталей сканирования
+function getScanDetails(scanId) {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+            action: 'get',
+            data: { id: scanId }
+        }));
+    }
+}
+
+// Сброс UI сканирования
+function resetScanUI() {
+    document.getElementById('scanButton').style.display = 'inline-block';
+    document.getElementById('cancelButton').style.display = 'none';
+    currentScanId = null;
+}
+
+// Обновление статуса соединения
+function updateConnectionStatus(connected) {
+    let status = document.getElementById('connectionStatus');
+    if (!status) {
+        status = document.createElement('div');
+        status.id = 'connectionStatus';
+        status.style.position = 'fixed';
+        status.style.bottom = '10px';
+        status.style.right = '10px';
+        status.style.padding = '5px 10px';
+        status.style.borderRadius = '4px';
+        status.style.color = 'white';
+        document.body.appendChild(status);
+    }
+    
+    status.textContent = connected ? 'Connected' : 'Disconnected';
+    status.style.backgroundColor = connected ? '#4CAF50' : '#f44336';
+}
+
+// Добавление строки в терминал
+function addTerminalLine(text, className = '') {
+    const terminal = document.getElementById('terminal');
+    const line = document.createElement('div');
+    line.className = `terminal-line ${className}`;
+    line.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+    terminal.appendChild(line);
+    terminal.scrollTop = terminal.scrollHeight;
+}
+
+// Переключение вкладок
+function switchTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    
+    document.getElementById(tabId).classList.add('active');
+    document.querySelector(`.tab[onclick="switchTab('${tabId}')"]`).classList.add('active');
+}
+
+// Инициализация при загрузке
+window.onload = function() {
+    initWebSocket();
+    addTerminalLine('Network Scanner initialized', 'info-line');
+};
+</script>
+
 </body>
 </html>

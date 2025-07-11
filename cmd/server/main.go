@@ -18,16 +18,8 @@ import (
 	"github.com/golang-migrate/migrate/v4"                     // Для миграций
 	_ "github.com/golang-migrate/migrate/v4/database/postgres" // Драйвер для PostgreSQL
 	_ "github.com/golang-migrate/migrate/v4/source/file"       // Источник файловых миграций
-	"github.com/rs/cors"                                       // Для CORS
-	httpSwagger "github.com/swaggo/http-swagger"               // SWAGGER
-	_ "network-scanner/docs"                                   // SWAGGER
 )
 
-// @title Network Scanner API
-// @version 1.0
-// @description API для сканирования портов и просмотра истории запросов
-// @host localhost:8080
-// @BasePath /api/v1
 func main() {
 	log := logger.New()
 
@@ -55,32 +47,18 @@ func main() {
 
 	handlers := handler.NewHandler(log, repo, portScanner)
 
-	r := handlers.InitRoutes()
-
-	// Настройка CORS middleware
-	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"*"}, // Разрешить все origins (для разработки)
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
-		AllowedHeaders:   []string{"Content-Type"},
-		AllowCredentials: true,
-	})
-
-	// Обертываем роутер в CORS handler
-	handler := c.Handler(r)
-
-	// Добавляем Swagger после CORS
-	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
-	handler = c.Handler(r)
+	// Инициализируем маршруты — теперь только WebSocket
+	mux := handlers.InitRoutes()
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Server.Port,
-		Handler:      handler, // Используем handler с CORS
+		Handler:      mux,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
 
 	go func() {
-		log.Infof("Starting server on port %s", cfg.Server.Port)
+		log.Infof("Starting WebSocket server on port %s", cfg.Server.Port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Failed to start server: %v", err)
 		}

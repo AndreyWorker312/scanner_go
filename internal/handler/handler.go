@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -11,11 +12,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
 
-// Handler структура для обработчиков HTTP запросов
+// Handler структура для обработчиков WebSocket запросов
 type Handler struct {
 	logger      Logger
 	repo        repository.Repository
@@ -50,7 +50,7 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		return true // Для разработки. В продакшене замените на проверку origin.
+		return true
 	},
 }
 
@@ -64,25 +64,11 @@ func NewHandler(logger Logger, repo repository.Repository, scanner scanner.PortS
 	}
 }
 
-// InitRoutes инициализирует маршруты API
-// @title Network Scanner API
-// @version 1.0
-// @description API для сканирования сетевых портов
-// @host localhost:8080
-// @BasePath /api/v1
-func (h *Handler) InitRoutes() *mux.Router {
-	r := mux.NewRouter()
-	
-	api := r.PathPrefix("/api/v1").Subrouter()
-	api.HandleFunc("/scan", h.scan).Methods("POST")
-	api.HandleFunc("/scan/history", h.getHistory).Methods("GET")
-	api.HandleFunc("/scan/{id}", h.getScanByID).Methods("GET")
-	api.HandleFunc("/ws", h.handleWebSocket).Methods("GET")
-
-	api.Use(h.loggingMiddleware)
-	api.Use(h.contentTypeMiddleware)
-
-	return r
+// InitRoutes инициализирует маршруты API — только WebSocket
+func (h *Handler) InitRoutes() *http.ServeMux {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ws", h.handleWebSocket)
+	return mux
 }
 
 // AddClient добавляет нового WebSocket клиента
@@ -103,7 +89,11 @@ func (m *WSManager) RemoveClient(conn *websocket.Conn) {
 func (m *WSManager) Broadcast(message interface{}) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
 	for conn := range m.clients {
+		// Устанавливаем таймаут для записи
+		conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+
 		if err := conn.WriteJSON(message); err != nil {
 			log.Printf("WebSocket write error: %v", err)
 			conn.Close()
@@ -112,90 +102,139 @@ func (m *WSManager) Broadcast(message interface{}) {
 	}
 }
 
-// handleWebSocket обрабатывает WebSocket соединения
-// @Summary WebSocket соединение
-// @Description Устанавливает WebSocket соединение для получения уведомлений
-// @Tags websocket
-// @Produce json
-// @Success 101 {string} string "Switching Protocols"
-// @Router /ws [get]
 func (h *Handler) handleWebSocket(w http.ResponseWriter, r *http.Request) {
-    conn, err := upgrader.Upgrade(w, r, nil)
-    if err != nil {
-        h.logger.Errorf("WebSocket upgrade failed: %v", err)
-        return
-    }
-    defer conn.Close()
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		h.logger.Errorf("WebSocket upgrade failed: %v", err)
+		return
+	}
+	defer conn.Close()
 
-    h.wsManager.AddClient(conn)
-    defer h.wsManager.RemoveClient(conn)
+	// Регистрируем соединение
+	h.wsManager.AddClient(conn)
+	defer h.wsManager.RemoveClient(conn)
 
-    // Отправляем приветственное сообщение
-    if err := conn.WriteJSON(map[string]string{
-    "type":    "welcome",
-    "message": "connected",
-}); err != nil {
-    h.logger.Errorf("WebSocket write error: %v", err)
-    return
+	// Настройка обработчиков
+	conn.SetPingHandler(func(appData string) error {
+		h.logger.Info("Received ping")
+		err := conn.WriteControl(websocket.PongMessage, []byte(appData), time.Now().Add(time.Second))
+		if err != nil {
+			h.logger.Errorf("Failed to send pong: %v", err)
+		}
+		return err
+	})
+
+	conn.SetCloseHandler(func(code int, text string) error {
+		h.logger.Infof("Connection closed: %d %s", code, text)
+		return nil
+	})
+
+	// Приветственное сообщение
+	if err := conn.WriteJSON(map[string]string{
+		"type":    "welcome",
+		"message": "Connected to WebSocket server",
+	}); err != nil {
+		h.logger.Errorf("Failed to send welcome message: %v", err)
+		return
+	}
+
+	// Главный цикл обработки сообщений
+	for {
+		_, msgBytes, err := conn.ReadMessage()
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				h.logger.Errorf("WebSocket error: %v", err)
+			}
+			break
+		}
+
+		var msg struct {
+			Action string          `json:"action"`
+			Data   json.RawMessage `json:"data"`
+		}
+
+		if err := json.Unmarshal(msgBytes, &msg); err != nil {
+			h.sendErrorWS(conn, "Invalid message format")
+			continue
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		switch msg.Action {
+		case "scan":
+			h.handleScanWS(ctx, conn, msg.Data)
+		case "history":
+			h.handleHistoryWS(ctx, conn)
+		case "get":
+			h.handleGetScanByIDWS(ctx, conn, msg.Data)
+		case "ping":
+			conn.WriteJSON(map[string]string{"type": "pong"})
+		default:
+			h.sendErrorWS(conn, "Unknown action: "+msg.Action)
+		}
+	}
 }
 
-
-    // Читаем сообщения от клиента
-    for {
-        if _, _, err := conn.ReadMessage(); err != nil {
-            break
-        }
-    }
+// sendErrorWS отправляет ошибку клиенту по WebSocket
+func (h *Handler) sendErrorWS(conn *websocket.Conn, message string) {
+	conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	conn.WriteJSON(map[string]interface{}{
+		"type":    "error",
+		"message": message,
+		"time":    time.Now().Format(time.RFC3339),
+	})
 }
 
-// scan обрабатывает запрос на сканирование портов
-// @Summary Сканировать порты
-// @Description Сканирует указанные порты на IP и сохраняет результат
-// @Tags scan
-// @Accept json
-// @Produce json
-// @Param request body models.ScanRequestSwagger true "Запрос на сканирование"
-// @Success 200 {object} models.ScanResponseSwagger
-// @Failure 400 {string} string "bad request"
-// @Failure 500 {string} string "internal error"
-// @Router /scan [post]
-func (h *Handler) scan(w http.ResponseWriter, r *http.Request) {
-	var request struct {
+// handleScanWS обрабатывает команду сканирования портов
+func (h *Handler) handleScanWS(ctx context.Context, conn *websocket.Conn, data json.RawMessage) {
+	var req struct {
 		IP    string `json:"ip"`
 		Ports string `json:"ports"`
 	}
-
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		h.respondWithError(w, http.StatusBadRequest, "Invalid request body")
+	if err := json.Unmarshal(data, &req); err != nil {
+		h.sendErrorWS(conn, "Invalid scan request data")
 		return
 	}
 
-	if request.IP == "" {
-		h.respondWithError(w, http.StatusBadRequest, "IP address is required")
+	// Немедленно отвечаем клиенту
+	conn.WriteJSON(map[string]interface{}{
+		"type":  "scan_started",
+		"ip":    req.IP,
+		"ports": req.Ports,
+	})
+	if req.IP == "" {
+		h.sendErrorWS(conn, "IP address is required")
 		return
 	}
-
-	if request.Ports == "" {
-		request.Ports = "1-1024" // Default ports to scan
+	if req.Ports == "" {
+		req.Ports = "1-1024"
 	}
+
+	// Отправляем подтверждение о начале сканирования
+	conn.WriteJSON(map[string]interface{}{
+		"type":  "scan_started",
+		"ip":    req.IP,
+		"ports": req.Ports,
+	})
 
 	scanReq := models.ScanRequest{
-		IPAddress: request.IP,
-		Ports:     request.Ports,
+		IPAddress: req.IP,
+		Ports:     req.Ports,
 		CreatedAt: time.Now(),
 	}
 
-	requestID, err := h.repo.SaveScanRequest(r.Context(), &scanReq)
+	requestID, err := h.repo.SaveScanRequest(ctx, &scanReq)
 	if err != nil {
 		h.logger.Errorf("Failed to save scan request: %v", err)
-		h.respondWithError(w, http.StatusInternalServerError, "Internal server error")
+		h.sendErrorWS(conn, "Internal server error")
 		return
 	}
 
-	openPorts, err := h.portScanner.ScanPorts(r.Context(), request.IP, request.Ports)
+	openPorts, err := h.portScanner.ScanPorts(ctx, req.IP, req.Ports)
 	if err != nil {
 		h.logger.Errorf("Failed to scan ports: %v", err)
-		h.respondWithError(w, http.StatusInternalServerError, "Failed to scan ports")
+		h.sendErrorWS(conn, "Failed to scan ports")
 		return
 	}
 
@@ -209,130 +248,107 @@ func (h *Handler) scan(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	if err := h.repo.SaveScanResults(r.Context(), scanResults); err != nil {
+	if err := h.repo.SaveScanResults(ctx, scanResults); err != nil {
 		h.logger.Errorf("Failed to save scan results: %v", err)
-		h.respondWithError(w, http.StatusInternalServerError, "Internal server error")
+		h.sendErrorWS(conn, "Internal server error")
 		return
 	}
 
 	response := map[string]interface{}{
+		"type":       "scan_result",
 		"request_id": requestID,
-		"ip":         request.IP,
-		"ports":      request.Ports,
+		"ip":         req.IP,
+		"ports":      req.Ports,
 		"open_ports": openPorts,
-		"created_at": time.Now().Format(time.RFC3339),
+		"time":       time.Now().Format(time.RFC3339),
 	}
 
-	h.respondWithJSON(w, http.StatusOK, response)
-	h.wsManager.Broadcast(map[string]interface{}{
-		"event": "scan_completed",
-		"data":  response,
+	// Отправляем результат клиенту
+	conn.WriteJSON(response)
+
+	// Рассылаем уведомление всем клиентам о завершении сканирования
+	h.wsManager.Broadcast(response)
+}
+
+// handleHistoryWS обрабатывает команду получения истории сканирований
+func (h *Handler) handleHistoryWS(ctx context.Context, conn *websocket.Conn) {
+	history, err := h.repo.GetScanHistory(ctx)
+	if err != nil {
+		h.logger.Errorf("Failed to get scan history: %v", err)
+		h.sendErrorWS(conn, "Internal server error")
+		return
+	}
+
+	var response []map[string]interface{}
+	for _, scan := range history {
+		if scan.Request == nil {
+			continue
+		}
+		scanData := map[string]interface{}{
+			"id":         scan.Request.ID,
+			"ip_address": scan.Request.IPAddress,
+			"ports":      scan.Request.Ports,
+			"created_at": scan.Request.CreatedAt.Format(time.RFC3339),
+		}
+		response = append(response, scanData)
+	}
+
+	conn.WriteJSON(map[string]interface{}{
+		"type": "history_result",
+		"data": response,
 	})
 }
 
+// handleGetScanByIDWS обрабатывает команду получения результатов сканирования по ID
+func (h *Handler) handleGetScanByIDWS(ctx context.Context, conn *websocket.Conn, data json.RawMessage) {
+	var req struct {
+		ID interface{} `json:"id"`
+	}
+	if err := json.Unmarshal(data, &req); err != nil {
+		h.sendErrorWS(conn, "Invalid request data")
+		return
+	}
 
-/// getHistory возвращает историю сканирований
-// @Summary История сканирований
-// @Description Получить историю всех сканирований
-// @Tags scan
-// @Produce json
-// @Success 200 {array} models.ScanResponse
-// @Failure 500 {string} string "internal error"
-// @Router /scan/history [get]
-func (h *Handler) getHistory(w http.ResponseWriter, r *http.Request) {
-    history, err := h.repo.GetScanHistory(r.Context())
-    if err != nil {
-        h.logger.Errorf("Failed to get scan history: %v", err)
-        h.respondWithError(w, http.StatusInternalServerError, "Internal server error")
-        return
-    }
+	var requestID int64
+	switch v := req.ID.(type) {
+	case float64:
+		requestID = int64(v)
+	case string:
+		idParsed, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			h.sendErrorWS(conn, "Invalid scan ID format")
+			return
+		}
+		requestID = idParsed
+	default:
+		h.sendErrorWS(conn, "Invalid scan ID type")
+		return
+	}
 
-    var response []map[string]interface{}
-    for _, scan := range history {
-        if scan.Request == nil {
-            continue
-        }
-        scanData := map[string]interface{}{
-            "id":         scan.Request.ID,
-            "ip_address": scan.Request.IPAddress,
-            "ports":      scan.Request.Ports,
-            "created_at": scan.Request.CreatedAt.Format(time.RFC3339),
-        }
-        response = append(response, scanData)
-    }
+	scanResponse, err := h.repo.GetScanResults(ctx, requestID)
+	if err != nil {
+		if err == repository.ErrNotFound {
+			h.sendErrorWS(conn, "Scan not found")
+		} else {
+			h.logger.Errorf("Failed to get scan results: %v", err)
+			h.sendErrorWS(conn, "Internal server error")
+		}
+		return
+	}
 
-    h.respondWithJSON(w, http.StatusOK, response)
-}
+	if scanResponse.Request == nil {
+		h.sendErrorWS(conn, "Scan request data missing")
+		return
+	}
 
+	response := map[string]interface{}{
+		"type":       "scan_details",
+		"id":         scanResponse.Request.ID,
+		"ip_address": scanResponse.Request.IPAddress,
+		"ports":      scanResponse.Request.Ports,
+		"created_at": scanResponse.Request.CreatedAt.Format(time.RFC3339),
+		"open_ports": scanResponse.OpenPorts,
+	}
 
-
-// getScanByID возвращает результаты сканирования по ID
-// @Summary Получить сканирование по ID
-// @Description Получить детали сканирования по его ID
-// @Tags scan
-// @Produce json
-// @Param id path int true "ID сканирования"
-// @Success 200 {object} models.ScanResponse
-// @Failure 400 {string} string "bad request"
-// @Failure 404 {string} string "not found"
-// @Failure 500 {string} string "internal error"
-// @Router /scan/{id} [get]
-func (h *Handler) getScanByID(w http.ResponseWriter, r *http.Request) {
-    vars := mux.Vars(r)
-    idStr := vars["id"]
-
-    requestID, err := strconv.ParseInt(idStr, 10, 64)
-    if err != nil {
-        h.respondWithError(w, http.StatusBadRequest, "Invalid scan ID")
-        return
-    }
-
-    scanResponse, err := h.repo.GetScanResults(r.Context(), requestID)
-    if err != nil {
-        if err == repository.ErrNotFound {
-            h.respondWithError(w, http.StatusNotFound, "Scan not found")
-        } else {
-            h.logger.Errorf("Failed to get scan results: %v", err)
-            h.respondWithError(w, http.StatusInternalServerError, "Internal server error")
-        }
-        return
-    }
-
-    if scanResponse.Request == nil {
-        h.respondWithError(w, http.StatusInternalServerError, "Scan request data missing")
-        return
-    }
-
-    response := map[string]interface{}{
-        "id":          scanResponse.Request.ID,
-        "ip_address":  scanResponse.Request.IPAddress,
-        "ports":       scanResponse.Request.Ports,
-        "created_at":  scanResponse.Request.CreatedAt.Format(time.RFC3339),
-        "open_ports":  scanResponse.OpenPorts,
-    }
-
-    h.respondWithJSON(w, http.StatusOK, response)
-}
-func (h *Handler) loggingMiddleware(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        h.logger.Infof("%s %s", r.Method, r.URL.Path)
-        next.ServeHTTP(w, r)
-    })
-}
-
-func (h *Handler) contentTypeMiddleware(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        w.Header().Set("Content-Type", "application/json")
-        next.ServeHTTP(w, r)
-    })
-}
-
-func (h *Handler) respondWithError(w http.ResponseWriter, code int, message string) {
-    h.respondWithJSON(w, code, map[string]string{"error": message})
-}
-
-func (h *Handler) respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
-    w.Header().Set("Content-Type", "application/json")
-    w.WriteHeader(code)
-    json.NewEncoder(w).Encode(payload)
+	conn.WriteJSON(response)
 }
