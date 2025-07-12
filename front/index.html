@@ -360,6 +360,9 @@
 
                     // Обработка по типу сообщения с передачей message.data
                     switch (message.type) {
+                        case 'welcome':
+                            addTerminalLine(message.data?.message || 'Connected to scanner service', 'info-line');
+                            break;
                         case 'scan_started':
                             handleScanStarted(message.data);
                             break;

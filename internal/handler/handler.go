@@ -59,13 +59,16 @@ func (m *WSManager) RemoveClient(conn *websocket.Conn) {
 }
 
 // Broadcast отправляет сообщение всем клиентам с логированием ошибок
-func (m *WSManager) Broadcast(message interface{}) {
+func (m *WSManager) Broadcast(messageType string, data interface{}) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	for conn := range m.clients {
 		conn.SetWriteDeadline(time.Now().Add(writeWait))
-		if err := conn.WriteJSON(message); err != nil {
+		if err := conn.WriteJSON(map[string]interface{}{
+			"type": messageType,
+			"data": data,
+		}); err != nil {
 			m.logger.Errorf("WebSocket write error: %v", err)
 			conn.Close()
 			delete(m.clients, conn)
@@ -292,7 +295,7 @@ func (h *Handler) handleScanWS(ctx context.Context, conn *websocket.Conn, data j
 		h.logger.Errorf("Failed to send scan_result: %v", err)
 	}
 
-	h.wsManager.Broadcast(response)
+	h.wsManager.Broadcast("scan_result", response)
 }
 
 // handleHistoryWS обрабатывает запрос истории
