@@ -281,7 +281,6 @@ func (h *Handler) handleScanWS(ctx context.Context, conn *websocket.Conn, data j
 	}
 
 	response := map[string]interface{}{
-		"type":       "scan_result",
 		"request_id": requestID,
 		"ip":         req.IP,
 		"ports":      req.Ports,

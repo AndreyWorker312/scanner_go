@@ -358,28 +358,25 @@
                     // Ignore pong messages
                     if (message.type === "pong") return;
 
-                    // Handle different message types
+                    // Обработка по типу сообщения с передачей message.data
                     switch (message.type) {
-                        case 'welcome':
-                            addTerminalLine(message.data?.message || 'Connected to scanner service', 'info-line');
-                            break;
                         case 'scan_started':
-                            handleScanStarted(message);
+                            handleScanStarted(message.data);
                             break;
                         case 'scan_progress':
-                            handleScanProgress(message);
+                            handleScanProgress(message.data);
                             break;
                         case 'scan_result':
-                            handleScanResult(message);
+                            handleScanResult(message.data);
                             break;
                         case 'scan_completed':
-                            handleScanComplete(message);
+                            handleScanComplete(message.data);
                             break;
                         case 'history_result':
                             displayHistory(message.data);
                             break;
                         case 'scan_details':
-                            displayScanDetails(message);
+                            displayScanDetails(message.data);
                             break;
                         case 'error':
                             addTerminalLine(`Error: ${message.message}`, 'error-line');
@@ -460,7 +457,7 @@
 
         function handleScanStarted(data) {
             currentScanId = data.request_id;
-            document.getElementById('scanTarget').textContent = `${data.ip} (${data.ports})`;
+            document.getElementById('scanTarget').textContent = `${data.ip || 'N/A'} (${data.ports || 'N/A'})`;
             document.getElementById('progressContainer').style.display = 'block';
             scanButton.style.display = 'none';
             cancelButton.style.display = 'inline-block';
@@ -469,9 +466,18 @@
             document.getElementById('openPortsCount').textContent = '0';
             document.getElementById('openPortsList').innerHTML = '';
 
-            addTerminalLine(`Scan started for ${data.ip} (ports: ${data.ports})`, 'info-line');
+            addTerminalLine(`Scan started for ${data.ip || 'N/A'} (ports: ${data.ports || 'N/A'})`, 'info-line');
         }
+        function displayScanDetails(details) {
+            const detailsElement = document.getElementById('scanDetails');
+            let detailsText = `Scan ID: ${details.id || 'N/A'}\n`;
+            detailsText += `IP: ${details.ip_address || 'N/A'}\n`;
+            detailsText += `Ports: ${details.ports || 'N/A'}\n`;
+            detailsText += `Open ports: ${details.open_ports?.join(', ') || 'None'}\n`;
+            detailsText += `Date: ${details.created_at || 'Unknown'}`;
 
+            detailsElement.textContent = detailsText;
+        }
         function handleScanProgress(data) {
             if (data.progress !== undefined) {
                 const progress = Math.round(data.progress * 100);
@@ -508,7 +514,6 @@
                 addTerminalLine('Not connected to server', 'error-line');
             }
         }
-
         function displayHistory(history) {
             const historyList = document.getElementById('historyList');
             historyList.innerHTML = '';
@@ -522,13 +527,14 @@
                 const item = document.createElement('div');
                 item.className = 'history-item';
                 item.innerHTML = `
-                        <strong>Scan #${scan.id || 'N/A'}</strong> - ${scan.ip_address || 'N/A'} (${scan.ports || 'N/A'})
-                        <br><small>${scan.created_at || 'Unknown date'}</small>
-                    `;
+                <strong>Scan #${scan.id || 'N/A'}</strong> - ${scan.ip_address || 'N/A'} (${scan.ports || 'N/A'})
+                <br><small>${scan.created_at || 'Unknown date'}</small>
+            `;
                 item.addEventListener('click', () => getScanDetails(scan.id));
                 historyList.appendChild(item);
             });
         }
+
 
         function getScanDetails(scanId) {
             if (socket && socket.readyState === WebSocket.OPEN) {
