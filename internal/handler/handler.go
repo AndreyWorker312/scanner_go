@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"network-scanner/internal/scanner"
+	"network-scanner/pkg/queue"
 	"sync"
 	"time"
 
@@ -73,6 +74,7 @@ type Handler struct {
 	logger      Logger
 	portScanner scanner.PortScanner
 	wsManager   *WSManager
+	queue       *queue.RabbitMQ // Добавляем поле для RabbitMQ
 }
 
 var upgrader = websocket.Upgrader{
@@ -83,11 +85,12 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func NewHandler(logger Logger, scanner scanner.PortScanner) *Handler {
+func NewHandler(logger Logger, scanner scanner.PortScanner, queue *queue.RabbitMQ) *Handler {
 	return &Handler{
 		logger:      logger,
 		portScanner: scanner,
 		wsManager:   NewWSManager(logger),
+		queue:       queue, // Добавляем queue в конструктор
 	}
 }
 
@@ -166,6 +169,7 @@ func (r *scanProgressReporter) ReportProgress(progress float64, scanned, total i
 		"total":    total,
 	})
 }
+
 func (h *Handler) handleScanRequest(ctx context.Context, conn *websocket.Conn, data json.RawMessage) {
 	var req struct {
 		IP    string `json:"ip"`
@@ -186,16 +190,34 @@ func (h *Handler) handleScanRequest(ctx context.Context, conn *websocket.Conn, d
 		req.Ports = "1-1024"
 	}
 
+	// Сохраняем запрос в RabbitMQ
+	if h.queue != nil {
+		scanRequest := queue.ScanRequest{
+			IP:    req.IP,
+			Ports: req.Ports,
+		}
+		if err := h.queue.PublishScanRequest(ctx, scanRequest); err != nil {
+			h.logger.Errorf("Failed to publish scan request: %v", err)
+		}
+	}
+
+	// Выполняем сканирование синхронно (как раньше)
+	h.executeScanSync(ctx, conn, req.IP, req.Ports)
+}
+
+// executeScanSync остается без изменений
+func (h *Handler) executeScanSync(ctx context.Context, conn *websocket.Conn, ip, ports string) {
 	startTime := time.Now()
-	h.logger.Infof("Starting scan for %s on ports %s", req.IP, req.Ports)
+	h.logger.Infof("Starting sync scan for %s on ports %s", ip, ports)
+
 	h.sendWSMessage(conn, "scan_started", map[string]interface{}{
-		"ip":    req.IP,
-		"ports": req.Ports,
+		"ip":    ip,
+		"ports": ports,
 		"time":  startTime.Format(time.RFC3339),
 	})
 
 	reporter := &scanProgressReporter{wsManager: h.wsManager}
-	openPorts, err := h.portScanner.ScanPorts(ctx, req.IP, req.Ports, reporter)
+	openPorts, err := h.portScanner.ScanPorts(ctx, ip, ports, reporter)
 	if err != nil {
 		h.logger.Errorf("Scan failed: %v", err)
 		h.sendErrorWS(conn, "Scan failed: "+err.Error())
@@ -204,8 +226,8 @@ func (h *Handler) handleScanRequest(ctx context.Context, conn *websocket.Conn, d
 
 	duration := time.Since(startTime)
 	result := map[string]interface{}{
-		"ip":         req.IP,
-		"ports":      req.Ports,
+		"ip":         ip,
+		"ports":      ports,
 		"open_ports": openPorts,
 		"count":      len(openPorts),
 		"timestamp":  time.Now().Format(time.RFC3339),
@@ -215,9 +237,8 @@ func (h *Handler) handleScanRequest(ctx context.Context, conn *websocket.Conn, d
 
 	h.sendWSMessage(conn, "scan_result", result)
 	h.logger.Infof("Scan completed for %s in %v. Found %d open ports: %v",
-		req.IP, duration, len(openPorts), openPorts)
+		ip, duration, len(openPorts), openPorts)
 }
-
 func (h *Handler) sendWSMessage(conn *websocket.Conn, msgType string, data interface{}) error {
 	conn.SetWriteDeadline(time.Now().Add(writeWait))
 	return conn.WriteJSON(map[string]interface{}{

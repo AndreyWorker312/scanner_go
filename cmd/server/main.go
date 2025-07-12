@@ -12,6 +12,7 @@ import (
 	"network-scanner/internal/handler"
 	"network-scanner/internal/scanner"
 	"network-scanner/pkg/logger"
+	"network-scanner/pkg/queue"
 )
 
 func main() {
@@ -22,8 +23,17 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
+	rabbitMQ, err := queue.NewRabbitMQ(queue.RabbitMQConfig{
+		URL:       cfg.RabbitMQ.URL,
+		QueueName: cfg.RabbitMQ.QueueName,
+	})
+	if err != nil {
+		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
+	}
+	defer rabbitMQ.Close()
+
 	portScanner := scanner.NewPortScanner(log, cfg.Scanner.Timeout, cfg.Scanner.MaxRetries, cfg.Scanner.RetryDelay)
-	handlers := handler.NewHandler(log, portScanner)
+	handlers := handler.NewHandler(log, portScanner, rabbitMQ) // Добавлен rabbitMQ как третий аргумент
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Server.Port,

@@ -9,8 +9,9 @@ import (
 )
 
 type Config struct {
-	Server  ServerConfig
-	Scanner ScannerConfig
+	Server   ServerConfig
+	Scanner  ScannerConfig
+	RabbitMQ RabbitMQConfig
 }
 
 type ServerConfig struct {
@@ -23,6 +24,11 @@ type ScannerConfig struct {
 	RetryDelay time.Duration
 }
 
+type RabbitMQConfig struct {
+	URL       string
+	QueueName string
+}
+
 func Load() (*Config, error) {
 	if err := godotenv.Load(); err != nil {
 		return nil, err
@@ -30,11 +36,13 @@ func Load() (*Config, error) {
 
 	var cfg Config
 
+	// Server configuration
 	cfg.Server.Port = os.Getenv("SERVER_PORT")
 	if cfg.Server.Port == "" {
 		cfg.Server.Port = "8080"
 	}
 
+	// Scanner configuration
 	timeoutStr := os.Getenv("SCANNER_TIMEOUT")
 	if timeoutStr == "" {
 		timeoutStr = "500ms"
@@ -64,6 +72,17 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 	cfg.Scanner.RetryDelay = retryDelay
+
+	// RabbitMQ configuration
+	cfg.RabbitMQ.URL = os.Getenv("RABBITMQ_URL")
+	if cfg.RabbitMQ.URL == "" {
+		cfg.RabbitMQ.URL = "amqp://guest:guest@localhost:5672/"
+	}
+
+	cfg.RabbitMQ.QueueName = os.Getenv("RABBITMQ_QUEUE_NAME")
+	if cfg.RabbitMQ.QueueName == "" {
+		cfg.RabbitMQ.QueueName = "scan_requests"
+	}
 
 	return &cfg, nil
 }
