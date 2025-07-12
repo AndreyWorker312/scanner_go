@@ -47,14 +47,12 @@ func main() {
 
 	handlers := handler.NewHandler(log, repo, portScanner)
 
-	// Инициализируем маршруты — теперь только WebSocket
-	mux := handlers.InitRoutes()
-
 	srv := &http.Server{
 		Addr:         ":" + cfg.Server.Port,
-		Handler:      mux,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		Handler:      handlers.InitRoutes(),
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
 
 	go func() {

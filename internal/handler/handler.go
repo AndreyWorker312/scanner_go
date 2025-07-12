@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"net/http"
 	"network-scanner/internal/models"
 	"network-scanner/internal/repository"
@@ -15,28 +14,14 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// Handler структура для обработчиков WebSocket запросов
-type Handler struct {
-	logger      Logger
-	repo        repository.Repository
-	portScanner scanner.PortScanner
-	wsManager   *WSManager
-}
+const (
+	writeWait      = 10 * time.Second
+	pongWait       = 60 * time.Second
+	pingPeriod     = (pongWait * 9) / 10
+	maxMessageSize = 4096
+)
 
-// WSManager управляет WebSocket соединениями
-type WSManager struct {
-	clients map[*websocket.Conn]bool
-	mu      sync.Mutex
-}
-
-// NewWSManager создает новый менеджер WebSocket
-func NewWSManager() *WSManager {
-	return &WSManager{
-		clients: make(map[*websocket.Conn]bool),
-	}
-}
-
-// Logger интерфейс для логгирования
+// Logger интерфейс для логирования
 type Logger interface {
 	Info(msg string)
 	Infof(format string, args ...interface{})
@@ -46,99 +31,135 @@ type Logger interface {
 	Fatalf(format string, args ...interface{})
 }
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
+// WSManager управляет WebSocket клиентами
+type WSManager struct {
+	clients map[*websocket.Conn]bool
+	mu      sync.Mutex
+	logger  Logger
 }
 
-// NewHandler создает новый экземпляр Handler
-func NewHandler(logger Logger, repo repository.Repository, scanner scanner.PortScanner) *Handler {
-	return &Handler{
-		logger:      logger,
-		repo:        repo,
-		portScanner: scanner,
-		wsManager:   NewWSManager(),
+// NewWSManager создаёт WSManager с логгером
+func NewWSManager(logger Logger) *WSManager {
+	return &WSManager{
+		clients: make(map[*websocket.Conn]bool),
+		logger:  logger,
 	}
 }
 
-// InitRoutes инициализирует маршруты API — только WebSocket
-func (h *Handler) InitRoutes() *http.ServeMux {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/ws", h.handleWebSocket)
-	return mux
-}
-
-// AddClient добавляет нового WebSocket клиента
 func (m *WSManager) AddClient(conn *websocket.Conn) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.clients[conn] = true
 }
 
-// RemoveClient удаляет WebSocket клиента
 func (m *WSManager) RemoveClient(conn *websocket.Conn) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.clients, conn)
 }
 
-// Broadcast отправляет сообщение всем подключенным клиентам
+// Broadcast отправляет сообщение всем клиентам с логированием ошибок
 func (m *WSManager) Broadcast(message interface{}) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	for conn := range m.clients {
-		// Устанавливаем таймаут для записи
-		conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-
+		conn.SetWriteDeadline(time.Now().Add(writeWait))
 		if err := conn.WriteJSON(message); err != nil {
-			log.Printf("WebSocket write error: %v", err)
+			m.logger.Errorf("WebSocket write error: %v", err)
 			conn.Close()
 			delete(m.clients, conn)
 		}
 	}
 }
 
+// Handler — основной обработчик WebSocket
+type Handler struct {
+	logger      Logger
+	repo        repository.Repository
+	portScanner scanner.PortScanner
+	wsManager   *WSManager
+}
+
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  4096,
+	WriteBufferSize: 4096,
+	CheckOrigin: func(r *http.Request) bool {
+		return true // В продакшене лучше ограничить
+	},
+}
+
+// NewHandler создаёт новый Handler
+func NewHandler(logger Logger, repo repository.Repository, scanner scanner.PortScanner) *Handler {
+	return &Handler{
+		logger:      logger,
+		repo:        repo,
+		portScanner: scanner,
+		wsManager:   NewWSManager(logger),
+	}
+}
+
+func (h *Handler) InitRoutes() http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		h.logger.Info("HTTP request received on /ws")
+		h.handleWebSocket(w, r)
+	})
+	return loggingMiddleware(mux, h.logger)
+}
+func loggingMiddleware(next http.Handler, logger Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logger.Infof("HTTP %s %s", r.Method, r.URL.Path)
+		next.ServeHTTP(w, r)
+	})
+}
+
+// handleWebSocket обрабатывает WebSocket соединение
 func (h *Handler) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		h.logger.Errorf("WebSocket upgrade failed: %v", err)
 		return
 	}
-	defer conn.Close()
+	h.logger.Info("WebSocket connection established")
+	defer func() {
+		h.logger.Info("WebSocket connection closed")
+		conn.Close()
+	}()
 
-	// Регистрируем соединение
-	h.wsManager.AddClient(conn)
-	defer h.wsManager.RemoveClient(conn)
-
-	// Настройка обработчиков
-	conn.SetPingHandler(func(appData string) error {
-		h.logger.Info("Received ping")
-		err := conn.WriteControl(websocket.PongMessage, []byte(appData), time.Now().Add(time.Second))
-		if err != nil {
-			h.logger.Errorf("Failed to send pong: %v", err)
-		}
-		return err
-	})
-
-	conn.SetCloseHandler(func(code int, text string) error {
-		h.logger.Infof("Connection closed: %d %s", code, text)
+	conn.SetReadLimit(maxMessageSize)
+	conn.SetReadDeadline(time.Now().Add(pongWait))
+	conn.SetPongHandler(func(string) error {
+		conn.SetReadDeadline(time.Now().Add(pongWait))
 		return nil
 	})
 
-	// Приветственное сообщение
-	if err := conn.WriteJSON(map[string]string{
-		"type":    "welcome",
+	h.wsManager.AddClient(conn)
+	defer h.wsManager.RemoveClient(conn)
+
+	// Отправляем приветственное сообщение
+	if err := h.sendWSMessage(conn, "welcome", map[string]string{
 		"message": "Connected to WebSocket server",
+		"version": "1.0",
 	}); err != nil {
 		h.logger.Errorf("Failed to send welcome message: %v", err)
 		return
 	}
 
-	// Главный цикл обработки сообщений
+	// Запускаем пинг для поддержания соединения
+	pingTicker := time.NewTicker(pingPeriod)
+	defer pingTicker.Stop()
+
+	go func() {
+		for range pingTicker.C {
+			conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
+			}
+		}
+	}()
+
+	// Основной цикл обработки сообщений
 	for {
 		_, msgBytes, err := conn.ReadMessage()
 		if err != nil {
@@ -159,7 +180,6 @@ func (h *Handler) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
 
 		switch msg.Action {
 		case "scan":
@@ -169,24 +189,35 @@ func (h *Handler) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		case "get":
 			h.handleGetScanByIDWS(ctx, conn, msg.Data)
 		case "ping":
-			conn.WriteJSON(map[string]string{"type": "pong"})
+			h.sendWSMessage(conn, "pong", nil)
 		default:
 			h.sendErrorWS(conn, "Unknown action: "+msg.Action)
 		}
+
+		cancel()
 	}
 }
 
-// sendErrorWS отправляет ошибку клиенту по WebSocket
+// sendWSMessage отправляет JSON сообщение
+func (h *Handler) sendWSMessage(conn *websocket.Conn, msgType string, data interface{}) error {
+	conn.SetWriteDeadline(time.Now().Add(writeWait))
+	return conn.WriteJSON(map[string]interface{}{
+		"type": msgType,
+		"data": data,
+	})
+}
+
+// sendErrorWS отправляет ошибку клиенту
 func (h *Handler) sendErrorWS(conn *websocket.Conn, message string) {
-	conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
-	conn.WriteJSON(map[string]interface{}{
+	conn.SetWriteDeadline(time.Now().Add(writeWait))
+	_ = conn.WriteJSON(map[string]interface{}{
 		"type":    "error",
 		"message": message,
 		"time":    time.Now().Format(time.RFC3339),
 	})
 }
 
-// handleScanWS обрабатывает команду сканирования портов
+// handleScanWS обрабатывает команду сканирования
 func (h *Handler) handleScanWS(ctx context.Context, conn *websocket.Conn, data json.RawMessage) {
 	var req struct {
 		IP    string `json:"ip"`
@@ -197,12 +228,6 @@ func (h *Handler) handleScanWS(ctx context.Context, conn *websocket.Conn, data j
 		return
 	}
 
-	// Немедленно отвечаем клиенту
-	conn.WriteJSON(map[string]interface{}{
-		"type":  "scan_started",
-		"ip":    req.IP,
-		"ports": req.Ports,
-	})
 	if req.IP == "" {
 		h.sendErrorWS(conn, "IP address is required")
 		return
@@ -211,12 +236,13 @@ func (h *Handler) handleScanWS(ctx context.Context, conn *websocket.Conn, data j
 		req.Ports = "1-1024"
 	}
 
-	// Отправляем подтверждение о начале сканирования
-	conn.WriteJSON(map[string]interface{}{
-		"type":  "scan_started",
+	if err := h.sendWSMessage(conn, "scan_started", map[string]string{
 		"ip":    req.IP,
 		"ports": req.Ports,
-	})
+	}); err != nil {
+		h.logger.Errorf("Failed to send scan_started: %v", err)
+		return
+	}
 
 	scanReq := models.ScanRequest{
 		IPAddress: req.IP,
@@ -263,14 +289,14 @@ func (h *Handler) handleScanWS(ctx context.Context, conn *websocket.Conn, data j
 		"time":       time.Now().Format(time.RFC3339),
 	}
 
-	// Отправляем результат клиенту
-	conn.WriteJSON(response)
+	if err := h.sendWSMessage(conn, "scan_result", response); err != nil {
+		h.logger.Errorf("Failed to send scan_result: %v", err)
+	}
 
-	// Рассылаем уведомление всем клиентам о завершении сканирования
 	h.wsManager.Broadcast(response)
 }
 
-// handleHistoryWS обрабатывает команду получения истории сканирований
+// handleHistoryWS обрабатывает запрос истории
 func (h *Handler) handleHistoryWS(ctx context.Context, conn *websocket.Conn) {
 	history, err := h.repo.GetScanHistory(ctx)
 	if err != nil {
@@ -293,13 +319,12 @@ func (h *Handler) handleHistoryWS(ctx context.Context, conn *websocket.Conn) {
 		response = append(response, scanData)
 	}
 
-	conn.WriteJSON(map[string]interface{}{
-		"type": "history_result",
-		"data": response,
-	})
+	if err := h.sendWSMessage(conn, "history_result", response); err != nil {
+		h.logger.Errorf("Failed to send history_result: %v", err)
+	}
 }
 
-// handleGetScanByIDWS обрабатывает команду получения результатов сканирования по ID
+// handleGetScanByIDWS обрабатывает запрос деталей сканирования по ID
 func (h *Handler) handleGetScanByIDWS(ctx context.Context, conn *websocket.Conn, data json.RawMessage) {
 	var req struct {
 		ID interface{} `json:"id"`
@@ -350,5 +375,7 @@ func (h *Handler) handleGetScanByIDWS(ctx context.Context, conn *websocket.Conn,
 		"open_ports": scanResponse.OpenPorts,
 	}
 
-	conn.WriteJSON(response)
+	if err := h.sendWSMessage(conn, "scan_details", response); err != nil {
+		h.logger.Errorf("Failed to send scan_details: %v", err)
+	}
 }
