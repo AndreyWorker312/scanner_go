@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -11,13 +10,8 @@ import (
 
 	"network-scanner/internal/config"
 	"network-scanner/internal/handler"
-	"network-scanner/internal/repository"
 	"network-scanner/internal/scanner"
 	"network-scanner/pkg/logger"
-
-	"github.com/golang-migrate/migrate/v4"                     // Для миграций
-	_ "github.com/golang-migrate/migrate/v4/database/postgres" // Драйвер для PostgreSQL
-	_ "github.com/golang-migrate/migrate/v4/source/file"       // Источник файловых миграций
 )
 
 func main() {
@@ -28,24 +22,8 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	// Применяем миграции перед созданием репозитория
-	if err := applyMigrations(cfg.DB); err != nil && err != migrate.ErrNoChange {
-		log.Fatalf("Failed to apply migrations: %v", err)
-	} else if err == nil {
-		log.Info("Migrations applied successfully")
-	} else {
-		log.Info("Database is up to date")
-	}
-
-	repo, err := repository.NewPostgresRepository(cfg.DB)
-	if err != nil {
-		log.Fatalf("Failed to initialize repository: %v", err)
-	}
-	defer repo.Close()
-
 	portScanner := scanner.NewPortScanner(log, cfg.Scanner.Timeout, cfg.Scanner.MaxRetries, cfg.Scanner.RetryDelay)
-
-	handlers := handler.NewHandler(log, repo, portScanner)
+	handlers := handler.NewHandler(log, portScanner)
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Server.Port,
@@ -56,7 +34,7 @@ func main() {
 	}
 
 	go func() {
-		log.Infof("Starting WebSocket server on port %s", cfg.Server.Port)
+		log.Infof("Starting server on port %s", cfg.Server.Port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Failed to start server: %v", err)
 		}
@@ -67,7 +45,6 @@ func main() {
 	<-quit
 
 	log.Info("Shutting down server...")
-
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -76,16 +53,4 @@ func main() {
 	}
 
 	log.Info("Server exited properly")
-}
-
-func applyMigrations(cfg config.DBConfig) error {
-	d, err := migrate.New(
-		"file://migrations",
-		fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Name))
-	if err != nil {
-		return err
-	}
-	defer d.Close()
-	return d.Up()
 }

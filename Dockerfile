@@ -7,18 +7,14 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o /network-scanner ./cmd/server/main.go
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o network-scanner ./cmd/server/main.go
-
-# Final stage
-FROM alpine:latest
+FROM alpine:3.18
 
 WORKDIR /app
-
-COPY --from=builder /app/network-scanner .
-COPY --from=builder /app/migrations ./migrations
-COPY .env .env
+COPY --from=builder /network-scanner /app/network-scanner
+COPY .env /app/.env
 
 EXPOSE 8080
+CMD ["/app/network-scanner"]
 
-CMD ["./network-scanner"]

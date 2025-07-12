@@ -38,7 +38,7 @@
 
         .container {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr;
             gap: 20px;
         }
 
@@ -56,7 +56,6 @@
         }
 
         h1 {
-            grid-column: 1 / -1;
             text-align: center;
             margin-bottom: 30px;
             color: var(--primary-color);
@@ -183,35 +182,6 @@
             color: #f44747;
         }
 
-        .tab-container {
-            display: flex;
-            margin-bottom: 15px;
-        }
-
-        .tab {
-            padding: 10px 20px;
-            cursor: pointer;
-            border: 1px solid #ddd;
-            border-bottom: none;
-            border-radius: 4px 4px 0 0;
-            margin-right: 5px;
-            background-color: #f8f9fa;
-        }
-
-        .tab.active {
-            background-color: white;
-            border-bottom: 1px solid white;
-            margin-bottom: -1px;
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
         @media (max-width: 768px) {
             .container {
                 grid-template-columns: 1fr;
@@ -251,25 +221,9 @@
     </div>
 
     <div class="panel">
-        <div class="tab-container">
-            <div class="tab active" data-tab="terminal">Terminal</div>
-            <div class="tab" data-tab="history">History</div>
-            <div class="tab" data-tab="details">Scan Details</div>
-        </div>
-
-        <div id="terminal" class="tab-content active">
+        <h2>Terminal Output</h2>
+        <div id="terminal">
             <!-- Terminal output will appear here -->
-        </div>
-
-        <div id="history" class="tab-content">
-            <button id="refreshHistory">Refresh History</button>
-            <div id="historyList" style="margin-top: 15px;"></div>
-        </div>
-
-        <div id="details" class="tab-content">
-            <div class="output" id="scanDetails">
-                Select a scan from history to view details
-            </div>
         </div>
     </div>
 </div>
@@ -280,7 +234,6 @@
     document.addEventListener('DOMContentLoaded', function() {
         const WS_URL = 'ws://localhost:8080/ws';
         let socket = null;
-        let currentScanId = null;
         let pingInterval = null;
         let reconnectAttempts = 0;
         const maxReconnectAttempts = 5;
@@ -290,9 +243,6 @@
         const terminal = document.getElementById('terminal');
         const scanButton = document.getElementById('scanButton');
         const cancelButton = document.getElementById('cancelButton');
-        const refreshHistoryButton = document.getElementById('refreshHistory');
-        const tabs = document.querySelectorAll('.tab');
-        const tabContents = document.querySelectorAll('.tab-content');
 
         // Initialize WebSocket connection
         initWebSocket();
@@ -300,11 +250,6 @@
         // Event listeners
         scanButton.addEventListener('click', startScan);
         cancelButton.addEventListener('click', cancelScan);
-        refreshHistoryButton.addEventListener('click', loadHistory);
-
-        tabs.forEach(tab => {
-            tab.addEventListener('click', () => switchTab(tab.dataset.tab));
-        });
 
         // WebSocket functions
         function initWebSocket() {
@@ -326,9 +271,6 @@
                         socket.send(JSON.stringify({ action: "ping" }));
                     }
                 }, 25000);
-
-                // Load history on connect
-                loadHistory();
             };
 
             socket.onclose = function(e) {
@@ -366,20 +308,8 @@
                         case 'scan_started':
                             handleScanStarted(message.data);
                             break;
-                        case 'scan_progress':
-                            handleScanProgress(message.data);
-                            break;
                         case 'scan_result':
                             handleScanResult(message.data);
-                            break;
-                        case 'scan_completed':
-                            handleScanComplete(message.data);
-                            break;
-                        case 'history_result':
-                            displayHistory(message.data);
-                            break;
-                        case 'scan_details':
-                            displayScanDetails(message.data);
                             break;
                         case 'error':
                             addTerminalLine(`Error: ${message.message}`, 'error-line');
@@ -408,18 +338,6 @@
             status.style.backgroundColor = connected ? '#4CAF50' : '#f44336';
         }
 
-        function switchTab(tabId) {
-            // Update active tab
-            tabs.forEach(tab => {
-                tab.classList.toggle('active', tab.dataset.tab === tabId);
-            });
-
-            // Update active content
-            tabContents.forEach(content => {
-                content.classList.toggle('active', content.id === tabId);
-            });
-        }
-
         // Scan functions
         function startScan() {
             const ip = document.getElementById('ip').value.trim();
@@ -441,12 +359,6 @@
         }
 
         function cancelScan() {
-            if (socket && socket.readyState === WebSocket.OPEN && currentScanId) {
-                socket.send(JSON.stringify({
-                    action: 'cancel_scan',
-                    data: { request_id: currentScanId }
-                }));
-            }
             resetScanUI();
             addTerminalLine('Scan canceled by user', 'info-line');
         }
@@ -455,11 +367,9 @@
             document.getElementById('progressContainer').style.display = 'none';
             scanButton.style.display = 'inline-block';
             cancelButton.style.display = 'none';
-            currentScanId = null;
         }
 
         function handleScanStarted(data) {
-            currentScanId = data.request_id;
             document.getElementById('scanTarget').textContent = `${data.ip || 'N/A'} (${data.ports || 'N/A'})`;
             document.getElementById('progressContainer').style.display = 'block';
             scanButton.style.display = 'none';
@@ -471,25 +381,16 @@
 
             addTerminalLine(`Scan started for ${data.ip || 'N/A'} (ports: ${data.ports || 'N/A'})`, 'info-line');
         }
-        function displayScanDetails(details) {
-            const detailsElement = document.getElementById('scanDetails');
-            let detailsText = `Scan ID: ${details.id || 'N/A'}\n`;
-            detailsText += `IP: ${details.ip_address || 'N/A'}\n`;
-            detailsText += `Ports: ${details.ports || 'N/A'}\n`;
-            detailsText += `Open ports: ${details.open_ports?.join(', ') || 'None'}\n`;
-            detailsText += `Date: ${details.created_at || 'Unknown'}`;
 
-            detailsElement.textContent = detailsText;
-        }
-        function handleScanProgress(data) {
+        function handleScanResult(data) {
+            // Update progress
             if (data.progress !== undefined) {
                 const progress = Math.round(data.progress * 100);
                 document.getElementById('progressBar').style.width = `${progress}%`;
                 document.getElementById('progressText').textContent = `${progress}%`;
             }
-        }
 
-        function handleScanResult(data) {
+            // Update open ports
             if (data.open_ports && data.open_ports.length > 0) {
                 document.getElementById('openPortsCount').textContent = data.open_ports.length;
                 const portsList = document.getElementById('openPortsList');
@@ -501,63 +402,12 @@
                     portsList.appendChild(portElement);
                 });
             }
-        }
 
-        function handleScanComplete(data) {
-            addTerminalLine(`Scan completed. Found ${data.open_ports?.length || 0} open ports.`, 'success-line');
-            resetScanUI();
-            loadHistory();
-        }
-
-        // History functions
-        function loadHistory() {
-            if (socket && socket.readyState === WebSocket.OPEN) {
-                socket.send(JSON.stringify({ action: 'history' }));
-            } else {
-                addTerminalLine('Not connected to server', 'error-line');
+            // Show completion message
+            if (data.status === "completed") {
+                addTerminalLine(`Scan completed. Found ${data.open_ports?.length || 0} open ports.`, 'success-line');
+                resetScanUI();
             }
-        }
-        function displayHistory(history) {
-            const historyList = document.getElementById('historyList');
-            historyList.innerHTML = '';
-
-            if (!history || history.length === 0) {
-                historyList.innerHTML = '<p>No scan history available</p>';
-                return;
-            }
-
-            history.forEach(scan => {
-                const item = document.createElement('div');
-                item.className = 'history-item';
-                item.innerHTML = `
-                <strong>Scan #${scan.id || 'N/A'}</strong> - ${scan.ip_address || 'N/A'} (${scan.ports || 'N/A'})
-                <br><small>${scan.created_at || 'Unknown date'}</small>
-            `;
-                item.addEventListener('click', () => getScanDetails(scan.id));
-                historyList.appendChild(item);
-            });
-        }
-
-
-        function getScanDetails(scanId) {
-            if (socket && socket.readyState === WebSocket.OPEN) {
-                socket.send(JSON.stringify({
-                    action: 'get',
-                    data: { id: scanId }
-                }));
-                switchTab('details');
-            }
-        }
-
-        function displayScanDetails(details) {
-            const detailsElement = document.getElementById('scanDetails');
-            let detailsText = `Scan ID: ${details.id}\n`;
-            detailsText += `IP: ${details.ip_address}\n`;
-            detailsText += `Ports: ${details.ports}\n`;
-            detailsText += `Open ports: ${details.open_ports?.join(', ') || 'None'}\n`;
-            detailsText += `Date: ${details.created_at || 'Unknown'}`;
-
-            detailsElement.textContent = detailsText;
         }
 
         // Initial message

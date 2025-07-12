@@ -10,20 +10,11 @@ import (
 
 type Config struct {
 	Server  ServerConfig
-	DB      DBConfig
 	Scanner ScannerConfig
 }
 
 type ServerConfig struct {
 	Port string
-}
-
-type DBConfig struct {
-	Host     string
-	Port     string
-	User     string
-	Password string
-	Name     string
 }
 
 type ScannerConfig struct {
@@ -41,14 +32,8 @@ func Load() (*Config, error) {
 
 	cfg.Server.Port = os.Getenv("SERVER_PORT")
 	if cfg.Server.Port == "" {
-		cfg.Server.Port = "8080" // Default port
+		cfg.Server.Port = "8080"
 	}
-
-	cfg.DB.Host = os.Getenv("DB_HOST")
-	cfg.DB.Port = os.Getenv("DB_PORT")
-	cfg.DB.User = os.Getenv("DB_USER")
-	cfg.DB.Password = os.Getenv("DB_PASSWORD")
-	cfg.DB.Name = os.Getenv("DB_NAME")
 
 	timeoutStr := os.Getenv("SCANNER_TIMEOUT")
 	if timeoutStr == "" {
