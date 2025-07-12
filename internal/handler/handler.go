@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -29,15 +30,17 @@ type Logger interface {
 }
 
 type WSManager struct {
-	clients map[*websocket.Conn]bool
-	mu      sync.Mutex
-	logger  Logger
+	clients   map[*websocket.Conn]bool
+	taskConns map[string]*websocket.Conn
+	mu        sync.Mutex
+	logger    Logger
 }
 
 func NewWSManager(logger Logger) *WSManager {
 	return &WSManager{
-		clients: make(map[*websocket.Conn]bool),
-		logger:  logger,
+		clients:   make(map[*websocket.Conn]bool),
+		taskConns: make(map[string]*websocket.Conn),
+		logger:    logger,
 	}
 }
 
@@ -51,6 +54,25 @@ func (m *WSManager) RemoveClient(conn *websocket.Conn) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.clients, conn)
+}
+
+func (m *WSManager) RegisterTask(taskID string, conn *websocket.Conn) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.taskConns[taskID] = conn
+}
+
+func (m *WSManager) UnregisterTask(taskID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.taskConns, taskID)
+}
+
+func (m *WSManager) GetConnForTask(taskID string) (*websocket.Conn, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	conn, ok := m.taskConns[taskID]
+	return conn, ok
 }
 
 func (m *WSManager) Broadcast(messageType string, data interface{}) {
@@ -74,7 +96,7 @@ type Handler struct {
 	logger      Logger
 	portScanner scanner.PortScanner
 	wsManager   *WSManager
-	queue       *queue.RabbitMQ // Добавляем поле для RabbitMQ
+	queue       *queue.RabbitMQ
 }
 
 var upgrader = websocket.Upgrader{
@@ -90,7 +112,7 @@ func NewHandler(logger Logger, scanner scanner.PortScanner, queue *queue.RabbitM
 		logger:      logger,
 		portScanner: scanner,
 		wsManager:   NewWSManager(logger),
-		queue:       queue, // Добавляем queue в конструктор
+		queue:       queue,
 	}
 }
 
@@ -119,12 +141,10 @@ func (h *Handler) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 
-	// Отправляем приветственное сообщение
 	h.sendWSMessage(conn, "welcome", map[string]string{
 		"message": "Connected to Port Scanner",
 	})
 
-	// Обработка сообщений
 	for {
 		_, msg, err := conn.ReadMessage()
 		if err != nil {
@@ -162,6 +182,10 @@ type scanProgressReporter struct {
 	wsManager *WSManager
 }
 
+// Добавляем этот метод в конец файла handler.go
+func (h *Handler) GetWSManager() *WSManager {
+	return h.wsManager
+}
 func (r *scanProgressReporter) ReportProgress(progress float64, scanned, total int) {
 	r.wsManager.Broadcast("scan_progress", map[string]interface{}{
 		"progress": progress,
@@ -190,26 +214,26 @@ func (h *Handler) handleScanRequest(ctx context.Context, conn *websocket.Conn, d
 		req.Ports = "1-1024"
 	}
 
-	// Сохраняем запрос в RabbitMQ
-	if h.queue != nil {
-		scanRequest := queue.ScanRequest{
-			IP:    req.IP,
-			Ports: req.Ports,
-		}
-		if err := h.queue.PublishScanRequest(ctx, scanRequest); err != nil {
-			h.logger.Errorf("Failed to publish scan request: %v", err)
-		}
-	}
+	taskID := uuid.New().String()
+	h.wsManager.RegisterTask(taskID, conn)
 
-	// Выполняем сканирование синхронно (как раньше)
-	h.executeScanSync(ctx, conn, req.IP, req.Ports)
+	h.sendWSMessage(conn, "scan_queued", map[string]string{
+		"task_id": taskID,
+	})
+
+	if err := h.queue.PublishScanRequest(ctx, queue.ScanRequest{
+		TaskID: taskID,
+		IP:     req.IP,
+		Ports:  req.Ports,
+	}); err != nil {
+		h.logger.Errorf("Failed to publish scan request: %v", err)
+		h.sendErrorWS(conn, "Failed to queue scan request")
+		h.wsManager.UnregisterTask(taskID)
+	}
 }
 
-// executeScanSync остается без изменений
-func (h *Handler) executeScanSync(ctx context.Context, conn *websocket.Conn, ip, ports string) {
+func (h *Handler) ExecuteScanSync(ctx context.Context, conn *websocket.Conn, ip, ports string) {
 	startTime := time.Now()
-	h.logger.Infof("Starting sync scan for %s on ports %s", ip, ports)
-
 	h.sendWSMessage(conn, "scan_started", map[string]interface{}{
 		"ip":    ip,
 		"ports": ports,
@@ -239,6 +263,7 @@ func (h *Handler) executeScanSync(ctx context.Context, conn *websocket.Conn, ip,
 	h.logger.Infof("Scan completed for %s in %v. Found %d open ports: %v",
 		ip, duration, len(openPorts), openPorts)
 }
+
 func (h *Handler) sendWSMessage(conn *websocket.Conn, msgType string, data interface{}) error {
 	conn.SetWriteDeadline(time.Now().Add(writeWait))
 	return conn.WriteJSON(map[string]interface{}{

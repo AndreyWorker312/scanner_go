@@ -13,8 +13,9 @@ type RabbitMQConfig struct {
 }
 
 type ScanRequest struct {
-	IP    string `json:"ip"`
-	Ports string `json:"ports"`
+	TaskID string `json:"task_id"`
+	IP     string `json:"ip"`
+	Ports  string `json:"ports"`
 }
 
 type RabbitMQ struct {
@@ -86,4 +87,46 @@ func (r *RabbitMQ) PublishScanRequest(ctx context.Context, req ScanRequest) erro
 			ContentType:  "application/json",
 			Body:         body,
 		})
+}
+
+func (r *RabbitMQ) ConsumeScanRequests(ctx context.Context) (<-chan ScanRequest, error) {
+	msgs, err := r.channel.Consume(
+		r.queue.Name, // queue
+		"",           // consumer
+		false,        // auto-ack
+		false,        // exclusive
+		false,        // no-local
+		false,        // no-wait
+		nil,          // args
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	reqChan := make(chan ScanRequest)
+
+	go func() {
+		defer close(reqChan)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case msg, ok := <-msgs:
+				if !ok {
+					return
+				}
+
+				var req ScanRequest
+				if err := json.Unmarshal(msg.Body, &req); err != nil {
+					msg.Nack(false, false)
+					continue
+				}
+
+				reqChan <- req
+				msg.Ack(false)
+			}
+		}
+	}()
+
+	return reqChan, nil
 }

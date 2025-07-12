@@ -33,7 +33,26 @@ func main() {
 	defer rabbitMQ.Close()
 
 	portScanner := scanner.NewPortScanner(log, cfg.Scanner.Timeout, cfg.Scanner.MaxRetries, cfg.Scanner.RetryDelay)
-	handlers := handler.NewHandler(log, portScanner, rabbitMQ) // Добавлен rabbitMQ как третий аргумент
+	handlers := handler.NewHandler(log, portScanner, rabbitMQ)
+
+	// Запускаем consumer в горутине
+	go func() {
+		requests, err := rabbitMQ.ConsumeScanRequests(context.Background())
+		if err != nil {
+			log.Fatalf("Failed to start consumer: %v", err)
+		}
+
+		for req := range requests {
+			conn, ok := handlers.GetWSManager().GetConnForTask(req.TaskID)
+			if !ok {
+				log.Errorf("No connection for task %s", req.TaskID)
+				continue
+			}
+
+			handlers.ExecuteScanSync(context.Background(), conn, req.IP, req.Ports)
+			handlers.GetWSManager().UnregisterTask(req.TaskID)
+		}
+	}()
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Server.Port,

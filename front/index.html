@@ -341,6 +341,9 @@
                         case 'scan_started':
                             handleScanStarted(message.data);
                             break;
+                        case 'scan_queued':
+                            handleScanQueued(message.data);
+                            break;
                         case 'scan_result':
                             handleScanResult(message.data);
                             break;
@@ -360,7 +363,10 @@
                 }
             };
         }
-
+        function handleScanQueued(data) {
+            addTerminalLine(`Scan queued with task ID: ${data.task_id}`, 'info-line');
+            // Можно добавить дополнительную логику, например отображение ID задачи
+        }
         // UI functions
         function addTerminalLine(text, className = '') {
             const line = document.createElement('div');
