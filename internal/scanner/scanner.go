@@ -10,8 +10,12 @@ import (
 	"time"
 )
 
+type ProgressReporter interface {
+	ReportProgress(progress float64, scanned, total int)
+}
+
 type PortScanner interface {
-	ScanPorts(ctx context.Context, ip string, ports string) ([]int, error)
+	ScanPorts(ctx context.Context, ip string, ports string, reporter ProgressReporter) ([]int, error)
 }
 
 type portScanner struct {
@@ -35,26 +39,39 @@ func NewPortScanner(logger Logger, timeout time.Duration, maxRetries int, retryD
 	}
 }
 
-func (s *portScanner) ScanPorts(ctx context.Context, ip string, ports string) ([]int, error) {
+func (s *portScanner) ScanPorts(ctx context.Context, ip, ports string, reporter ProgressReporter) ([]int, error) {
 	portList, err := parsePorts(ports)
 	if err != nil {
-		return nil, fmt.Errorf("invalid ports specification: %v", err)
+		return nil, err
 	}
 
-	var openPorts []int
-	var mu sync.Mutex
-	var wg sync.WaitGroup
+	var (
+		openPorts []int
+		mu        sync.Mutex
+		wg        sync.WaitGroup
+		total     = len(portList)
+	)
 
-	for _, port := range portList {
+	for i, port := range portList {
 		wg.Add(1)
-		go func(port int) {
+
+		go func(port, i int) {
 			defer wg.Done()
+
 			if isPortOpen(ctx, ip, port, s.timeout, s.maxRetries, s.retryDelay) {
 				mu.Lock()
 				openPorts = append(openPorts, port)
 				mu.Unlock()
 			}
-		}(port)
+
+			// Отправляем прогресс каждые 5%
+			if (i+1)%(total/20) == 0 || i == total-1 {
+				progress := float64(i+1) / float64(total)
+				if reporter != nil {
+					reporter.ReportProgress(progress, i+1, total)
+				}
+			}
+		}(port, i)
 	}
 
 	wg.Wait()

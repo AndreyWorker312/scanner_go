@@ -155,6 +155,17 @@ func (h *Handler) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type scanProgressReporter struct {
+	wsManager *WSManager
+}
+
+func (r *scanProgressReporter) ReportProgress(progress float64, scanned, total int) {
+	r.wsManager.Broadcast("scan_progress", map[string]interface{}{
+		"progress": progress,
+		"scanned":  scanned,
+		"total":    total,
+	})
+}
 func (h *Handler) handleScanRequest(ctx context.Context, conn *websocket.Conn, data json.RawMessage) {
 	var req struct {
 		IP    string `json:"ip"`
@@ -172,32 +183,39 @@ func (h *Handler) handleScanRequest(ctx context.Context, conn *websocket.Conn, d
 	}
 
 	if req.Ports == "" {
-		req.Ports = "1-1024" // Default ports range
+		req.Ports = "1-1024"
 	}
 
+	startTime := time.Now()
 	h.logger.Infof("Starting scan for %s on ports %s", req.IP, req.Ports)
-	h.sendWSMessage(conn, "scan_started", map[string]string{
+	h.sendWSMessage(conn, "scan_started", map[string]interface{}{
 		"ip":    req.IP,
 		"ports": req.Ports,
+		"time":  startTime.Format(time.RFC3339),
 	})
 
-	// Выполняем сканирование портов
-	openPorts, err := h.portScanner.ScanPorts(ctx, req.IP, req.Ports)
+	reporter := &scanProgressReporter{wsManager: h.wsManager}
+	openPorts, err := h.portScanner.ScanPorts(ctx, req.IP, req.Ports, reporter)
 	if err != nil {
 		h.logger.Errorf("Scan failed: %v", err)
 		h.sendErrorWS(conn, "Scan failed: "+err.Error())
 		return
 	}
 
-	// Отправляем результаты
-	h.sendWSMessage(conn, "scan_result", map[string]interface{}{
+	duration := time.Since(startTime)
+	result := map[string]interface{}{
 		"ip":         req.IP,
 		"ports":      req.Ports,
 		"open_ports": openPorts,
+		"count":      len(openPorts),
 		"timestamp":  time.Now().Format(time.RFC3339),
-	})
+		"duration":   duration.Seconds(),
+		"status":     "completed",
+	}
 
-	h.logger.Infof("Scan completed for %s. Open ports: %v", req.IP, openPorts)
+	h.sendWSMessage(conn, "scan_result", result)
+	h.logger.Infof("Scan completed for %s in %v. Found %d open ports: %v",
+		req.IP, duration, len(openPorts), openPorts)
 }
 
 func (h *Handler) sendWSMessage(conn *websocket.Conn, msgType string, data interface{}) error {

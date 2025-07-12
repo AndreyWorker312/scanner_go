@@ -182,6 +182,39 @@
             color: #f44747;
         }
 
+        .terminal-line {
+            margin-bottom: 8px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+        }
+
+        .scan-result {
+            color: #4CAF50;
+            background-color: #1e1e1e;
+            padding: 10px;
+            border-left: 3px solid #4CAF50;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        .port {
+            padding: 3px 8px;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 3px;
+            font-size: 14px;
+            margin-right: 5px;
+            margin-bottom: 5px;
+            display: inline-block;
+        }
+
+        .progress-container {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 15px;
+        }
         @media (max-width: 768px) {
             .container {
                 grid-template-columns: 1fr;
@@ -311,6 +344,11 @@
                         case 'scan_result':
                             handleScanResult(message.data);
                             break;
+                        case 'scan_progress':
+                            const progress = Math.round(message.data.progress * 100);
+                            document.getElementById('progressBar').style.width = `${progress}%`;
+                            document.getElementById('progressText').textContent = `${progress}%`;
+                            break;
                         case 'error':
                             addTerminalLine(`Error: ${message.message}`, 'error-line');
                             break;
@@ -383,31 +421,40 @@
         }
 
         function handleScanResult(data) {
-            // Update progress
-            if (data.progress !== undefined) {
-                const progress = Math.round(data.progress * 100);
-                document.getElementById('progressBar').style.width = `${progress}%`;
-                document.getElementById('progressText').textContent = `${progress}%`;
-            }
+            // Форматируем вывод в терминал
+            const totalPorts = data.ports.includes('-') ?
+                parseInt(data.ports.split('-')[1]) - parseInt(data.ports.split('-')[0]) + 1 :
+                data.ports.split(',').length;
 
-            // Update open ports
-            if (data.open_ports && data.open_ports.length > 0) {
-                document.getElementById('openPortsCount').textContent = data.open_ports.length;
-                const portsList = document.getElementById('openPortsList');
-                portsList.innerHTML = '';
-                data.open_ports.forEach(port => {
-                    const portElement = document.createElement('span');
-                    portElement.className = 'port';
-                    portElement.textContent = port;
-                    portsList.appendChild(portElement);
-                });
-            }
+            const scanInfo = `
+=== Scan Results ===
+Target: ${data.ip}
+Port range: ${data.ports}
+Scan started: ${new Date(data.timestamp).toLocaleString()}
+Duration: ${data.duration.toFixed(2)} seconds
+Total ports scanned: ${totalPorts}
+Open ports found: ${data.count}
+Open ports list: ${data.open_ports.join(', ')}
+===================
+`;
 
-            // Show completion message
-            if (data.status === "completed") {
-                addTerminalLine(`Scan completed. Found ${data.open_ports?.length || 0} open ports.`, 'success-line');
-                resetScanUI();
-            }
+            addTerminalLine(scanInfo, 'success-line');
+
+            // Обновляем UI
+            document.getElementById('progressBar').style.width = '100%';
+            document.getElementById('progressText').textContent = '100%';
+            document.getElementById('openPortsCount').textContent = data.count;
+
+            const portsList = document.getElementById('openPortsList');
+            portsList.innerHTML = '';
+            data.open_ports.forEach(port => {
+                const portElement = document.createElement('span');
+                portElement.className = 'port';
+                portElement.textContent = port;
+                portsList.appendChild(portElement);
+            });
+
+            addTerminalLine(`Scan completed successfully!`, 'success-line');
         }
 
         // Initial message
