@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"backend/pkg/logger"
 	"context"
 	"encoding/json"
 
@@ -89,17 +90,18 @@ func (r *RabbitMQ) PublishScanRequest(ctx context.Context, req ScanRequest) erro
 		})
 }
 
-func (r *RabbitMQ) ConsumeScanRequests(ctx context.Context) (<-chan ScanRequest, error) {
+func (r *RabbitMQ) ConsumeScanRequests(ctx context.Context, log logger.LoggerInterface) (<-chan ScanRequest, error) {
 	msgs, err := r.channel.Consume(
 		r.queue.Name, // queue
-		"",           // consumer
-		false,        // auto-ack
+		"",           // consumer tag
+		false,        // auto-ack, ждём ручного подтверждения
 		false,        // exclusive
 		false,        // no-local
 		false,        // no-wait
 		nil,          // args
 	)
 	if err != nil {
+		log.Errorf("Failed to register consumer on queue %s: %v", r.queue.Name, err)
 		return nil, err
 	}
 
@@ -107,23 +109,38 @@ func (r *RabbitMQ) ConsumeScanRequests(ctx context.Context) (<-chan ScanRequest,
 
 	go func() {
 		defer close(reqChan)
+		log.Infof("Started consuming scan requests from queue %s", r.queue.Name)
 		for {
 			select {
 			case <-ctx.Done():
+				log.Info("Stopping consuming scan requests (context cancelled)")
 				return
 			case msg, ok := <-msgs:
 				if !ok {
+					log.Warnf("Messages channel closed, stopping consuming")
 					return
 				}
 
+				log.Infof("Received raw message: %s", string(msg.Body))
+
 				var req ScanRequest
 				if err := json.Unmarshal(msg.Body, &req); err != nil {
-					msg.Nack(false, false)
+					log.Errorf("Failed to unmarshal scan request: %v", err)
+					if err := msg.Nack(false, false); err != nil {
+						log.Errorf("Failed to nack message: %v", err)
+					}
 					continue
 				}
 
+				log.Infof("Parsed scan request: task_id=%s, ip=%s, ports=%s", req.TaskID, req.IP, req.Ports)
+
 				reqChan <- req
-				msg.Ack(false)
+
+				if err := msg.Ack(false); err != nil {
+					log.Errorf("Failed to ack message: %v", err)
+				} else {
+					log.Infof("Acknowledged message: task_id=%s", req.TaskID)
+				}
 			}
 		}
 	}()
