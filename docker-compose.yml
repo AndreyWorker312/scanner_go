@@ -32,7 +32,7 @@ services:
   frontend:
     build: ./frontend
     ports:
-      - "80:80"
+      - "81:80"
     depends_on:
       - backend        # меняем условие на простое ожидание запуска (без healthcheck)
     restart: unless-stopped
