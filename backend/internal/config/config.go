@@ -31,7 +31,7 @@ func Load() (*Config, error) {
 		},
 		RabbitMQ: RabbitMQConfig{
 			URL:          getEnv("RABBITMQ_URL", "amqp://guest:guest@rabbitmq:5672/"),
-			ScannerQueue: getEnv("RABBITMQ_SCANNER_QUEUE", "scan_requests"),
+			ScannerQueue: getEnv("SCANNER_NAME", "scan_requests"),
 		},
 	}
 
