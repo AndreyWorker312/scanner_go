@@ -4,6 +4,8 @@ import (
 	"backend/pkg/logger"
 	"context"
 	"encoding/json"
+	"fmt"
+	"github.com/google/uuid"
 
 	"github.com/streadway/amqp"
 )
@@ -90,6 +92,78 @@ func (r *RabbitMQ) PublishScanRequest(ctx context.Context, req ScanRequest) erro
 		})
 }
 
+// Добавим новую структуру для ответа
+type ScanResponse struct {
+	TaskID    string `json:"task_id"`
+	Status    string `json:"status"`
+	OpenPorts []int  `json:"open_ports"`
+	Error     string `json:"error,omitempty"`
+}
+
+// Добавим метод для RPC вызова с Direct Reply-To
+func (r *RabbitMQ) RPCCall(ctx context.Context, req ScanRequest) (*ScanResponse, error) {
+	// Сериализуем запрос
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Создаем канал для получения ответа
+	replies, err := r.channel.Consume(
+		"amq.rabbitmq.reply-to", // специальная псевдо-очередь
+		"",                      // автоматически сгенерированный consumer tag
+		true,                    // auto-ack
+		false,                   // exclusive
+		false,                   // no-local
+		false,                   // no-wait
+		nil,                     // args
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Генерируем уникальный correlation ID
+	correlationID := generateCorrelationID()
+
+	// Публикуем запрос
+	err = r.channel.Publish(
+		"",           // exchange
+		r.queue.Name, // routing key
+		false,        // mandatory
+		false,        // immediate
+		amqp.Publishing{
+			ContentType:   "application/json",
+			CorrelationId: correlationID,
+			ReplyTo:       "amq.rabbitmq.reply-to",
+			Body:          body,
+		})
+	if err != nil {
+		return nil, err
+	}
+
+	// Ждем ответа с таймаутом
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case msg := <-replies:
+		// Проверяем correlation ID (на всякий случай)
+		if msg.CorrelationId != correlationID {
+			return nil, fmt.Errorf("mismatched correlation ID")
+		}
+
+		var response ScanResponse
+		if err := json.Unmarshal(msg.Body, &response); err != nil {
+			return nil, err
+		}
+
+		return &response, nil
+	}
+}
+
+// Вспомогательная функция для генерации correlation ID
+func generateCorrelationID() string {
+	return uuid.New().String()
+}
 func (r *RabbitMQ) ConsumeScanRequests(ctx context.Context, log logger.LoggerInterface) (<-chan ScanRequest, error) {
 	msgs, err := r.channel.Consume(
 		r.queue.Name, // queue

@@ -21,9 +21,6 @@ services:
     build: ./backend
     ports:
       - "8080:8080"
-    environment:
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
-      - SERVER_PORT=8080
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -32,7 +29,7 @@ services:
   frontend:
     build: ./frontend
     ports:
-      - "80:80"
+      - "81:80"
     depends_on:
       - backend        # меняем условие на простое ожидание запуска (без healthcheck)
     restart: unless-stopped

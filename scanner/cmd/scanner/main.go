@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"os/signal"
 	"strconv"
@@ -41,7 +42,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	requests, err := rabbitMQ.ConsumeScanRequests(ctx)
+	msgs, err := rabbitMQ.ConsumeScanRequests(ctx)
 	if err != nil {
 		log.Errorf("Failed to consume scan requests: %v", err)
 		os.Exit(1)
@@ -55,10 +56,42 @@ func main() {
 
 	for {
 		select {
-		case req := <-requests:
+		case delivery, ok := <-msgs:
+			if !ok {
+				log.Info("Channel closed, shutting down...")
+				return
+			}
+
+			// Unmarshal the message body into ScanRequest
+			var req queue.ScanRequest
+			if err := json.Unmarshal(delivery.Body, &req); err != nil {
+				log.Errorf("Failed to unmarshal scan request: %v", err)
+				continue
+			}
+
 			log.Infof("Received scan request: %s %s", req.IP, req.Ports)
 
+			// Process the scan
 			openPorts, err := portScanner.ScanPorts(ctx, req.IP, req.Ports)
+
+			// If this is an RPC request, send response
+			if delivery.ReplyTo != "" {
+				response := queue.ScanResponse{
+					TaskID:    req.TaskID,
+					Status:    "completed",
+					OpenPorts: openPorts,
+				}
+				if err != nil {
+					response.Error = err.Error()
+					response.Status = "failed"
+				}
+
+				err = rabbitMQ.SendResponse(ctx, delivery.ReplyTo, delivery.CorrelationId, response)
+				if err != nil {
+					log.Errorf("Failed to send RPC response: %v", err)
+				}
+			}
+
 			if err != nil {
 				log.Errorf("Scan failed: %v", err)
 				continue

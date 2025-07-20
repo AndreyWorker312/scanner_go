@@ -3,6 +3,8 @@ package queue
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"time"
 
 	"github.com/streadway/amqp"
 )
@@ -16,6 +18,17 @@ type ScanRequest struct {
 	TaskID string `json:"task_id"`
 	IP     string `json:"ip"`
 	Ports  string `json:"ports"`
+}
+
+type ScanResponse struct {
+	TaskID    string `json:"task_id"`
+	Status    string `json:"status"`
+	OpenPorts []int  `json:"open_ports"`
+	Error     string `json:"error,omitempty"`
+}
+
+type Delivery struct {
+	amqp.Delivery
 }
 
 type RabbitMQ struct {
@@ -71,7 +84,79 @@ func (r *RabbitMQ) Close() error {
 	return nil
 }
 
-func (r *RabbitMQ) ConsumeScanRequests(ctx context.Context) (<-chan ScanRequest, error) {
+func (r *RabbitMQ) RPCCall(ctx context.Context, req ScanRequest) (*ScanResponse, error) {
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Используем Direct Reply-To для эффективности
+	replies, err := r.channel.Consume(
+		"amq.rabbitmq.reply-to",
+		"",
+		true,  // auto-ack
+		false, // exclusive
+		false, // no-local
+		false, // no-wait
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	correlationID := generateCorrelationID()
+
+	err = r.channel.Publish(
+		"",
+		r.queue.Name,
+		false,
+		false,
+		amqp.Publishing{
+			ContentType:   "application/json",
+			CorrelationId: correlationID,
+			ReplyTo:       "amq.rabbitmq.reply-to",
+			Body:          body,
+		})
+	if err != nil {
+		return nil, err
+	}
+
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case msg := <-replies:
+		if msg.CorrelationId != correlationID {
+			return nil, fmt.Errorf("mismatched correlation ID")
+		}
+
+		var response ScanResponse
+		if err := json.Unmarshal(msg.Body, &response); err != nil {
+			return nil, err
+		}
+
+		return &response, nil
+	}
+}
+
+func (r *RabbitMQ) SendResponse(ctx context.Context, replyTo string, correlationID string, response ScanResponse) error {
+	body, err := json.Marshal(response)
+	if err != nil {
+		return err
+	}
+
+	return r.channel.Publish(
+		"",
+		replyTo,
+		false,
+		false,
+		amqp.Publishing{
+			ContentType:   "application/json",
+			CorrelationId: correlationID,
+			Body:          body,
+		})
+}
+
+func (r *RabbitMQ) ConsumeScanRequests(ctx context.Context) (<-chan Delivery, error) {
 	msgs, err := r.channel.Consume(
 		r.queue.Name,
 		"",
@@ -79,16 +164,16 @@ func (r *RabbitMQ) ConsumeScanRequests(ctx context.Context) (<-chan ScanRequest,
 		false, // exclusive
 		false, // no-local
 		false, // no-wait
-		nil,   // args
+		nil,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	reqChan := make(chan ScanRequest)
+	deliveries := make(chan Delivery)
 
 	go func() {
-		defer close(reqChan)
+		defer close(deliveries)
 		for {
 			select {
 			case <-ctx.Done():
@@ -104,11 +189,15 @@ func (r *RabbitMQ) ConsumeScanRequests(ctx context.Context) (<-chan ScanRequest,
 					continue
 				}
 
-				reqChan <- req
+				deliveries <- Delivery{msg}
 				_ = msg.Ack(false)
 			}
 		}
 	}()
 
-	return reqChan, nil
+	return deliveries, nil
+}
+
+func generateCorrelationID() string {
+	return fmt.Sprintf("%d", time.Now().UnixNano())
 }

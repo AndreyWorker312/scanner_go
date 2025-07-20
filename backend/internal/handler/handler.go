@@ -18,6 +18,7 @@ const (
 	pongWait       = 60 * time.Second
 	pingPeriod     = (pongWait * 9) / 10
 	maxMessageSize = 4096
+	rpcTimeout     = 30 * time.Second
 )
 
 type WSManager struct {
@@ -119,7 +120,6 @@ func (h *Handler) InitRoutes() http.Handler {
 	return h.loggingMiddleware(mux)
 }
 
-// loggingMiddleware logs all incoming HTTP requests.
 func (h *Handler) loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h.logger.Infof("HTTP %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
@@ -140,14 +140,12 @@ func (h *Handler) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		conn.Close()
 	}()
 
-	h.logger.Infof("New WebSocket connection from %v", conn.RemoteAddr())
 	h.wsManager.AddClient(conn)
 	defer h.wsManager.RemoveClient(conn)
 
 	conn.SetReadLimit(maxMessageSize)
 	conn.SetReadDeadline(time.Now().Add(pongWait))
 	conn.SetPongHandler(func(string) error {
-		h.logger.Infof("Received pong from %v", conn.RemoteAddr())
 		conn.SetReadDeadline(time.Now().Add(pongWait))
 		return nil
 	})
@@ -155,49 +153,63 @@ func (h *Handler) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	if err := h.sendWSMessage(conn, "welcome", map[string]string{
 		"message": "Connected to Port Scanner",
 	}); err != nil {
-		h.logger.Errorf("Failed to send welcome message to %v: %v", conn.RemoteAddr(), err)
+		h.logger.Errorf("Failed to send welcome message: %v", err)
 		return
 	}
 
+	// Запускаем обработчик ping/pong
+	go h.handlePingPong(conn)
+
 	for {
-		mt, msg, err := conn.ReadMessage()
+		_, msg, err := conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				h.logger.Errorf("WebSocket unexpected close error from %v: %v", conn.RemoteAddr(), err)
-			} else {
-				h.logger.Infof("WebSocket connection closed by client %v: %v", conn.RemoteAddr(), err)
+				h.logger.Errorf("WebSocket error: %v", err)
 			}
 			break
 		}
 
-		h.logger.Infof("Received message from %v: messageType=%d, len=%d", conn.RemoteAddr(), mt, len(msg))
+		h.processMessage(conn, msg)
+	}
+}
 
-		var request struct {
-			Action string          `json:"action"`
-			Data   json.RawMessage `json:"data"`
+func (h *Handler) handlePingPong(conn *websocket.Conn) {
+	ticker := time.NewTicker(pingPeriod)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			if err := h.sendWSMessage(conn, "ping", nil); err != nil {
+				h.logger.Errorf("Failed to send ping: %v", err)
+				return
+			}
 		}
+	}
+}
 
-		if err := json.Unmarshal(msg, &request); err != nil {
-			h.logger.Errorf("Invalid message format from %v: %v", conn.RemoteAddr(), err)
-			h.sendErrorWS(conn, "Invalid message format")
-			continue
-		}
+func (h *Handler) processMessage(conn *websocket.Conn, msg []byte) {
+	var request struct {
+		Action string          `json:"action"`
+		Data   json.RawMessage `json:"data"`
+	}
 
-		h.logger.Infof("Processing action '%s' from %v", request.Action, conn.RemoteAddr())
+	if err := json.Unmarshal(msg, &request); err != nil {
+		h.logger.Errorf("Invalid message format: %v", err)
+		h.sendErrorWS(conn, "Invalid message format")
+		return
+	}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), rpcTimeout)
+	defer cancel()
 
-		switch request.Action {
-		case "scan":
-			h.handleScanRequest(ctx, conn, request.Data)
-		case "ping":
-			h.logger.Infof("Received ping from %v", conn.RemoteAddr())
-			h.sendWSMessage(conn, "pong", nil)
-		default:
-			h.logger.Warnf("Unknown action '%s' from %v", request.Action, conn.RemoteAddr())
-			h.sendErrorWS(conn, "Unknown action: "+request.Action)
-		}
+	switch request.Action {
+	case "scan":
+		h.handleScanRequest(ctx, conn, request.Data)
+	case "ping":
+		h.sendWSMessage(conn, "pong", nil)
+	default:
+		h.sendErrorWS(conn, "Unknown action: "+request.Action)
 	}
 }
 
@@ -208,60 +220,63 @@ func (h *Handler) handleScanRequest(ctx context.Context, conn *websocket.Conn, d
 	}
 
 	if err := json.Unmarshal(data, &req); err != nil {
-		h.logger.Errorf("Failed to unmarshal scan request: %v", err)
 		h.sendErrorWS(conn, "Invalid scan request")
 		return
 	}
 
-	h.logger.Infof("Received scan request from %v: IP=%s, Ports=%s", conn.RemoteAddr(), req.IP, req.Ports)
-
 	if req.IP == "" {
-		h.logger.Warnf("Scan request missing IP address from %v", conn.RemoteAddr())
 		h.sendErrorWS(conn, "IP address is required")
 		return
 	}
 
 	if req.Ports == "" {
 		req.Ports = "1-1024"
-		h.logger.Infof("Ports not provided, defaulting to %s", req.Ports)
 	}
 
 	taskID := generateTaskID()
 	h.wsManager.RegisterTask(taskID, conn)
+	defer h.wsManager.UnregisterTask(taskID)
 
-	if err := h.sendWSMessage(conn, "scan_queued", map[string]string{"task_id": taskID}); err != nil {
-		h.logger.Errorf("Failed to send scan_queued message to %v: %v", conn.RemoteAddr(), err)
-	}
-
-	err := h.queue.PublishScanRequest(ctx, queue.ScanRequest{
+	// Используем новый RPC вызов
+	resp, err := h.queue.RPCCall(ctx, queue.ScanRequest{
 		TaskID: taskID,
 		IP:     req.IP,
 		Ports:  req.Ports,
 	})
+
 	if err != nil {
-		h.logger.Errorf("Failed to publish scan request to queue: %v", err)
-		h.sendErrorWS(conn, "Failed to queue scan request")
-		h.wsManager.UnregisterTask(taskID)
+		h.logger.Errorf("RPC call failed: %v", err)
+		h.sendErrorWS(conn, "Scan failed")
 		return
 	}
-
-	h.logger.Infof("Published scan request %s for %s:%s to queue", taskID, req.IP, req.Ports)
+	if resp.Error != "" {
+		h.logger.Infof(
+			"Scan result: task_id=%s, ip=%s, ports=%s, status=%s, error=%s",
+			resp.TaskID, req.IP, req.Ports, resp.Status, resp.Error,
+		)
+	} else {
+		h.logger.Infof(
+			"Scan result: task_id=%s, ip=%s, ports=%s, status=%s, open_ports=%v",
+			resp.TaskID, req.IP, req.Ports, resp.Status, resp.OpenPorts,
+		)
+	}
+	h.sendWSMessage(conn, "scan_result", map[string]interface{}{
+		"task_id":    resp.TaskID,
+		"status":     resp.Status,
+		"open_ports": resp.OpenPorts,
+		"error":      resp.Error,
+	})
 }
 
 func (h *Handler) sendWSMessage(conn *websocket.Conn, msgType string, data interface{}) error {
 	conn.SetWriteDeadline(time.Now().Add(writeWait))
-	err := conn.WriteJSON(map[string]interface{}{
+	return conn.WriteJSON(map[string]interface{}{
 		"type": msgType,
 		"data": data,
 	})
-	if err != nil {
-		h.logger.Errorf("Failed to send message of type '%s' to %v: %v", msgType, conn.RemoteAddr(), err)
-	}
-	return err
 }
 
 func (h *Handler) sendErrorWS(conn *websocket.Conn, message string) {
-	h.logger.Infof("Sending error message to %v: %s", conn.RemoteAddr(), message)
 	h.sendWSMessage(conn, "error", map[string]string{
 		"message": message,
 	})
