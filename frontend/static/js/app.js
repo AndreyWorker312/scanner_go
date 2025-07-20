@@ -172,30 +172,62 @@ class NetworkScannerUI {
     }
 
     handleScanResult(data) {
-        const totalPorts = data.ports.includes('-') ?
-            parseInt(data.ports.split('-')[1]) - parseInt(data.ports.split('-')[0]) + 1 :
-            data.ports.split(',').length;
+        // Добавим защиту от некорректного ответа
+        if (!data || typeof data !== 'object') {
+            this.addTerminalLine('Invalid scan result received', 'error-line');
+            return;
+        }
 
+        // Если ошибка — сразу вывести и завершить
+        if (data.error) {
+            this.addTerminalLine(`Scan error: ${data.error}`, 'error-line');
+            this.resetScanUI();
+            return;
+        }
+
+        // Защита от отсутствия обязательных полей
+        const ip = data.ip || 'N/A';
+        const portsText = data.ports || 'N/A';
+        const openPorts = Array.isArray(data.open_ports) ? data.open_ports : [];
+        const timestamp = data.timestamp ? new Date(data.timestamp).toLocaleString() : 'N/A';
+        const duration = typeof data.duration === 'number' ? data.duration.toFixed(2) : 'N/A';
+
+        // К-во портов для статистики
+        let totalPorts = 'N/A';
+        if (portsText && typeof portsText === 'string') {
+            if (portsText.includes('-')) {
+                const [from, to] = portsText.split('-').map(Number);
+                if (!isNaN(from) && !isNaN(to)) {
+                    totalPorts = to - from + 1;
+                }
+            } else {
+                totalPorts = portsText.split(',').filter(p => p).length;
+            }
+        }
+        const openCount = typeof data.count === 'number'
+            ? data.count
+            : openPorts.length;
+
+        // Формируем результат
         const scanInfo = `
 === Scan Results ===
-Target: ${data.ip}
-Port range: ${data.ports}
-Scan started: ${new Date(data.timestamp).toLocaleString()}
-Duration: ${data.duration.toFixed(2)} seconds
+Target: ${ip}
+Port range: ${portsText}
+Scan started: ${timestamp}
+Duration: ${duration} seconds
 Total ports scanned: ${totalPorts}
-Open ports found: ${data.count}
-Open ports list: ${data.open_ports.join(', ')}
+Open ports found: ${openCount}
+Open ports list: ${openPorts.length ? openPorts.join(', ') : 'None'}
 ===================
 `;
-
         this.addTerminalLine(scanInfo, 'success-line');
 
         this.progressBar.style.width = '100%';
         this.progressText.textContent = '100%';
-        this.openPortsCount.textContent = data.count;
+        this.openPortsCount.textContent = openCount;
 
         this.openPortsList.innerHTML = '';
-        data.open_ports.forEach(port => {
+        openPorts.forEach(port => {
             const portElement = document.createElement('span');
             portElement.className = 'port';
             portElement.textContent = port;
@@ -205,6 +237,7 @@ Open ports list: ${data.open_ports.join(', ')}
         this.addTerminalLine(`Scan completed successfully!`, 'success-line');
         this.resetScanUI();
     }
+
 }
 
 // Initialize the application when DOM is loaded
