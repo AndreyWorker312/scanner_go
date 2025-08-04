@@ -5,9 +5,21 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f3a41da5-ca29-4e9e-8e4e-e072375f054f" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/scanner/readme.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/scanner/.env" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/scanner/internal/config/config.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/scanner/internal/config/env.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/scanner/internal/handler/scan_handler.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/scanner/internal/service/scanner_service.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/scanner/test_service/scanner_test.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/scanner/test_service/service_test.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.env" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitiignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/static/js/app.js" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/static/js/app.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scanner/cmd/scanner/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/scanner/cmd/scanner/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scanner/go.mod" beforeDir="false" afterPath="$PROJECT_DIR$/scanner/go.mod" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scanner/go.sum" beforeDir="false" afterPath="$PROJECT_DIR$/scanner/go.sum" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scanner/pkg/queue/rabbitmq.go" beforeDir="false" afterPath="$PROJECT_DIR$/scanner/pkg/queue/rabbitmq.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -23,7 +35,7 @@
   </component>
   <component name="GOROOT" url="file://$USER_HOME$/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.5.linux-amd64" />
   <component name="Git.Settings">
-    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/scanner" />
   </component>
   <component name="ProjectColorInfo">{
   &quot;customColor&quot;: &quot;&quot;,
@@ -37,44 +49,35 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "DefaultGoTemplateProperty": "Go File",
-    "Go Test.go test network-scanner.executor": "Run",
-    "Go Test.go test scanner.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.go.formatter.settings.were.checked": "true",
-    "RunOnceActivity.go.migrated.go.modules.settings": "true",
-    "RunOnceActivity.go.modules.go.list.on.any.changes.was.set": "true",
-    "git-widget-placeholder": "main",
-    "go.import.settings.migrated": "true",
-    "go.sdk.automatically.set": "true",
-    "last_opened_file_path": "/home/andrey",
-    "node.js.detected.package.eslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;DefaultGoTemplateProperty&quot;: &quot;Go File&quot;,
+    &quot;Go Test.go test network-scanner.executor&quot;: &quot;Run&quot;,
+    &quot;Go Test.go test scanner.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.go.formatter.settings.were.checked&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.go.migrated.go.modules.settings&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.go.modules.go.list.on.any.changes.was.set&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;go.import.settings.migrated&quot;: &quot;true&quot;,
+    &quot;go.sdk.automatically.set&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/home/andrey/Documents/postupashki/dz1&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/scanner/pkg" />
+      <recent name="$PROJECT_DIR$/scanner/internal" />
+      <recent name="$PROJECT_DIR$/scanner" />
       <recent name="$PROJECT_DIR$/internal/scanner" />
       <recent name="$PROJECT_DIR$/internal/api" />
-      <recent name="$PROJECT_DIR$/ migrations" />
-      <recent name="$PROJECT_DIR$/cmd/server" />
     </key>
   </component>
   <component name="RunManager">
-    <configuration name="go test scanner" type="GoTestRunConfiguration" factoryName="Go Test" nameIsGenerated="true">
-      <module name="network-scanner" />
-      <working_directory value="$PROJECT_DIR$" />
-      <kind value="DIRECTORY" />
-      <package value="network-scanner" />
-      <directory value="$PROJECT_DIR$/internal/scanner" />
-      <filePath value="$PROJECT_DIR$" />
-      <framework value="gotest" />
-      <method v="2" />
-    </configuration>
     <configuration default="true" type="docker-deploy" factoryName="dockerfile" temporary="true">
       <deployment type="dockerfile">
         <settings />
@@ -93,6 +96,9 @@
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="UnknownFeatures">
+    <option featureType="com.intellij.fileTypeFactory" implementationName=".env" />
   </component>
   <component name="VgoProject">
     <settings-migrated>true</settings-migrated>

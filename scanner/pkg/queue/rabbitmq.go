@@ -84,61 +84,7 @@ func (r *RabbitMQ) Close() error {
 	return nil
 }
 
-func (r *RabbitMQ) RPCCall(ctx context.Context, req ScanRequest) (*ScanResponse, error) {
-	body, err := json.Marshal(req)
-	if err != nil {
-		return nil, err
-	}
-
-	// Используем Direct Reply-To для эффективности
-	replies, err := r.channel.Consume(
-		"amq.rabbitmq.reply-to",
-		"",
-		true,  // auto-ack
-		false, // exclusive
-		false, // no-local
-		false, // no-wait
-		nil,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	correlationID := generateCorrelationID()
-
-	err = r.channel.Publish(
-		"",
-		r.queue.Name,
-		false,
-		false,
-		amqp.Publishing{
-			ContentType:   "application/json",
-			CorrelationId: correlationID,
-			ReplyTo:       "amq.rabbitmq.reply-to",
-			Body:          body,
-		})
-	if err != nil {
-		return nil, err
-	}
-
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case msg := <-replies:
-		if msg.CorrelationId != correlationID {
-			return nil, fmt.Errorf("mismatched correlation ID")
-		}
-
-		var response ScanResponse
-		if err := json.Unmarshal(msg.Body, &response); err != nil {
-			return nil, err
-		}
-
-		return &response, nil
-	}
-}
-
-func (r *RabbitMQ) SendResponse(ctx context.Context, replyTo string, correlationID string, response ScanResponse) error {
+func (r *RabbitMQ) SendResponse(replyTo string, correlationID string, response ScanResponse) error {
 	body, err := json.Marshal(response)
 	if err != nil {
 		return err
