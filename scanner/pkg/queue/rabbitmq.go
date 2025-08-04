@@ -3,9 +3,6 @@ package queue
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"time"
-
 	"github.com/streadway/amqp"
 )
 
@@ -142,8 +139,4 @@ func (r *RabbitMQ) ConsumeScanRequests(ctx context.Context) (<-chan Delivery, er
 	}()
 
 	return deliveries, nil
-}
-
-func generateCorrelationID() string {
-	return fmt.Sprintf("%d", time.Now().UnixNano())
 }
