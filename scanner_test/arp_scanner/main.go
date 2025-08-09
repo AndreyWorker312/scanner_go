@@ -15,21 +15,27 @@ import (
 
 const (
 	defaultRabbitMQURL  = "amqp://guest:guest@localhost:5672/"
-	defaultScannerQueue = "scanner1"
+	defaultScannerQueue = "scanner2"
 	scanInterval        = 3 * time.Second
 )
 
-type ScanRequest struct {
-	TaskID string `json:"task_id"`
-	IP     string `json:"ip"`
-	Ports  string `json:"ports"`
+type ARPRequest struct {
+	TaskID        string `json:"task_id"`
+	InterfaceName string `json:"interface_name"`
+	IPRange       string `json:"ip_range"`
 }
 
-type ScanResponse struct {
-	TaskID    string `json:"task_id"`
-	Status    string `json:"status"`
-	OpenPorts []int  `json:"open_ports"`
-	Error     string `json:"error,omitempty"`
+type ARPResponse struct {
+	TaskID  string       `json:"task_id"`
+	Status  string       `json:"status"`
+	Devices []DeviceInfo `json:"devices,omitempty"`
+	Error   string       `json:"error,omitempty"`
+}
+
+type DeviceInfo struct {
+	IP     string `json:"ip"`
+	MAC    string `json:"mac"`
+	Status string `json:"status"`
 }
 
 func main() {
@@ -40,16 +46,16 @@ func main() {
 	scannerQueue := getEnv("SCANNER_QUEUE", defaultScannerQueue)
 
 	// Список сканирований для выполнения
-	scanRequests := []ScanRequest{
+	scanRequests := []ARPRequest{
 		{
-			TaskID: "scan-1",
-			IP:     "127.0.0.1",
-			Ports:  "80,443,8080",
+			TaskID:        "arp-scan-1",
+			InterfaceName: "wlo1",
+			IPRange:       "192.168.1.1-192.168.1.10",
 		},
 		{
-			TaskID: "scan-2",
-			IP:     "chat.deepseek.com",
-			Ports:  "80,443,8080,2301",
+			TaskID:        "arp-scan-2",
+			InterfaceName: "br-94b2bf6e3bd5",
+			IPRange:       "172.22.0.2",
 		},
 	}
 
@@ -59,11 +65,11 @@ func main() {
 
 	// Запускаем бесконечный цикл сканирования
 	if err := runContinuousScans(ctx, rabbitMQURL, scannerQueue, scanRequests); err != nil {
-		log.Fatalf("Scan failed: %v", err)
+		log.Fatalf("ARP scan failed: %v", err)
 	}
 }
 
-func runContinuousScans(ctx context.Context, rabbitMQURL, scannerQueue string, requests []ScanRequest) error {
+func runContinuousScans(ctx context.Context, rabbitMQURL, scannerQueue string, requests []ARPRequest) error {
 	ticker := time.NewTicker(scanInterval)
 	defer ticker.Stop()
 
@@ -79,7 +85,7 @@ func runContinuousScans(ctx context.Context, rabbitMQURL, scannerQueue string, r
 	}
 }
 
-func runSingleScanBatch(ctx context.Context, rabbitMQURL, scannerQueue string, requests []ScanRequest) error {
+func runSingleScanBatch(ctx context.Context, rabbitMQURL, scannerQueue string, requests []ARPRequest) error {
 	// Подключаемся к RabbitMQ
 	conn, err := amqp.Dial(rabbitMQURL)
 	if err != nil {
@@ -95,12 +101,12 @@ func runSingleScanBatch(ctx context.Context, rabbitMQURL, scannerQueue string, r
 
 	// Создаем временную очередь для ответов
 	replyQueue, err := ch.QueueDeclare(
-		"",    // auto-generated name
-		false, // not durable
-		true,  // auto-delete when unused
+		"",    // имя генерируется автоматически
+		false, // durable
+		true,  // delete when unused
 		true,  // exclusive
 		false, // no-wait
-		nil,
+		nil,   // arguments
 	)
 	if err != nil {
 		return fmt.Errorf("failed to declare reply queue: %w", err)
@@ -127,7 +133,7 @@ func runSingleScanBatch(ctx context.Context, rabbitMQURL, scannerQueue string, r
 			return nil
 		default:
 			if err := sendAndReceive(ch, scannerQueue, replyQueue.Name, msgs, req); err != nil {
-				log.Printf("Scan %s failed: %v", req.TaskID, err)
+				log.Printf("ARP scan %s failed: %v", req.TaskID, err)
 			}
 		}
 	}
@@ -135,11 +141,20 @@ func runSingleScanBatch(ctx context.Context, rabbitMQURL, scannerQueue string, r
 	return nil
 }
 
-func sendAndReceive(ch *amqp.Channel, scannerQueue, replyTo string, msgs <-chan amqp.Delivery, req ScanRequest) error {
+func sendAndReceive(ch *amqp.Channel, scannerQueue, replyTo string, msgs <-chan amqp.Delivery, req ARPRequest) error {
 	correlationID := fmt.Sprintf("%d", time.Now().UnixNano())
 
+	// Добавляем поле ReplyTo в запрос
+	fullReq := struct {
+		ARPRequest
+		ReplyTo string `json:"reply_to"`
+	}{
+		ARPRequest: req,
+		ReplyTo:    replyTo,
+	}
+
 	// Сериализуем запрос
-	body, err := json.Marshal(req)
+	body, err := json.Marshal(fullReq)
 	if err != nil {
 		return fmt.Errorf("marshal request: %w", err)
 	}
@@ -160,24 +175,27 @@ func sendAndReceive(ch *amqp.Channel, scannerQueue, replyTo string, msgs <-chan 
 		return fmt.Errorf("publish message: %w", err)
 	}
 
-	log.Printf("Sent scan request: %s %s", req.IP, req.Ports)
+	log.Printf("Sent ARP scan request: %s %s on %s", req.TaskID, req.IPRange, req.InterfaceName)
 
 	// Ожидаем ответа с таймаутом
 	select {
 	case d := <-msgs:
 		if d.CorrelationId == correlationID {
-			var response ScanResponse
+			var response ARPResponse
 			if err := json.Unmarshal(d.Body, &response); err != nil {
 				return fmt.Errorf("decode response: %w", err)
 			}
 
 			if response.Error != "" {
-				log.Printf("[%s] Scan failed: %s", response.TaskID, response.Error)
+				log.Printf("[%s] ARP scan failed: %s", response.TaskID, response.Error)
 			} else {
-				log.Printf("[%s] Scan result for %s: open ports %v", response.TaskID, req.IP, response.OpenPorts)
+				log.Printf("[%s] ARP scan result: found %d devices", response.TaskID, len(response.Devices))
+				for _, device := range response.Devices {
+					log.Printf("  - %s (%s) status: %s", device.IP, device.MAC, device.Status)
+				}
 			}
 		}
-	case <-time.After(30 * time.Second):
+	case <-time.After(60 * time.Second):
 		return fmt.Errorf("timeout waiting for response")
 	}
 
