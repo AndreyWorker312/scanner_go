@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/streadway/amqp"
+	"scanner_icmp/internal/scanner"
 )
 
 type RabbitMQConfig struct {
@@ -11,17 +12,17 @@ type RabbitMQConfig struct {
 	ScannerQueue string
 }
 
-type ScanRequest struct {
-	TaskID string `json:"task_id"`
-	IP     string `json:"ip"`
-	Ports  string `json:"ports"`
+type PingRequest struct {
+	TaskID    string   `json:"task_id"`
+	Targets   []string `json:"targets"`
+	PingCount int      `json:"ping_count"`
 }
 
-type ScanResponse struct {
-	TaskID    string `json:"task_id"`
-	Status    string `json:"status"`
-	OpenPorts []int  `json:"open_ports"`
-	Error     string `json:"error,omitempty"`
+type PingResponse struct {
+	TaskID  string               `json:"task_id"`
+	Status  string               `json:"status"`
+	Results []scanner.PingResult `json:"results"`
+	Error   string               `json:"error,omitempty"`
 }
 
 type Delivery struct {
@@ -81,7 +82,7 @@ func (r *RabbitMQ) Close() error {
 	return nil
 }
 
-func (r *RabbitMQ) SendResponse(replyTo string, correlationID string, response ScanResponse) error {
+func (r *RabbitMQ) SendResponse(replyTo string, correlationID string, response interface{}) error {
 	body, err := json.Marshal(response)
 	if err != nil {
 		return err
@@ -126,7 +127,7 @@ func (r *RabbitMQ) ConsumeScanRequests(ctx context.Context) (<-chan Delivery, er
 					return
 				}
 
-				var req ScanRequest
+				var req PingRequest
 				if err := json.Unmarshal(msg.Body, &req); err != nil {
 					_ = msg.Nack(false, false)
 					continue

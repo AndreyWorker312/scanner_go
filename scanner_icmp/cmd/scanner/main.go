@@ -4,9 +4,9 @@ import (
 	"context"
 	"os"
 	"os/signal"
-	"scanner/internal/config"
-	"scanner/internal/service"
-	"scanner/pkg/logger"
+	"scanner_icmp/internal/config"
+	"scanner_icmp/internal/service"
+	"scanner_icmp/pkg/logger"
 	"syscall"
 )
 

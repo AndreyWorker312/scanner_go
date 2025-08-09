@@ -5,16 +5,35 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f3a41da5-ca29-4e9e-8e4e-e072375f054f" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/scanner_test/tcp_scanner/docker-compose.yml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/scanner_test/tcp_scanner/main.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/scanner_icmp/.env" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/scanner_icmp/Dockerfile" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/scanner_icmp/cmd/scanner/main.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/scanner_icmp/internal/config/config.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/scanner_icmp/internal/handler/handler.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/scanner_icmp/internal/scanner/scanner.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/scanner_icmp/internal/service/scanner_service.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/scanner_icmp/pkg/logger/logger.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/scanner_icmp/pkg/queue/rabbitmq.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/scanner_test/icmp_scanner/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scanner/.env" beforeDir="false" afterPath="$PROJECT_DIR$/scanner/.env" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scanner/go.mod" beforeDir="false" afterPath="$PROJECT_DIR$/scanner/go.mod" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scanner/go.sum" beforeDir="false" afterPath="$PROJECT_DIR$/scanner/go.sum" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scanner/internal/config/config.go" beforeDir="false" afterPath="$PROJECT_DIR$/scanner/internal/config/config.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scanner/internal/config/env.go" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/scanner/pkg/queue/rabbitmq.go" beforeDir="false" afterPath="$PROJECT_DIR$/scanner/pkg/queue/rabbitmq.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scanner/.env" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scanner/Dockerfile" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scanner/cmd/scanner/main.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scanner/go.mod" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scanner/go.sum" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scanner/internal/config/config.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scanner/internal/handler/scan_handler.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scanner/internal/scanner/scanner.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scanner/internal/service/scanner_service.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scanner/pkg/logger/logger.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scanner/pkg/queue/rabbitmq.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scanner/readme.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scanner/test_service/scanner_test.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scanner/test_service/service_test.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scanner_arp/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/scanner_arp/Dockerfile" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scanner_tcp/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/scanner_tcp/Dockerfile" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scanner_tcp/readme.md" beforeDir="false" afterPath="$PROJECT_DIR$/scanner_tcp/README.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -30,7 +49,8 @@
   </component>
   <component name="GOROOT" url="file://$USER_HOME$/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.5.linux-amd64" />
   <component name="Git.Settings">
-    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/scanner" />
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/scanner_arp" />
+    <option name="ROOT_SYNC" value="DONT_SYNC" />
   </component>
   <component name="ProjectColorInfo">{
   &quot;customColor&quot;: &quot;&quot;,
@@ -54,22 +74,23 @@
     "RunOnceActivity.go.formatter.settings.were.checked": "true",
     "RunOnceActivity.go.migrated.go.modules.settings": "true",
     "RunOnceActivity.go.modules.go.list.on.any.changes.was.set": "true",
-    "git-widget-placeholder": "master",
+    "git-widget-placeholder": "main",
     "go.import.settings.migrated": "true",
     "go.sdk.automatically.set": "true",
     "last_opened_file_path": "/home/andrey/Documents/postupashki/dz1",
     "node.js.detected.package.eslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm"
+    "nodejs_package_manager_path": "npm",
+    "run.code.analysis.last.selected.profile": "pProject Default"
   }
 }]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/scanner_icmp" />
       <recent name="$PROJECT_DIR$/scanner" />
       <recent name="$PROJECT_DIR$/scanner/internal/config" />
       <recent name="$PROJECT_DIR$/scanner/pkg" />
       <recent name="$PROJECT_DIR$/scanner/internal" />
-      <recent name="$PROJECT_DIR$/internal/scanner" />
     </key>
   </component>
   <component name="RunManager">

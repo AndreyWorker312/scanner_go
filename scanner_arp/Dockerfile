@@ -12,10 +12,8 @@ FROM alpine:3.18
 
 WORKDIR /app
 
-# Копируем билд
 COPY --from=builder /scanner /app/scanner
 
-# Копируем .env в рабочую директорию контейнера
 COPY .env /app/.env
 
 CMD ["/app/scanner"]
