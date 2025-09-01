@@ -65,3 +65,62 @@ func TCPScan(ctx context.Context, target string, ports string) (*nmap.Run, error
 
 	return result, nil
 }
+
+func OSDetectionScan(ctx context.Context, target string) (*nmap.Run, error) {
+	scanCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+
+	scanner, err := nmap.NewScanner(
+		scanCtx,
+		nmap.WithTargets(target),
+		nmap.WithOSDetection(),
+		nmap.WithTimingTemplate(5),
+		nmap.WithSkipHostDiscovery(),
+		nmap.WithMaxRetries(0),
+		nmap.WithOSScanGuess(),
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to create OS detection scanner: %w", err)
+	}
+
+	result, warnings, err := scanner.Run()
+	if err != nil {
+		return nil, fmt.Errorf("failed to run OS detection scanner: %w", err)
+	}
+
+	if len(*warnings) > 0 {
+		log.Printf("OS detection warnings: %v\n", *warnings)
+	}
+
+	return result, nil
+}
+
+func HostDiscovery(ctx context.Context, target string) (*nmap.Run, error) {
+	scanCtx, cancel := context.WithTimeout(ctx, 10*time.Second) // Короткий таймаут
+	defer cancel()
+
+	scanner, err := nmap.NewScanner(
+		scanCtx,
+		nmap.WithTargets(target),
+		nmap.WithPingScan(),                 // Только проверка доступности
+		nmap.WithTimingTemplate(5),          // Максимальная скорость
+		nmap.WithMaxRetries(1),              // Минимум попыток
+		nmap.WithHostTimeout(5*time.Second), // Таймаут на хост
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to create host discovery scanner: %w", err)
+	}
+
+	result, warnings, err := scanner.Run()
+	if err != nil {
+		return nil, fmt.Errorf("failed to run host discovery scanner: %w", err)
+	}
+
+	if len(*warnings) > 0 {
+		log.Printf("Host discovery warnings: %v\n", *warnings)
+	}
+
+	return result, nil
+}

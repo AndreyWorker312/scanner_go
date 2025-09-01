@@ -3,175 +3,107 @@ package usecases
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/Ullaakut/nmap/v3"
 	"scanner_nmap/internal/domain"
 	"scanner_nmap/internal/usecases/nmap_wrapper"
-	"time"
-
-	"github.com/Ullaakut/nmap/v3"
 )
 
-func main() {
-	ctx := context.Background()
+/*
+	func main() {
+		ctx := context.Background()
 
-	// Пример вызова функции
-	host, err, info := UdpTcpScanner(ctx, "TCP", "scanme.nmap.org", "22,80,443")
+		scanResponse, err := UdpTcpScanner(ctx, "TCP", "scanme.nmap.org", "22,80,443")
 
-	// Вывод результатов
-	fmt.Println("=== РЕЗУЛЬТАТЫ СКАНИРОВАНИЯ ===")
-	fmt.Printf("Хост: %s\n", host)
-	fmt.Printf("Ошибка: %v\n", err)
+		// Вывод результатов
+		fmt.Println("=== РЕЗУЛЬТАТЫ TCP/UDP СКАНИРОВАНИЯ ===")
+		fmt.Printf("Ошибка: %v\n", err)
 
-	fmt.Println("\n=== ИНФОРМАЦИЯ О ПОРТАХ ===")
-	fmt.Printf("Status: %v (тип: %T)\n", info.Status, info.Status)
-	fmt.Printf("OpenPorts: %v (тип: %T)\n", info.OpenPorts, info.OpenPorts)
-	fmt.Printf("Protocols: %v (тип: %T)\n", info.Protocols, info.Protocols)
-	fmt.Printf("State: %v (тип: %T)\n", info.State, info.State)
-	fmt.Printf("ServiceName: %v (тип: %T)\n", info.ServiceName, info.ServiceName)
+		fmt.Println("\n=== ИНФОРМАЦИЯ О СКАНИРОВАНИИ ПОРТОВ ===")
+		fmt.Printf("Host: %s (тип: %T)\n", scanResponse.Host, scanResponse.Host)
+		fmt.Printf("Error: %s (тип: %T)\n", scanResponse.Error, scanResponse.Error)
 
-	// Детальный вывод
-	fmt.Println("\n=== ДЕТАЛЬНАЯ ИНФОРМАЦИЯ ===")
-	for i := 0; i < len(info.OpenPorts); i++ {
-		fmt.Printf("Порт %d: %s %s - %s\n",
-			info.OpenPorts[i],
-			info.Protocols[i],
-			info.State[i],
-			info.ServiceName[i])
-	}
+		if len(scanResponse.PortInfo) > 0 {
+			info := scanResponse.PortInfo[0]
+			fmt.Printf("Status: %v (тип: %T)\n", info.Status, info.Status)
+			fmt.Printf("AllPorts: %v (тип: %T)\n", info.AllPorts, info.AllPorts)
+			fmt.Printf("Protocols: %v (тип: %T)\n", info.Protocols, info.Protocols)
+			fmt.Printf("State: %v (тип: %T)\n", info.State, info.State)
+			fmt.Printf("ServiceName: %v (тип: %T)\n", info.ServiceName, info.ServiceName)
+		}
 
-	fmt.Println("\n=== СТАТУС ХОСТА ===")
-	for i, status := range info.Status {
-		fmt.Printf("Хост %d: %s\n", i+1, status)
-	}
+		fmt.Println("\n=== ПОЛНЫЙ ОБЪЕКТ ОТВЕТА ===")
+		fmt.Printf("ScanTcpUdpResponse: %+v\n", scanResponse)
 
-	fmt.Println("\n\n\n\n\n----------------------------\n\n\n\n")
+		fmt.Println("\n=== СВОДНАЯ ИНФОРМАЦИЯ ===")
+		fmt.Printf("Целевой хост: %s\n", scanResponse.Host)
+		if scanResponse.Error != "" {
+			fmt.Printf("Ошибка сканирования: %s\n", scanResponse.Error)
+		}
+
+		fmt.Println("\n\n\n\n\n----------------------------\n\n\n\n")
+
+		// Пример вызова функции определения ОС
+		osResponse, err := OSDetectionScanner(ctx, "scanme.nmap.org")
+
+		// Вывод результатов
+		fmt.Println("=== РЕЗУЛЬТАТЫ ОПРЕДЕЛЕНИЯ ОС ===")
+		fmt.Printf("Ошибка: %v\n", err)
+
+		fmt.Println("\n=== ИНФОРМАЦИЯ ОБ ОПЕРАЦИОННОЙ СИСТЕМЕ ===")
+		fmt.Printf("Host: %s (тип: %T)\n", osResponse.Host, osResponse.Host)
+		fmt.Printf("Name: %s (тип: %T)\n", osResponse.Name, osResponse.Name)
+		fmt.Printf("Accuracy: %d (тип: %T)\n", osResponse.Accuracy, osResponse.Accuracy)
+		fmt.Printf("Vendor: %s (тип: %T)\n", osResponse.Vendor, osResponse.Vendor)
+		fmt.Printf("Family: %s (тип: %T)\n", osResponse.Family, osResponse.Family)
+		fmt.Printf("Type: %s (тип: %T)\n", osResponse.Type, osResponse.Type)
+
+		fmt.Println("\n=== ПОЛНЫЙ ОБЪЕКТ ОТВЕТА ===")
+		fmt.Printf("OsDetectionResponse: %+v\n", osResponse)
+
+		fmt.Println("\n=== СВОДНАЯ ИНФОРМАЦИЯ ===")
+		fmt.Printf("Хост: %s\n", osResponse.Host)
+		fmt.Printf("Операционная система: %s\n", osResponse.Name)
+		fmt.Printf("Точность определения: %d%%\n", osResponse.Accuracy)
+		fmt.Printf("Производитель: %s\n", osResponse.Vendor)
+		fmt.Printf("Семейство ОС: %s\n", osResponse.Family)
+		fmt.Printf("Тип ОС: %s\n", osResponse.Type)
+
+		if err != nil {
+			fmt.Printf("Ошибка сканирования: %v\n", err)
+		}
+
+		fmt.Println("\n\n\n\n\n----------------------------\n\n\n\n")
+
+		discoveryInfo, err := HostDiscoveryScanner(ctx, "scanme.nmap.org")
+
+		// Вывод результатов
+		fmt.Println("=== РЕЗУЛЬТАТЫ ОБНАРУЖЕНИЯ ХОСТОВ ===")
+		fmt.Printf("Ошибка: %v\n", err)
+
+		fmt.Println("\n=== ИНФОРМАЦИЯ ОБ ОБНАРУЖЕНИИ ХОСТОВ ===")
+		fmt.Printf("Host: %s (тип: %T)\n", discoveryInfo.Host, discoveryInfo.Host)
+		fmt.Printf("HostUP: %d (тип: %T)\n", discoveryInfo.HostUP, discoveryInfo.HostUP)
+		fmt.Printf("HostTotal: %d (тип: %T)\n", discoveryInfo.HostTotal, discoveryInfo.HostTotal)
+		fmt.Printf("Status: %s (тип: %T)\n", discoveryInfo.Status, discoveryInfo.Status)
+		fmt.Printf("DNS: %s (тип: %T)\n", discoveryInfo.DNS, discoveryInfo.DNS)
+		fmt.Printf("Reason: %s (тип: %T)\n", discoveryInfo.Reason, discoveryInfo.Reason)
+
+		fmt.Println("\n=== ПОЛНЫЙ ОБЪЕКТ ОТВЕТА ===")
+		fmt.Printf("HostDiscoveryResponse: %+v\n", discoveryInfo)
+
+		fmt.Println("\n=== СВОДНАЯ ИНФОРМАЦИЯ ===")
+		fmt.Printf("Основной хост: %s\n", discoveryInfo.Host)
+		fmt.Printf("Обнаружено хостов: %d/%d\n", discoveryInfo.HostUP, discoveryInfo.HostTotal)
+		fmt.Printf("Статус основного хоста: %s\n", discoveryInfo.Status)
+		if discoveryInfo.DNS != "unknown" {
+			fmt.Printf("DNS имя: %s\n", discoveryInfo.DNS)
+		}
+		fmt.Printf("Причина статуса: %s\n", discoveryInfo.Reason)
+
 }
-
-func OSDetectionScan(ctx context.Context, target string) (*nmap.Run, error) {
-	scanCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
-	defer cancel()
-
-	scanner, err := nmap.NewScanner(
-		scanCtx,
-		nmap.WithTargets(target),
-		nmap.WithOSDetection(),
-		nmap.WithTimingTemplate(5),
-		nmap.WithSkipHostDiscovery(),
-		nmap.WithMaxRetries(0),
-		nmap.WithOSScanGuess(),
-	)
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to create OS detection scanner: %w", err)
-	}
-
-	result, warnings, err := scanner.Run()
-	if err != nil {
-		return nil, fmt.Errorf("failed to run OS detection scanner: %w", err)
-	}
-
-	if len(*warnings) > 0 {
-		log.Printf("OS detection warnings: %v\n", *warnings)
-	}
-
-	return result, nil
-}
-
-func HostDiscovery(ctx context.Context, target string) (*nmap.Run, error) {
-	scanCtx, cancel := context.WithTimeout(ctx, 10*time.Second) // Короткий таймаут
-	defer cancel()
-
-	scanner, err := nmap.NewScanner(
-		scanCtx,
-		nmap.WithTargets(target),
-		nmap.WithPingScan(),                 // Только проверка доступности
-		nmap.WithTimingTemplate(5),          // Максимальная скорость
-		nmap.WithMaxRetries(1),              // Минимум попыток
-		nmap.WithHostTimeout(5*time.Second), // Таймаут на хост
-	)
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to create host discovery scanner: %w", err)
-	}
-
-	result, warnings, err := scanner.Run()
-	if err != nil {
-		return nil, fmt.Errorf("failed to run host discovery scanner: %w", err)
-	}
-
-	if len(*warnings) > 0 {
-		log.Printf("Host discovery warnings: %v\n", *warnings)
-	}
-
-	return result, nil
-}
-
-func PrintOSDetectionResults(result *nmap.Run) {
-	if result == nil {
-		fmt.Println("Нет результатов сканирования")
-		return
-	}
-
-	for _, host := range result.Hosts {
-		if len(host.Addresses) == 0 {
-			continue
-		}
-
-		fmt.Printf("\n🎯 Хост: %s\n", host.Addresses[0].String())
-
-		if len(host.OS.Matches) > 0 {
-			bestMatch := host.OS.Matches[0]
-			fmt.Printf("🖥️  ОС: %s (%d%%)\n", bestMatch.Name, bestMatch.Accuracy)
-
-			if len(bestMatch.Classes) > 0 {
-				class := bestMatch.Classes[0]
-				fmt.Printf("📊 %s | %s | %s\n",
-					class.Vendor,
-					class.Family,
-					class.Type)
-			}
-		} else {
-			fmt.Println("❌ ОС не определена")
-		}
-	}
-
-	fmt.Printf("\n⏱️ Время: %v\n", result.Stats.Finished.Elapsed)
-}
-func PrintHostDiscoveryResults(result *nmap.Run) {
-	if result == nil {
-		fmt.Println("Нет результатов сканирования")
-		return
-	}
-
-	fmt.Printf("Проверка доступности завершена за %v\n", result.Stats.Finished.Elapsed)
-	fmt.Printf("Обнаружено хостов: %d из %d\n",
-		result.Stats.Hosts.Up,
-		result.Stats.Hosts.Total)
-
-	for i, host := range result.Hosts {
-		if len(host.Addresses) == 0 {
-			continue
-		}
-
-		status := "❌ Недоступен"
-		if host.Status.State == "up" {
-			status = "✅ Доступен"
-		}
-
-		fmt.Printf("\n%d. %s - %s\n", i+1, host.Addresses[0].String(), status)
-
-		if len(host.Hostnames) > 0 {
-			fmt.Printf("   DNS: %s\n", host.Hostnames[0].Name)
-		}
-
-		if host.Status.Reason != "" {
-			fmt.Printf("   Причина: %s\n", host.Status.Reason)
-		}
-	}
-}
-func UdpTcpScanner(ctx context.Context, scannerType string, target string, ports string) (host string, err error, info domain.PortTcpUdpInfo) {
+*/
+func UdpTcpScanner(ctx context.Context, scannerType string, target string, ports string) (response domain.ScanTcpUdpResponse, err error) {
 	var scanResult *nmap.Run
-	var hostResult string
 
 	if scannerType == "UDP" {
 		scanResult, err = nmap_wrapper.UDPScan(ctx, target, ports)
@@ -180,42 +112,148 @@ func UdpTcpScanner(ctx context.Context, scannerType string, target string, ports
 	}
 
 	if scanResult == nil {
-		fmt.Println("Scanner don't have any results")
-		return "", err, domain.PortTcpUdpInfo{}
+		fmt.Println("Scanner doesn't have any results")
+		return domain.ScanTcpUdpResponse{
+			Error: "No scan results",
+		}, err
 	}
 
-	for _, hosts := range scanResult.Hosts {
-		if len(hosts.Addresses) > 0 {
-			hostResult = hosts.Addresses[0].String()
+	var hostResult string
+	for _, host := range scanResult.Hosts {
+		if len(host.Addresses) > 0 {
+			hostResult = host.Addresses[0].String()
 			break
 		}
 	}
 
-	infoResults := domain.PortTcpUdpInfo{}
+	portInfo := domain.PortTcpUdpInfo{}
 
-	for _, hosts := range scanResult.Hosts {
-		if len(hosts.Addresses) == 0 {
+	for _, host := range scanResult.Hosts {
+		if len(host.Addresses) == 0 {
 			continue
 		}
 
-		infoResults.Status = append(infoResults.Status, hosts.Status.State)
+		portInfo.Status = host.Status.State
 
-		for _, port := range hosts.Ports {
-			if port.State.State == "open" {
-				infoResults.OpenPorts = append(infoResults.OpenPorts, port.ID)
-			}
-
-			infoResults.Protocols = append(infoResults.Protocols, port.Protocol)
-
-			infoResults.State = append(infoResults.State, port.State.State)
+		for _, port := range host.Ports {
+			portInfo.AllPorts = append(portInfo.AllPorts, uint16(port.ID))
+			portInfo.Protocols = append(portInfo.Protocols, port.Protocol)
+			portInfo.State = append(portInfo.State, port.State.State)
 
 			serviceName := port.Service.Name
 			if serviceName == "" {
 				serviceName = "unknown"
 			}
-			infoResults.ServiceName = append(infoResults.ServiceName, serviceName)
+			portInfo.ServiceName = append(portInfo.ServiceName, serviceName)
 		}
 	}
 
-	return hostResult, err, infoResults
+	responseResult := domain.ScanTcpUdpResponse{
+		Host:     hostResult,
+		PortInfo: []domain.PortTcpUdpInfo{portInfo},
+	}
+
+	if err != nil {
+		responseResult.Error = err.Error()
+	}
+
+	return responseResult, err
+}
+
+func OSDetectionScanner(ctx context.Context, target string) (response domain.OsDetectionResponse, err error) {
+	scanResult, err := nmap_wrapper.OSDetectionScan(ctx, target)
+
+	if scanResult == nil {
+		fmt.Println("OS detection scanner doesn't have any results")
+		return domain.OsDetectionResponse{}, err
+	}
+
+	// Находим первый хост с адресом
+	var hostResult string
+	for _, hostItem := range scanResult.Hosts {
+		if len(hostItem.Addresses) > 0 {
+			hostResult = hostItem.Addresses[0].String()
+			break
+		}
+	}
+
+	// Создаем ответ по умолчанию
+	responseResult := domain.OsDetectionResponse{
+		Host:     hostResult,
+		Name:     "unknown",
+		Accuracy: 0,
+		Vendor:   "unknown",
+		Family:   "unknown",
+		Type:     "unknown",
+	}
+
+	// Заполняем информацию об ОС из результатов сканирования
+	for _, hostItem := range scanResult.Hosts {
+		if len(hostItem.Addresses) == 0 {
+			continue
+		}
+
+		if len(hostItem.OS.Matches) > 0 {
+			osMatch := hostItem.OS.Matches[0]
+			responseResult.Name = osMatch.Name
+			responseResult.Accuracy = osMatch.Accuracy
+
+			if len(osMatch.Classes) > 0 {
+				osClass := osMatch.Classes[0]
+				responseResult.Vendor = osClass.Vendor
+				responseResult.Family = osClass.Family
+				responseResult.Type = osClass.Type
+			}
+			break
+		}
+	}
+
+	return responseResult, err
+}
+
+func HostDiscoveryScanner(ctx context.Context, target string) (response domain.HostDiscoveryResponse, err error) {
+	scanResult, err := nmap_wrapper.HostDiscovery(ctx, target)
+
+	if scanResult == nil {
+		fmt.Println("Host discovery scanner doesn't have any results")
+		return domain.HostDiscoveryResponse{}, err
+	}
+
+	var hostResult string
+	for _, host := range scanResult.Hosts {
+		if len(host.Addresses) > 0 {
+			hostResult = host.Addresses[0].String()
+			break
+		}
+	}
+
+	responseResult := domain.HostDiscoveryResponse{
+		Host:      hostResult,
+		HostUP:    0,
+		HostTotal: len(scanResult.Hosts),
+		Status:    "unknown",
+		DNS:       "unknown",
+		Reason:    "unknown",
+	}
+
+	for _, host := range scanResult.Hosts {
+		if len(host.Addresses) == 0 {
+			continue
+		}
+
+		if host.Status.State == "up" {
+			responseResult.HostUP++
+		}
+
+		if hostResult == host.Addresses[0].String() {
+			responseResult.Status = host.Status.State
+			responseResult.Reason = host.Status.Reason
+
+			if len(host.Hostnames) > 0 {
+				responseResult.DNS = host.Hostnames[0].Name
+			}
+		}
+	}
+
+	return responseResult, err
 }
