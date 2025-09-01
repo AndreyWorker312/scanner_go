@@ -69,12 +69,7 @@ func (r *RabbitMQ) Close() error {
 	return nil
 }
 
-func (r *RabbitMQ) SendResponse(replyTo string, correlationID string, response domain.ScanResponse) error {
-	body, err := json.Marshal(response)
-	if err != nil {
-		return err
-	}
-
+func (r *RabbitMQ) SendResponse(replyTo string, correlationID string, response []byte) error {
 	return r.channel.Publish(
 		"",
 		replyTo,
@@ -83,7 +78,7 @@ func (r *RabbitMQ) SendResponse(replyTo string, correlationID string, response d
 		amqp.Publishing{
 			ContentType:   "application/json",
 			CorrelationId: correlationID,
-			Body:          body,
+			Body:          response,
 		})
 }
 
@@ -114,7 +109,7 @@ func (r *RabbitMQ) ConsumeScanRequests(ctx context.Context) (<-chan Delivery, er
 					return
 				}
 
-				var req domain.ScanRequest
+				var req domain.RawRequest
 				if err := json.Unmarshal(msg.Body, &req); err != nil {
 					_ = msg.Nack(false, false)
 					continue

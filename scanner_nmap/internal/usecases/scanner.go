@@ -19,9 +19,7 @@ func UdpTcpScanner(ctx context.Context, request domain.ScanTcpUdpRequest) (respo
 
 	if scanResult == nil {
 		fmt.Println("Scanner doesn't have any results")
-		return domain.ScanTcpUdpResponse{
-			Error: "No scan results",
-		}, err
+		return domain.ScanTcpUdpResponse{}, err
 	}
 
 	var hostResult string
@@ -55,12 +53,9 @@ func UdpTcpScanner(ctx context.Context, request domain.ScanTcpUdpRequest) (respo
 	}
 
 	responseResult := domain.ScanTcpUdpResponse{
+		TaskID:   request.TaskID,
 		Host:     hostResult,
 		PortInfo: []domain.PortTcpUdpInfo{portInfo},
-	}
-
-	if err != nil {
-		responseResult.Error = err.Error()
 	}
 
 	return responseResult, err
@@ -85,6 +80,7 @@ func OSDetectionScanner(ctx context.Context, request domain.OsDetectionRequest) 
 
 	// Создаем ответ по умолчанию
 	responseResult := domain.OsDetectionResponse{
+		TaskID:   request.TaskID,
 		Host:     hostResult,
 		Name:     "unknown",
 		Accuracy: 0,
@@ -134,6 +130,7 @@ func HostDiscoveryScanner(ctx context.Context, request domain.HostDiscoveryReque
 	}
 
 	responseResult := domain.HostDiscoveryResponse{
+		TaskID:    request.TaskID,
 		Host:      hostResult,
 		HostUP:    0,
 		HostTotal: len(scanResult.Hosts),

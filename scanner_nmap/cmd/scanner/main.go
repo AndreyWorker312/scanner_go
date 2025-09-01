@@ -1,11 +1,11 @@
-package scanner
+package main
 
 import (
 	"context"
 	"os"
 	"os/signal"
 	"scanner_nmap/internal/config"
-	"scanner_nmap/internal/usecases"
+	"scanner_nmap/pkg/adapter"
 	"scanner_nmap/pkg/logger"
 	"syscall"
 )
@@ -17,7 +17,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	if err := usecases.Run(ctx, cfg, *log); err != nil {
+	if err := adapter.Run(ctx, cfg, *log); err != nil {
 		log.Errorf("Service failed: %v", err)
 		os.Exit(1)
 	}

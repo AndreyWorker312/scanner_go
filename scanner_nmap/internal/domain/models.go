@@ -1,5 +1,8 @@
 package domain
 
+type RawRequest struct {
+	ScanMethod string `json:"scan_method"`
+}
 type ScanTcpUdpRequest struct {
 	TaskID      string `json:"task_id"`
 	IP          string `json:"ip"`
@@ -11,7 +14,7 @@ type ScanTcpUdpResponse struct {
 	TaskID   string           `json:"task_id"`
 	Host     string           `json:"host"`
 	PortInfo []PortTcpUdpInfo `json:"port_info"`
-	Error    string           `json:"error,omitempty"`
+	Status   string           `json:"status"`
 }
 
 type PortTcpUdpInfo struct {
@@ -35,6 +38,7 @@ type OsDetectionResponse struct {
 	Vendor   string `json:"vendor"`
 	Family   string `json:"family"`
 	Type     string `json:"type"`
+	Status   string `json:"status"`
 }
 
 type HostDiscoveryRequest struct {
