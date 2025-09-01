@@ -1,9 +1,10 @@
 package domain
 
 type ScanTcpUdpRequest struct {
-	TaskID string `json:"task_id"`
-	IP     string `json:"ip"`
-	Ports  string `json:"ports"`
+	TaskID      string `json:"task_id"`
+	IP          string `json:"ip"`
+	ScannerType string `json:"scanner_type"`
+	Ports       string `json:"ports"`
 }
 
 type ScanTcpUdpResponse struct {
