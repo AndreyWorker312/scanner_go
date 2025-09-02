@@ -9,7 +9,7 @@ import (
 )
 
 func UDPScan(ctx context.Context, target string, ports string) (*nmap.Run, error) {
-	scanCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	scanCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 
 	udpScanner, err := nmap.NewScanner(
@@ -38,7 +38,7 @@ func UDPScan(ctx context.Context, target string, ports string) (*nmap.Run, error
 }
 
 func TCPScan(ctx context.Context, target string, ports string) (*nmap.Run, error) {
-	scanCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	scanCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 
 	tcpScanner, err := nmap.NewScanner(
@@ -97,7 +97,7 @@ func OSDetectionScan(ctx context.Context, target string) (*nmap.Run, error) {
 }
 
 func HostDiscovery(ctx context.Context, target string) (*nmap.Run, error) {
-	scanCtx, cancel := context.WithTimeout(ctx, 10*time.Second) // Короткий таймаут
+	scanCtx, cancel := context.WithTimeout(ctx, 120*time.Second) // Короткий таймаут
 	defer cancel()
 
 	scanner, err := nmap.NewScanner(
