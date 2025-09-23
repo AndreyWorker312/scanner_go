@@ -1,45 +1,5 @@
 package models
 
-import "time"
-
-// Базовые типы
-type ScanType string
-
-const (
-	ScanTypeARP  ScanType = "arp"
-	ScanTypeICMP ScanType = "icmp"
-	ScanTypeNMAP ScanType = "nmap"
-)
-
-type ScanStatus string
-
-const (
-	ScanStatusPending   ScanStatus = "pending"
-	ScanStatusRunning   ScanStatus = "running"
-	ScanStatusCompleted ScanStatus = "completed"
-	ScanStatusFailed    ScanStatus = "failed"
-)
-
-// Базовые структуры для всех сканирований
-type ScanRequest struct {
-	TaskID    string      `json:"task_id" bson:"task_id"`
-	Type      ScanType    `json:"type" bson:"type"`
-	CreatedAt time.Time   `json:"created_at" bson:"created_at"`
-	UpdatedAt time.Time   `json:"updated_at" bson:"updated_at"`
-	Status    ScanStatus  `json:"status" bson:"status"`
-	Request   interface{} `json:"request" bson:"request"` // Конкретный запрос сканера
-}
-
-type ScanResponse struct {
-	TaskID    string      `json:"task_id" bson:"task_id"`
-	Type      ScanType    `json:"type" bson:"type"`
-	Status    string      `json:"status" bson:"status"`
-	Response  interface{} `json:"response" bson:"response"` // Конкретный ответ сканера
-	Error     string      `json:"error,omitempty" bson:"error,omitempty"`
-	Duration  int64       `json:"duration_ms" bson:"duration_ms"`
-	CreatedAt time.Time   `json:"created_at" bson:"created_at"`
-}
-
 // ==================== ARP SCANNER MODELS ====================
 type ARPRequest struct {
 	TaskID        string `json:"task_id"`
@@ -93,7 +53,7 @@ type NmapRequest struct {
 type NmapTcpUdpRequest struct {
 	TaskID      string `json:"task_id"`
 	IP          string `json:"ip"`
-	ScannerType string `json:"scanner_type"` // "tcp" или "udp"
+	ScannerType string `json:"scanner_type"` 
 	Ports       string `json:"ports"`
 }
 
