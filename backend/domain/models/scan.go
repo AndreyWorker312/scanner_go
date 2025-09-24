@@ -1,5 +1,15 @@
 package models
 
+type Request struct {
+    ScannerService string      `json:"scanner_service"`
+    Options        any         `json:"options"`
+}
+
+type Response struct {
+    TaskID string      `json:"task_id"`
+    Result any         `json:"result"`
+}
+
 // ==================== ARP SCANNER MODELS ====================
 type ARPRequest struct {
 	TaskID        string `json:"task_id"`
