@@ -4,8 +4,9 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/gorilla/websocket"
 	"backend/domain/models"
+	api "backend/application"
+	"github.com/gorilla/websocket"
 )
 
 type Message struct {
@@ -40,34 +41,30 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *Client) readPump() {
-    defer c.conn.Close()
+	defer c.conn.Close()
 
-    for {
-        var msg Message
+	for {
+		var msg Message
 
-        if err := c.conn.ReadJSON(&msg); err != nil {
-            if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-                log.Printf("WebSocket read error: %v", err)
-            }
-            break
-        }
+		if err := c.conn.ReadJSON(&msg); err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Printf("WebSocket read error: %v", err)
+			}
+			break
+		}
 
-        log.Printf("Received message type=%s request=%+v", msg.Type, msg.Req)
+		log.Printf("Received message type=%s request=%+v", msg.Type, msg.Req)
 
-        // Обработка запроса
-        if msg.Req != nil {
-            // вызвать бизнес-логику, например:
-            response := processRequest(msg.Req)
+		if msg.Req != nil {
+			response := api.ProcessRequest(msg.Req)
 
-            // Отправляем ответ в канал send
-            c.send <- Message{
-                Type: "response",
-                Resp: response,
-            }
-        }
-    }
+			c.send <- Message{
+				Type: "response",
+				Resp: response,
+			}
+		}
+	}
 }
-
 
 func (c *Client) writePump() {
 	defer c.conn.Close()
