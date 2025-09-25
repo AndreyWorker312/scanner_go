@@ -4,8 +4,8 @@ import (
 	"log"
 	"net/http"
 
-	"backend/domain/models"
-	api "backend/application"
+	"backend/internal/domain/models"
+	api "backend/internal/application"
 	"github.com/gorilla/websocket"
 )
 
