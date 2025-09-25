@@ -1,14 +1,13 @@
 package rabbitmq
 
 import (
+	"backend/domain/models"
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"log"
 	"sync"
 	"time"
-
-	"backend/internal/domain/models"
 
 	"github.com/streadway/amqp"
 )

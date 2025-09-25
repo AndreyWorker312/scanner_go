@@ -1,10 +1,10 @@
 package websocket
 
 import (
+	"backend/domain/models"
 	"log"
 	"net/http"
 
-	"backend/domain/models"
 	api "backend/internal/application"
 
 	"github.com/gorilla/websocket"
@@ -46,7 +46,7 @@ func (h *WSHandler) WsHandler(w http.ResponseWriter, r *http.Request) {
 	client := &Client{
 		conn: conn,
 		send: make(chan Message, 256),
-		app:  h.app,
+		app:  h.app, // Передаем app в клиент
 	}
 
 	go client.writePump()

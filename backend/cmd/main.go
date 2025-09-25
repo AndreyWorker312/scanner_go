@@ -1,26 +1,28 @@
 package main
 
 import (
-    "log"
-	
-    rabbit "backend/internal/infrastructure"
+	wb "backend/internal/api/websocket"
+	"backend/internal/application"
+	rabbitmq "backend/internal/infrastructure"
+	"log"
+	"net/http"
 )
 
 func main() {
-    amqpURI := "amqp://guest:guest@localhost:5672/"
+	publisher, err := rabbitmq.GetRPCconnection("amqp://guest:guest@localhost:5672/")
+	if err != nil {
+		log.Fatalf("Failed to initialize rabbitmq connection: %v", err)
+	}
 
+	app := application.NewApp(publisher)
 
-    publisher, err := rabbit.GetRPCconnection(amqpURI)
-    if err != nil {
-        log.Fatalf("Failed to initialize RPC publisher: %v", err)
-    }
+	wsHandler := wb.NewWSHandler(app)
 
+	http.HandleFunc("/ws", wsHandler.WsHandler)
 
-    // Отправка RPC задачи и ожидание ответа
-    response, err := publisher.PublishNmap(req)
-    if err != nil {
-        log.Fatalf("Failed to publish nmap task: %v", err)
-    }
-
-
+	log.Println("WebSocket server starting on :8080")
+	err = http.ListenAndServe(":8080", nil)
+	if err != nil {
+		log.Fatalf("ListenAndServe error: %v", err)
+	}
 }

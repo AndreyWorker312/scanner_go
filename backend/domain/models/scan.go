@@ -1,13 +1,13 @@
 package models
 
 type Request struct {
-    ScannerService string      `json:"scanner_service"`
-    Options        any         `json:"options"`
+	ScannerService string `json:"scanner_service"`
+	Options        any    `json:"options"`
 }
 
 type Response struct {
-    TaskID string      `json:"task_id"`
-    Result any         `json:"result"`
+	TaskID string `json:"task_id"`
+	Result any    `json:"result"`
 }
 
 // ==================== ARP SCANNER MODELS ====================
@@ -18,10 +18,10 @@ type ARPRequest struct {
 }
 
 type ARPResponse struct {
-	TaskID  string       `json:"task_id"`
-	Status  string       `json:"status"`
-	Devices []ARPDevice  `json:"devices"`
-	Error   string       `json:"error,omitempty"`
+	TaskID  string      `json:"task_id"`
+	Status  string      `json:"status"`
+	Devices []ARPDevice `json:"devices"`
+	Error   string      `json:"error,omitempty"`
 }
 
 type ARPDevice struct {
@@ -39,10 +39,10 @@ type ICMPRequest struct {
 }
 
 type ICMPResponse struct {
-	TaskID  string          `json:"task_id"`
-	Status  string          `json:"status"`
-	Results []ICMPResult    `json:"results"`
-	Error   string          `json:"error,omitempty"`
+	TaskID  string       `json:"task_id"`
+	Status  string       `json:"status"`
+	Results []ICMPResult `json:"results"`
+	Error   string       `json:"error,omitempty"`
 }
 
 type ICMPResult struct {
@@ -63,16 +63,16 @@ type NmapRequest struct {
 type NmapTcpUdpRequest struct {
 	TaskID      string `json:"task_id"`
 	IP          string `json:"ip"`
-	ScannerType string `json:"scanner_type"` 
+	ScannerType string `json:"scanner_type"`
 	Ports       string `json:"ports"`
 }
 
 type NmapTcpUdpResponse struct {
-	TaskID   string              `json:"task_id"`
-	Host     string              `json:"host"`
+	TaskID   string               `json:"task_id"`
+	Host     string               `json:"host"`
 	PortInfo []NmapPortTcpUdpInfo `json:"port_info"`
-	Status   string              `json:"status"`
-	Error    string              `json:"error,omitempty"`
+	Status   string               `json:"status"`
+	Error    string               `json:"error,omitempty"`
 }
 
 type NmapPortTcpUdpInfo struct {
