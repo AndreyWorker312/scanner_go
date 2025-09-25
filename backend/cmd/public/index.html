@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Raw WebSocket Client</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .container { max-width: 800px; }
+    .button-group { margin: 10px 0; }
+    button { margin: 5px; padding: 8px 15px; }
+    textarea { width: 100%; height: 200px; margin: 10px 0; font-family: monospace; }
+    #log {
+      border: 1px solid #ccc;
+      padding: 10px;
+      height: 300px;
+      overflow-y: scroll;
+      background: #f9f9f9;
+      white-space: pre-wrap;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    .status { padding: 5px; margin: 5px 0; border-radius: 3px; }
+    .status.connected { background: #d4edda; color: #155724; }
+    .status.disconnected { background: #f8d7da; color: #721c24; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Raw WebSocket Client</h1>
+
+  <div class="button-group">
+    <button onclick="connect()">Connect</button>
+    <button onclick="disconnect()" id="disconnectBtn" disabled>Disconnect</button>
+    <button onclick="clearLog()">Clear Log</button>
+  </div>
+
+  <div id="status" class="status disconnected">Disconnected</div>
+
+  <h3>Raw JSON Message:</h3>
+  <textarea id="messageInput">
+{
+  "type": "request",
+  "request": {
+    "scanner_service": "arp_service",
+    "options": {
+      "interface_name": "eth0",
+      "ip_range": "192.168.1.0/24"
+    }
+  },
+  "response": null
+}
+  </textarea>
+
+  <div class="button-group">
+    <button onclick="sendMessage()" id="sendBtn" disabled>Send Raw JSON</button>
+    <button onclick="validateJSON()">Validate JSON</button>
+    <button onclick="formatJSON()">Format JSON</button>
+  </div>
+
+  <h3>Communication Log:</h3>
+  <div id="log"></div>
+</div>
+
+<script>
+  let socket = null;
+  const logElement = document.getElementById('log');
+  const messageInput = document.getElementById('messageInput');
+  const statusElement = document.getElementById('status');
+  const disconnectBtn = document.getElementById('disconnectBtn');
+  const sendBtn = document.getElementById('sendBtn');
+
+  function log(message, type = 'info') {
+    const timestamp = new Date().toLocaleTimeString();
+    const colors = {
+      info: 'black',
+      sent: 'green',
+      received: 'blue',
+      error: 'red',
+      system: 'purple'
+    };
+
+    const logEntry = document.createElement('div');
+    logEntry.innerHTML = `<span style="color: #666;">[${timestamp}]</span> <span style="color: ${colors[type]}">${message}</span>`;
+    logElement.appendChild(logEntry);
+    logElement.scrollTop = logElement.scrollHeight;
+  }
+
+  function updateStatus(connected) {
+    if (connected) {
+      statusElement.textContent = 'Connected to ws://localhost:8080/ws';
+      statusElement.className = 'status connected';
+      disconnectBtn.disabled = false;
+      sendBtn.disabled = false;
+    } else {
+      statusElement.textContent = 'Disconnected';
+      statusElement.className = 'status disconnected';
+      disconnectBtn.disabled = true;
+      sendBtn.disabled = true;
+    }
+  }
+
+  function connect() {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      log('Already connected', 'system');
+      return;
+    }
+
+    try {
+      socket = new WebSocket('ws://localhost:8080/ws');
+      log('Connecting to ws://localhost:8080/ws...', 'system');
+
+      socket.onopen = function(event) {
+        log('✅ WebSocket connection established', 'system');
+        updateStatus(true);
+      };
+
+      socket.onmessage = function(event) {
+        try {
+          const parsed = JSON.parse(event.data);
+          log('📨 RECEIVED:\\n' + JSON.stringify(parsed, null, 2), 'received');
+        } catch (e) {
+          log('📨 RECEIVED (raw): ' + event.data, 'received');
+        }
+      };
+
+      socket.onerror = function(error) {
+        log('❌ WebSocket error: ' + error.message, 'error');
+      };
+
+      socket.onclose = function(event) {
+        log(`🔌 Connection closed: code=${event.code}, reason=${event.reason || 'none'}`, 'system');
+        updateStatus(false);
+      };
+
+    } catch (error) {
+      log('❌ Connection failed: ' + error.message, 'error');
+    }
+  }
+
+  function disconnect() {
+    if (socket) {
+      socket.close(1000, 'User disconnected');
+      socket = null;
+    }
+  }
+
+  function sendMessage() {
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      log('❌ Not connected to WebSocket', 'error');
+      return;
+    }
+
+    const rawJson = messageInput.value.trim();
+
+    if (!rawJson) {
+      log('❌ JSON is empty', 'error');
+      return;
+    }
+
+    try {
+      // Валидируем JSON
+      JSON.parse(rawJson);
+
+      // Отправляем сырые данные как есть
+      socket.send(rawJson);
+      log('📤 SENT:\\n' + rawJson, 'sent');
+
+    } catch (error) {
+      log('❌ Invalid JSON: ' + error.message, 'error');
+    }
+  }
+
+  function validateJSON() {
+    const jsonText = messageInput.value.trim();
+
+    if (!jsonText) {
+      alert('JSON is empty');
+      return;
+    }
+
+    try {
+      JSON.parse(jsonText);
+      alert('✅ Valid JSON');
+    } catch (error) {
+      alert('❌ Invalid JSON: ' + error.message);
+    }
+  }
+
+  function formatJSON() {
+    try {
+      const parsed = JSON.parse(messageInput.value);
+      messageInput.value = JSON.stringify(parsed, null, 2);
+      log('Formatted JSON', 'system');
+    } catch (error) {
+      alert('Cannot format invalid JSON: ' + error.message);
+    }
+  }
+
+  function clearLog() {
+    logElement.innerHTML = '';
+    log('Log cleared', 'system');
+  }
+
+  // Горячие клавиши
+  document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'Enter') {
+      sendMessage();
+    }
+    if (e.ctrlKey && e.key === 'l') {
+      clearLog();
+      e.preventDefault();
+    }
+  });
+
+  // Авто-форматирование при потере фокуса
+  messageInput.addEventListener('blur', function() {
+    try {
+      const parsed = JSON.parse(messageInput.value);
+      messageInput.value = JSON.stringify(parsed, null, 2);
+    } catch (e) {
+      // Игнорируем ошибки форматирования
+    }
+  });
+
+  // Загрузка примера при старте
+  window.addEventListener('load', function() {
+    log('Page loaded. Click "Connect" to start.', 'system');
+  });
+</script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 
@@ -58,6 +59,15 @@ func (c *Client) readPump() {
 
 	for {
 		var msg Message
+		var rawData json.RawMessage
+
+		if err := c.conn.ReadJSON(&rawData); err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Printf("WebSocket read error: %v", err)
+			}
+			break
+		}
+		log.Printf("Raw JSON received: %s", string(rawData))
 
 		if err := c.conn.ReadJSON(&msg); err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
@@ -65,7 +75,6 @@ func (c *Client) readPump() {
 			}
 			break
 		}
-
 		log.Printf("Received message type=%s request=%+v", msg.Type, msg.Req)
 
 		if msg.Req != nil {
