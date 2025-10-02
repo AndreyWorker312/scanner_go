@@ -56,17 +56,14 @@ func newRPCScannerPublisher(amqpURI string) (*RPCScannerPublisher, error) {
 	return publisher, nil
 }
 
-// PublishNmap публикует задачу в очередь nmap_tasks и ожидает ответ
-func (p *RPCScannerPublisher) PublishNmap(req models.NmapRequest) (*models.Response, error) {
+func (p *RPCScannerPublisher) PublishNmap(req interface{}) (*models.Response, error) {
 	return p.publishRPC("nmap_service", req)
 }
 
-// PublishArp публикует задачу в arp_tasks
 func (p *RPCScannerPublisher) PublishArp(req models.ARPRequest) (*models.Response, error) {
 	return p.publishRPC("arp_service", req)
 }
 
-// PublishIcmp публикует задачу в icmp_tasks
 func (p *RPCScannerPublisher) PublishIcmp(req models.ICMPRequest) (*models.Response, error) {
 	return p.publishRPC("icmp_service", req)
 }
@@ -90,6 +87,8 @@ func (p *RPCScannerPublisher) publishRPC(queueName string, task interface{}) (*m
 		return nil, err
 	}
 
+	log.Printf("Publishing to %s: %s", queueName, string(body))
+
 	err = p.channel.Publish(
 		"",
 		queueName,
@@ -108,9 +107,10 @@ func (p *RPCScannerPublisher) publishRPC(queueName string, task interface{}) (*m
 
 	select {
 	case response := <-replyChan:
+		log.Printf("Received response for %s: %+v", correlationID, response)
 		return response, nil
 	case <-time.After(30 * time.Second):
-		return nil, fmt.Errorf("RPC timeout")
+		return nil, fmt.Errorf("RPC timeout for queue %s", queueName)
 	}
 }
 
@@ -138,7 +138,7 @@ func (p *RPCScannerPublisher) startReplyConsumer() error {
 				var response models.Response
 				err := json.Unmarshal(msg.Body, &response)
 				if err != nil {
-					log.Fatalf("Failed to unmarshal response: %v\n", err)
+					log.Printf("Failed to unmarshal response: %v", err)
 					continue
 				}
 				replyChan <- &response

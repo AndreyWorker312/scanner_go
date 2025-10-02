@@ -1,51 +1,110 @@
 version: '3.8'
 
 services:
+  # RabbitMQ сервис
   rabbitmq:
     image: rabbitmq:3-management
+    container_name: rabbitmq
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "5672:5672"   # AMQP порт
+      - "15672:15672" # Web UI порт
     environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
     healthcheck:
-      test: ["CMD", "rabbitmqctl", "status"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
       retries: 5
+    networks:
+      - scanner-network
 
+  # Backend сервис
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend-app
     ports:
       - "8080:8080"
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-    restart: unless-stopped
-
-  frontend:
-    build: ./frontend
-    ports:
-      - "81:80"
-    depends_on:
-      - backend        # меняем условие на простое ожидание запуска (без healthcheck)
-    restart: unless-stopped
-
-  scanner:
-    build: ./scanner
     environment:
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
-      - SCANNER_NAME=scanner1
-      - SCANNER_TIMEOUT=500ms
-      - SCANNER_MAX_RETRIES=3
-      - SCANNER_RETRY_DELAY=1s
     depends_on:
       rabbitmq:
         condition: service_healthy
+    volumes:
+      - ./public:/app/public
+    networks:
+      - scanner-network
     restart: unless-stopped
+
+  # Nmap сканер
+  scanner_nmap:
+    build:
+      context: ./scanner_nmap
+      dockerfile: Dockerfile
+    container_name: scanner-nmap
+    env_file:
+      - ./scanner_nmap/.env
+    environment:
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - scanner-network
+    restart: unless-stopped
+    privileged: true
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+
+  # ARP сканер
+  scanner_arp:
+    build:
+      context: ./scanner_arp
+      dockerfile: Dockerfile
+    container_name: scanner-arp
+    env_file:
+      - ./scanner_arp/.env
+    environment:
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - scanner-network
+    restart: unless-stopped
+    privileged: true
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+
+  # ICMP сканер
+  scanner_icmp:
+    build:
+      context: ./scanner_icmp
+      dockerfile: Dockerfile
+    container_name: scanner-icmp
+    env_file:
+      - ./scanner_icmp/.env
+    environment:
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - scanner-network
+    restart: unless-stopped
+    privileged: true
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+
+
+networks:
+  scanner-network:
+    driver: bridge
 
 volumes:
   rabbitmq_data:
