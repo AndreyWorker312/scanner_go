@@ -135,18 +135,81 @@ func (p *RPCScannerPublisher) startReplyConsumer() error {
 			p.mu.Unlock()
 
 			if exists {
-				var response models.Response
-				err := json.Unmarshal(msg.Body, &response)
+				// Пробуем определить тип ответа и преобразовать в универсальный Response
+				response, err := p.parseResponse(msg.Body)
 				if err != nil {
-					log.Printf("Failed to unmarshal response: %v", err)
+					log.Printf("Failed to parse response: %v", err)
+					log.Printf("Response body: %s", string(msg.Body))
 					continue
 				}
-				replyChan <- &response
+				replyChan <- response
 			}
 		}
 	}()
 
 	return nil
+}
+
+// parseResponse пытается определить тип ответа и преобразовать его в универсальный Response
+func (p *RPCScannerPublisher) parseResponse(body []byte) (*models.Response, error) {
+	// Сначала пробуем как обычный Response
+	var response models.Response
+	if err := json.Unmarshal(body, &response); err == nil && response.TaskID != "" {
+		log.Printf("Received generic response for task %s", response.TaskID)
+		return &response, nil
+	}
+
+	// Пробуем как ARPResponse
+	var arpResp models.ARPResponse
+	if err := json.Unmarshal(body, &arpResp); err == nil && arpResp.TaskID != "" {
+		log.Printf("Received ARP response for task %s with %d devices", arpResp.TaskID, len(arpResp.Devices))
+		return &models.Response{
+			TaskID: arpResp.TaskID,
+			Result: arpResp,
+		}, nil
+	}
+
+	// Пробуем как ICMPResponse
+	var icmpResp models.ICMPResponse
+	if err := json.Unmarshal(body, &icmpResp); err == nil && icmpResp.TaskID != "" {
+		log.Printf("Received ICMP response for task %s with %d results", icmpResp.TaskID, len(icmpResp.Results))
+		return &models.Response{
+			TaskID: icmpResp.TaskID,
+			Result: icmpResp,
+		}, nil
+	}
+
+	// Пробуем как NmapTcpUdpResponse
+	var nmapTcpUdpResp models.NmapTcpUdpResponse
+	if err := json.Unmarshal(body, &nmapTcpUdpResp); err == nil && nmapTcpUdpResp.TaskID != "" {
+		log.Printf("Received Nmap TCP/UDP response for task %s", nmapTcpUdpResp.TaskID)
+		return &models.Response{
+			TaskID: nmapTcpUdpResp.TaskID,
+			Result: nmapTcpUdpResp,
+		}, nil
+	}
+
+	// Пробуем как NmapOsDetectionResponse
+	var nmapOsResp models.NmapOsDetectionResponse
+	if err := json.Unmarshal(body, &nmapOsResp); err == nil && nmapOsResp.TaskID != "" {
+		log.Printf("Received Nmap OS detection response for task %s", nmapOsResp.TaskID)
+		return &models.Response{
+			TaskID: nmapOsResp.TaskID,
+			Result: nmapOsResp,
+		}, nil
+	}
+
+	// Пробуем как NmapHostDiscoveryResponse
+	var nmapHostResp models.NmapHostDiscoveryResponse
+	if err := json.Unmarshal(body, &nmapHostResp); err == nil && nmapHostResp.TaskID != "" {
+		log.Printf("Received Nmap host discovery response for task %s", nmapHostResp.TaskID)
+		return &models.Response{
+			TaskID: nmapHostResp.TaskID,
+			Result: nmapHostResp,
+		}, nil
+	}
+
+	return nil, fmt.Errorf("unable to parse response as any known type")
 }
 
 func generateCorrelationID() string {
