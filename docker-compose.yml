@@ -6,8 +6,8 @@ services:
     image: rabbitmq:3-management
     container_name: rabbitmq
     ports:
-      - "5672:5672"   # AMQP порт
-      - "15672:15672" # Web UI порт
+      - "5673:5672"   # AMQP порт
+      - "15673:15672" # Web UI порт
     environment:
       - RABBITMQ_DEFAULT_USER=guest
       - RABBITMQ_DEFAULT_PASS=guest
@@ -28,14 +28,13 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - RABBITMQ_URL=amqp://guest:guest@localhost:5673/
     depends_on:
       rabbitmq:
         condition: service_healthy
     volumes:
       - ./public:/app/public
-    networks:
-      - scanner-network
+    network_mode: host
     restart: unless-stopped
 
   # Nmap сканер
@@ -47,12 +46,11 @@ services:
     env_file:
       - ./scanner_nmap/.env
     environment:
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - RABBITMQ_URL=amqp://guest:guest@localhost:5673/
     depends_on:
       rabbitmq:
         condition: service_healthy
-    networks:
-      - scanner-network
+    network_mode: host
     restart: unless-stopped
     privileged: true
     cap_add:
@@ -68,12 +66,11 @@ services:
     env_file:
       - ./scanner_arp/.env
     environment:
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - RABBITMQ_URL=amqp://guest:guest@localhost:5673/
     depends_on:
       rabbitmq:
         condition: service_healthy
-    networks:
-      - scanner-network
+    network_mode: host
     restart: unless-stopped
     privileged: true
     cap_add:
@@ -89,12 +86,11 @@ services:
     env_file:
       - ./scanner_icmp/.env
     environment:
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - RABBITMQ_URL=amqp://guest:guest@localhost:5673/
     depends_on:
       rabbitmq:
         condition: service_healthy
-    networks:
-      - scanner-network
+    network_mode: host
     restart: unless-stopped
     privileged: true
     cap_add:

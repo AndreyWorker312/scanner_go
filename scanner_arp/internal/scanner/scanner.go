@@ -4,18 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/mdlayher/arp"
+	"log"
 	"net"
 	"net/netip"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/mdlayher/arp"
 )
 
 const (
-	DefaultTimeout    = 2 * time.Second
-	DefaultMaxRetries = 2
-	DefaultRetryDelay = 500 * time.Millisecond
+	DefaultTimeout    = 5 * time.Second
+	DefaultMaxRetries = 3
+	DefaultRetryDelay = 1 * time.Second
 )
 
 type DeviceInfo struct {
@@ -46,21 +48,26 @@ func NewARPScanner(ifaceName string, timeout time.Duration, maxRetries int, retr
 }
 
 func (s *arpScanner) Scan(ctx context.Context, ipRange string) ([]DeviceInfo, error) {
+	log.Printf("Starting ARP scan on interface %s for range %s", s.ifaceName, ipRange)
+
 	iface, err := net.InterfaceByName(s.ifaceName)
 	if err != nil {
 		return nil, fmt.Errorf("interface not found: %w", err)
 	}
+	log.Printf("Found interface: %s, MAC: %s", iface.Name, iface.HardwareAddr)
 
 	ips, err := parseIPRange(ipRange)
 	if err != nil {
 		return nil, fmt.Errorf("parse IP range failed: %w", err)
 	}
+	log.Printf("Parsed %d IP addresses to scan", len(ips))
 
 	client, err := arp.Dial(iface)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open ARP client: %w", err)
 	}
 	defer client.Close()
+	log.Printf("ARP client opened successfully")
 
 	var (
 		results []DeviceInfo
@@ -82,13 +89,19 @@ func (s *arpScanner) Scan(ctx context.Context, ipRange string) ([]DeviceInfo, er
 				var success bool
 
 				for attempt := 0; attempt < s.maxRetries; attempt++ {
-					if err := client.SetReadDeadline(time.Now().Add(s.timeout)); err != nil {
+					// Устанавливаем более короткий таймаут для чтения
+					if err := client.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+						log.Printf("Failed to set deadline for %s: %v", ip, err)
 						break
 					}
 					mac, err = client.Resolve(ip)
 					if err == nil && mac != nil {
+						log.Printf("Successfully resolved %s to %s", ip, mac)
 						success = true
 						break
+					} else if err != nil {
+						// Просто логируем ошибку, не пытаемся извлечь MAC из таймаута
+						log.Printf("Failed to resolve %s (attempt %d): %v", ip, attempt+1, err)
 					}
 					time.Sleep(s.retryDelay)
 				}
@@ -98,6 +111,12 @@ func (s *arpScanner) Scan(ctx context.Context, ipRange string) ([]DeviceInfo, er
 				if success && mac != nil {
 					status = "online"
 					macStr = mac.String()
+					log.Printf("Successfully resolved %s to %s", ip, macStr)
+				} else {
+					// Не считаем устройство онлайн, если получили только таймаут с MAC роутера
+					status = "offline"
+					macStr = ""
+					log.Printf("Device %s is offline (timeout or no response)", ip)
 				}
 
 				device := DeviceInfo{

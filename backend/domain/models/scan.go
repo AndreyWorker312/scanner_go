@@ -18,10 +18,15 @@ type ARPRequest struct {
 }
 
 type ARPResponse struct {
-	TaskID  string      `json:"task_id"`
-	Status  string      `json:"status"`
-	Devices []ARPDevice `json:"devices"`
-	Error   string      `json:"error,omitempty"`
+	TaskID         string      `json:"task_id"`
+	Status         string      `json:"status"`
+	Devices        []ARPDevice `json:"devices"`
+	OnlineDevices  []ARPDevice `json:"online_devices"`
+	OfflineDevices []ARPDevice `json:"offline_devices"`
+	TotalCount     int         `json:"total_count"`
+	OnlineCount    int         `json:"online_count"`
+	OfflineCount   int         `json:"offline_count"`
+	Error          string      `json:"error,omitempty"`
 }
 
 type ARPDevice struct {

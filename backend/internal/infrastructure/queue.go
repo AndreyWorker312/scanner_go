@@ -152,21 +152,25 @@ func (p *RPCScannerPublisher) startReplyConsumer() error {
 
 // parseResponse пытается определить тип ответа и преобразовать его в универсальный Response
 func (p *RPCScannerPublisher) parseResponse(body []byte) (*models.Response, error) {
-	// Сначала пробуем как обычный Response
-	var response models.Response
-	if err := json.Unmarshal(body, &response); err == nil && response.TaskID != "" {
-		log.Printf("Received generic response for task %s", response.TaskID)
-		return &response, nil
-	}
+	log.Printf("Raw response body: %s", string(body))
 
-	// Пробуем как ARPResponse
+	// Сначала пробуем как ARPResponse (более специфичный)
 	var arpResp models.ARPResponse
 	if err := json.Unmarshal(body, &arpResp); err == nil && arpResp.TaskID != "" {
-		log.Printf("Received ARP response for task %s with %d devices", arpResp.TaskID, len(arpResp.Devices))
+		log.Printf("Received ARP response for task %s: Total=%d, Online=%d, Offline=%d",
+			arpResp.TaskID, arpResp.TotalCount, arpResp.OnlineCount, arpResp.OfflineCount)
+		log.Printf("ARP response details: Status=%s, Error=%s", arpResp.Status, arpResp.Error)
 		return &models.Response{
 			TaskID: arpResp.TaskID,
 			Result: arpResp,
 		}, nil
+	}
+
+	// Потом пробуем как обычный Response
+	var response models.Response
+	if err := json.Unmarshal(body, &response); err == nil && response.TaskID != "" {
+		log.Printf("Received generic response for task %s", response.TaskID)
+		return &response, nil
 	}
 
 	// Пробуем как ICMPResponse

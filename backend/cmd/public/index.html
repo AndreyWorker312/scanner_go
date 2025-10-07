@@ -1,138 +1,327 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Raw WebSocket Client</title>
+  <title>Network Scanner - ARP Scanner</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    .container { max-width: 800px; }
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+    .container { max-width: 1400px; margin: 0 auto; }
+    .header { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .controls { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
     .button-group { margin: 10px 0; }
-    button { margin: 5px; padding: 8px 15px; }
-    textarea { width: 100%; height: 200px; margin: 10px 0; font-family: monospace; }
-    #log {
-      border: 1px solid #ccc;
-      padding: 10px;
-      height: 300px;
-      overflow-y: scroll;
-      background: #f9f9f9;
-      white-space: pre-wrap;
-      font-family: monospace;
+    button { margin: 5px; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    .btn-primary { background: #007bff; color: white; }
+    .btn-success { background: #28a745; color: white; }
+    .btn-danger { background: #dc3545; color: white; }
+    .btn-secondary { background: #6c757d; color: white; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .form-group { margin: 15px 0; }
+    label { display: block; margin-bottom: 5px; font-weight: bold; }
+    input, select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+    .status { padding: 10px; margin: 10px 0; border-radius: 4px; font-weight: bold; }
+    .status.connected { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .status.disconnected { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    
+    .history-container { display: flex; gap: 20px; }
+    .history-panel { 
+      flex: 1; 
+      background: white; 
+      border-radius: 8px; 
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    .history-header { 
+      background: #343a40; 
+      color: white; 
+      padding: 15px; 
+      font-weight: bold; 
+      font-size: 16px;
+    }
+    .history-header.online { background: #28a745; }
+    .history-header.offline { background: #dc3545; }
+    .history-content { 
+      padding: 15px; 
+      max-height: 500px; 
+      overflow-y: auto;
+    }
+    .scan-result { 
+      border: 1px solid #dee2e6; 
+      border-radius: 6px; 
+      margin-bottom: 15px; 
+      background: #f8f9fa;
+    }
+    .scan-header { 
+      background: #e9ecef; 
+      padding: 10px 15px; 
+      font-weight: bold; 
+      border-bottom: 1px solid #dee2e6;
+    }
+    .scan-body { padding: 15px; }
+    .device-list { 
+      max-height: 200px; 
+      overflow-y: auto; 
+      margin-top: 10px;
+    }
+    .device-item { 
+      padding: 5px 10px; 
+      margin: 2px 0; 
+      border-radius: 3px; 
+      font-family: monospace; 
       font-size: 12px;
     }
-    .status { padding: 5px; margin: 5px 0; border-radius: 3px; }
-    .status.connected { background: #d4edda; color: #155724; }
-    .status.disconnected { background: #f8d7da; color: #721c24; }
+    .device-online { background: #d4edda; color: #155724; }
+    .device-offline { background: #f8d7da; color: #721c24; }
+    .stats { 
+      display: flex; 
+      gap: 20px; 
+      margin-top: 10px;
+    }
+    .stat-item { 
+      background: #007bff; 
+      color: white; 
+      padding: 8px 12px; 
+      border-radius: 4px; 
+      font-size: 12px;
+    }
   </style>
 </head>
 <body>
 <div class="container">
-  <h1>Raw WebSocket Client</h1>
-
-  <div class="button-group">
-    <button onclick="connect()">Connect</button>
-    <button onclick="disconnect()" id="disconnectBtn" disabled>Disconnect</button>
-    <button onclick="clearLog()">Clear Log</button>
+  <div class="header">
+    <h1>🌐 Network Scanner - ARP Scanner</h1>
+    <p>Real-time network device discovery and monitoring</p>
   </div>
 
-  <div id="status" class="status disconnected">Disconnected</div>
+  <div class="controls">
+    <div class="button-group">
+      <button onclick="connect()" class="btn-success">Connect</button>
+      <button onclick="disconnect()" id="disconnectBtn" class="btn-danger" disabled>Disconnect</button>
+      <button onclick="clearHistory()" class="btn-secondary">Clear History</button>
+    </div>
 
-  <h3>Raw JSON Message:</h3>
-  <textarea id="messageInput">
-{
-  "type": "request",
-  "request": {
-    "scanner_service": "arp_service",
-    "options": {
-      "interface_name": "eth0",
-      "ip_range": "192.168.1.0/24"
-    }
-  },
-  "response": null
-}
-  </textarea>
+    <div id="status" class="status disconnected">Disconnected</div>
 
-  <div class="button-group">
-    <button onclick="sendMessage()" id="sendBtn" disabled>Send Raw JSON</button>
-    <button onclick="validateJSON()">Validate JSON</button>
-    <button onclick="formatJSON()">Format JSON</button>
+    <div style="display: flex; gap: 20px;">
+      <div class="form-group" style="flex: 1;">
+        <label for="interfaceSelect">Network Interface:</label>
+        <select id="interfaceSelect">
+          <option value="wlo1">wlo1 (WiFi)</option>
+          <option value="eth0">eth0 (Ethernet)</option>
+          <option value="enp0s3">enp0s3</option>
+        </select>
+      </div>
+      
+      <div class="form-group" style="flex: 1;">
+        <label for="ipRangeInput">IP Range:</label>
+        <input type="text" id="ipRangeInput" value="10.20.5.0/28" placeholder="e.g., 192.168.1.0/24">
+      </div>
+      
+      <div class="form-group" style="flex: 0 0 auto; display: flex; align-items: end;">
+        <button onclick="startScan()" id="scanBtn" class="btn-primary" disabled>Start Scan</button>
+      </div>
+    </div>
   </div>
 
-  <h3>Communication Log:</h3>
-  <div id="log"></div>
+  <div class="history-container">
+    <div class="history-panel">
+      <div class="history-header online">🟢 Online Devices</div>
+      <div class="history-content" id="onlineHistory">
+        <p style="text-align: center; color: #666; margin-top: 50px;">No online devices found yet</p>
+      </div>
+    </div>
+    
+    <div class="history-panel">
+      <div class="history-header offline">🔴 Offline Devices</div>
+      <div class="history-content" id="offlineHistory">
+        <p style="text-align: center; color: #666; margin-top: 50px;">No offline devices found yet</p>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
   let socket = null;
-  const logElement = document.getElementById('log');
-  const messageInput = document.getElementById('messageInput');
+  let scanHistory = [];
   const statusElement = document.getElementById('status');
   const disconnectBtn = document.getElementById('disconnectBtn');
-  const sendBtn = document.getElementById('sendBtn');
-
-  function log(message, type = 'info') {
-    const timestamp = new Date().toLocaleTimeString();
-    const colors = {
-      info: 'black',
-      sent: 'green',
-      received: 'blue',
-      error: 'red',
-      system: 'purple'
-    };
-
-    const logEntry = document.createElement('div');
-    logEntry.innerHTML = `<span style="color: #666;">[${timestamp}]</span> <span style="color: ${colors[type]}">${message}</span>`;
-    logElement.appendChild(logEntry);
-    logElement.scrollTop = logElement.scrollHeight;
-  }
+  const scanBtn = document.getElementById('scanBtn');
+  const interfaceSelect = document.getElementById('interfaceSelect');
+  const ipRangeInput = document.getElementById('ipRangeInput');
+  const onlineHistory = document.getElementById('onlineHistory');
+  const offlineHistory = document.getElementById('offlineHistory');
 
   function updateStatus(connected) {
     if (connected) {
-      statusElement.textContent = 'Connected to ws://localhost:8080/ws';
+      statusElement.textContent = '✅ Connected to WebSocket';
       statusElement.className = 'status connected';
       disconnectBtn.disabled = false;
-      sendBtn.disabled = false;
+      scanBtn.disabled = false;
     } else {
-      statusElement.textContent = 'Disconnected';
+      statusElement.textContent = '❌ Disconnected';
       statusElement.className = 'status disconnected';
       disconnectBtn.disabled = true;
-      sendBtn.disabled = true;
+      scanBtn.disabled = true;
     }
+  }
+
+  function addScanToHistory(scanData) {
+    console.log('addScanToHistory called with:', scanData);
+    const timestamp = new Date().toLocaleTimeString();
+    const scanId = Date.now();
+    
+    const scanResult = {
+      id: scanId,
+      timestamp: timestamp,
+      interface: scanData.interface_name || interfaceSelect.value,
+      ipRange: scanData.ip_range || ipRangeInput.value,
+      totalCount: scanData.TotalCount || scanData.total_count || 0,
+      onlineCount: scanData.OnlineCount || scanData.online_count || 0,
+      offlineCount: scanData.OfflineCount || scanData.offline_count || 0,
+      onlineDevices: scanData.OnlineDevices || scanData.online_devices || [],
+      offlineDevices: scanData.OfflineDevices || scanData.offline_devices || []
+    };
+    
+    console.log('Created scanResult:', scanResult);
+    console.log('onlineCount:', scanResult.onlineCount);
+    console.log('onlineDevices length:', scanResult.onlineDevices.length);
+    
+    scanHistory.unshift(scanResult);
+    if (scanHistory.length > 10) scanHistory.pop(); // Keep only last 10 scans
+    
+    console.log('Updated scanHistory length:', scanHistory.length);
+    updateHistoryDisplay();
+  }
+
+  function updateHistoryDisplay() {
+    console.log('updateHistoryDisplay called, scanHistory length:', scanHistory.length);
+    // Clear existing content
+    onlineHistory.innerHTML = '';
+    offlineHistory.innerHTML = '';
+    
+    if (scanHistory.length === 0) {
+      console.log('No scans in history');
+      onlineHistory.innerHTML = '<p style="text-align: center; color: #666; margin-top: 50px;">No scans performed yet</p>';
+      offlineHistory.innerHTML = '<p style="text-align: center; color: #666; margin-top: 50px;">No scans performed yet</p>';
+      return;
+    }
+    
+    scanHistory.forEach((scan, index) => {
+      console.log(`Scan ${index}: onlineCount=${scan.onlineCount}, offlineCount=${scan.offlineCount}`);
+      // Online devices panel
+      if (scan.onlineCount > 0) {
+        console.log(`Creating online panel for scan ${index}`);
+        const onlinePanel = createScanPanel(scan, 'online');
+        onlineHistory.appendChild(onlinePanel);
+      }
+      
+      // Offline devices panel
+      if (scan.offlineCount > 0) {
+        console.log(`Creating offline panel for scan ${index}`);
+        const offlinePanel = createScanPanel(scan, 'offline');
+        offlineHistory.appendChild(offlinePanel);
+      }
+    });
+    
+    // Show message if no devices in category
+    if (onlineHistory.children.length === 0) {
+      console.log('No online panels created, showing message');
+      onlineHistory.innerHTML = '<p style="text-align: center; color: #666; margin-top: 50px;">No online devices found</p>';
+    }
+    if (offlineHistory.children.length === 0) {
+      console.log('No offline panels created, showing message');
+      offlineHistory.innerHTML = '<p style="text-align: center; color: #666; margin-top: 50px;">No offline devices found</p>';
+    }
+  }
+
+  function createScanPanel(scan, type) {
+    const panel = document.createElement('div');
+    panel.className = 'scan-result';
+    
+    const header = document.createElement('div');
+    header.className = 'scan-header';
+    header.innerHTML = `
+      <div>📡 ${scan.timestamp} - ${scan.interface}</div>
+      <div style="font-size: 12px; font-weight: normal; margin-top: 2px;">${scan.ipRange}</div>
+    `;
+    
+    const body = document.createElement('div');
+    body.className = 'scan-body';
+    
+    const stats = document.createElement('div');
+    stats.className = 'stats';
+    stats.innerHTML = `
+      <div class="stat-item">Total: ${scan.totalCount}</div>
+      <div class="stat-item" style="background: #28a745;">Online: ${scan.onlineCount}</div>
+      <div class="stat-item" style="background: #dc3545;">Offline: ${scan.offlineCount}</div>
+    `;
+    
+    const deviceList = document.createElement('div');
+    deviceList.className = 'device-list';
+    
+    const devices = type === 'online' ? scan.onlineDevices : scan.offlineDevices;
+    devices.forEach(device => {
+      const deviceItem = document.createElement('div');
+      deviceItem.className = `device-item device-${device.status}`;
+      deviceItem.innerHTML = `
+        <div><strong>${device.ip}</strong></div>
+        <div>MAC: ${device.mac || 'Unknown'}</div>
+        <div>Status: ${device.status}</div>
+      `;
+      deviceList.appendChild(deviceItem);
+    });
+    
+    body.appendChild(stats);
+    body.appendChild(deviceList);
+    
+    panel.appendChild(header);
+    panel.appendChild(body);
+    
+    return panel;
   }
 
   function connect() {
     if (socket && socket.readyState === WebSocket.OPEN) {
-      log('Already connected', 'system');
       return;
     }
 
     try {
       socket = new WebSocket('ws://localhost:8080/ws');
-      log('Connecting to ws://localhost:8080/ws...', 'system');
 
       socket.onopen = function(event) {
-        log('✅ WebSocket connection established', 'system');
         updateStatus(true);
       };
 
       socket.onmessage = function(event) {
         try {
+          console.log('Raw WebSocket message received:', event.data);
           const parsed = JSON.parse(event.data);
-          log('📨 RECEIVED:\\n' + JSON.stringify(parsed, null, 2), 'received');
+          console.log('Parsed message:', parsed);
+          console.log('Message type:', parsed.type);
+          console.log('Has response:', !!parsed.response);
+          console.log('Has Result:', !!(parsed.response && parsed.response.Result));
+          
+          if (parsed.type === 'response' && parsed.response && parsed.response.result) {
+            console.log('Adding to history:', parsed.response.result);
+            addScanToHistory(parsed.response.result);
+          } else {
+            console.log('Message does not match expected format');
+            console.log('Available fields in response:', Object.keys(parsed.response || {}));
+          }
         } catch (e) {
-          log('📨 RECEIVED (raw): ' + event.data, 'received');
+          console.error('Error parsing response:', e);
+          console.error('Raw data:', event.data);
         }
       };
 
       socket.onerror = function(error) {
-        log('❌ WebSocket error: ' + error.message, 'error');
+        console.error('WebSocket error:', error);
       };
 
       socket.onclose = function(event) {
-        log(`🔌 Connection closed: code=${event.code}, reason=${event.reason || 'none'}`, 'system');
         updateStatus(false);
       };
 
     } catch (error) {
-      log('❌ Connection failed: ' + error.message, 'error');
+      console.error('Connection failed:', error);
     }
   }
 
@@ -143,87 +332,62 @@
     }
   }
 
-  function sendMessage() {
+  function startScan() {
     if (!socket || socket.readyState !== WebSocket.OPEN) {
-      log('❌ Not connected to WebSocket', 'error');
+      alert('❌ Not connected to WebSocket');
       return;
     }
 
-    const rawJson = messageInput.value.trim();
+    const interfaceName = interfaceSelect.value;
+    const ipRange = ipRangeInput.value.trim();
 
-    if (!rawJson) {
-      log('❌ JSON is empty', 'error');
+    if (!ipRange) {
+      alert('❌ IP range is required');
       return;
     }
 
-    try {
-      // Валидируем JSON
-      JSON.parse(rawJson);
-
-      // Отправляем сырые данные как есть
-      socket.send(rawJson);
-      log('📤 SENT:\\n' + rawJson, 'sent');
-
-    } catch (error) {
-      log('❌ Invalid JSON: ' + error.message, 'error');
-    }
-  }
-
-  function validateJSON() {
-    const jsonText = messageInput.value.trim();
-
-    if (!jsonText) {
-      alert('JSON is empty');
-      return;
-    }
+    const request = {
+      type: "request",
+      request: {
+        scanner_service: "arp_service",
+        options: {
+          interface_name: interfaceName,
+          ip_range: ipRange
+        }
+      }
+    };
 
     try {
-      JSON.parse(jsonText);
-      alert('✅ Valid JSON');
+      socket.send(JSON.stringify(request));
+      scanBtn.textContent = 'Scanning...';
+      scanBtn.disabled = true;
+      
+      // Re-enable button after 10 seconds
+      setTimeout(() => {
+        scanBtn.textContent = 'Start Scan';
+        scanBtn.disabled = false;
+      }, 10000);
+      
     } catch (error) {
-      alert('❌ Invalid JSON: ' + error.message);
+      alert('❌ Failed to send scan request: ' + error.message);
     }
   }
 
-  function formatJSON() {
-    try {
-      const parsed = JSON.parse(messageInput.value);
-      messageInput.value = JSON.stringify(parsed, null, 2);
-      log('Formatted JSON', 'system');
-    } catch (error) {
-      alert('Cannot format invalid JSON: ' + error.message);
-    }
+  function clearHistory() {
+    scanHistory = [];
+    updateHistoryDisplay();
   }
 
-  function clearLog() {
-    logElement.innerHTML = '';
-    log('Log cleared', 'system');
-  }
-
-  // Горячие клавиши
+  // Hotkeys
   document.addEventListener('keydown', function(e) {
     if (e.ctrlKey && e.key === 'Enter') {
-      sendMessage();
-    }
-    if (e.ctrlKey && e.key === 'l') {
-      clearLog();
-      e.preventDefault();
+      startScan();
     }
   });
 
-  // Авто-форматирование при потере фокуса
-  messageInput.addEventListener('blur', function() {
-    try {
-      const parsed = JSON.parse(messageInput.value);
-      messageInput.value = JSON.stringify(parsed, null, 2);
-    } catch (e) {
-      // Игнорируем ошибки форматирования
-    }
-  });
-
-  // Загрузка примера при старте
+  // Auto-connect on page load
   window.addEventListener('load', function() {
-    log('Page loaded. Click "Connect" to start.', 'system');
+    setTimeout(connect, 1000); // Connect after 1 second
   });
 </script>
 </body>

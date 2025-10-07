@@ -68,7 +68,11 @@ func (c *Client) readPump() {
 			break
 		}
 
-		log.Printf("Received message type=%s, scanner_service=%s", msg.Type, msg.Req.ScannerService)
+		scannerService := ""
+		if msg.Req != nil {
+			scannerService = msg.Req.ScannerService
+		}
+		log.Printf("Received message type=%s, scanner_service=%s", msg.Type, scannerService)
 
 		if msg.Req != nil {
 			// Обрабатываем запрос и преобразуем options в нужную структуру

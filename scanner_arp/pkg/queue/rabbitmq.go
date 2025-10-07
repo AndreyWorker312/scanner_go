@@ -1,9 +1,9 @@
 package queue
 
 import (
-	"arp_scanner/internal/scanner"
 	"context"
 	"encoding/json"
+
 	"github.com/streadway/amqp"
 )
 
@@ -19,10 +19,22 @@ type ARPRequest struct {
 }
 
 type ARPResponse struct {
-	TaskID  string               `json:"task_id"`
-	Status  string               `json:"status"`
-	Devices []scanner.DeviceInfo `json:"devices"`
-	Error   string               `json:"error,omitempty"`
+	TaskID         string      `json:"task_id"`
+	Status         string      `json:"status"`
+	Devices        []ARPDevice `json:"devices"`
+	OnlineDevices  []ARPDevice `json:"online_devices"`
+	OfflineDevices []ARPDevice `json:"offline_devices"`
+	TotalCount     int         `json:"total_count"`
+	OnlineCount    int         `json:"online_count"`
+	OfflineCount   int         `json:"offline_count"`
+	Error          string      `json:"error,omitempty"`
+}
+
+type ARPDevice struct {
+	IP     string `json:"ip"`
+	MAC    string `json:"mac"`
+	Vendor string `json:"vendor,omitempty"`
+	Status string `json:"status"`
 }
 
 type Delivery struct {
