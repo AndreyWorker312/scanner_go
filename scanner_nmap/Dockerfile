@@ -10,10 +10,11 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /scanner ./cmd/scanner/main.go
 
 FROM alpine:3.18
 
+# Устанавливаем nmap
+RUN apk add --no-cache nmap
+
 WORKDIR /app
 
 COPY --from=builder /scanner /app/scanner
-
-COPY .env /app/.env
 
 CMD ["/app/scanner"]

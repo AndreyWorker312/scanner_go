@@ -10,54 +10,68 @@ import (
 )
 
 func HandleMessage(ctx context.Context, msg queue.Delivery, rabbitMQ *queue.RabbitMQ, log logger.Logger) {
-	var rawReq domain.RawRequest
-	if err := json.Unmarshal(msg.Body, &rawReq); err != nil {
-		log.Errorf("Failed to unmarshal scan request: %v", err)
-		return
-	}
-
-	log.Infof("Received scan request")
+	log.Infof("Received scan request: %s", string(msg.Body))
 
 	if msg.ReplyTo == "" {
 		return
 	}
 
-	switch rawReq.ScanMethod {
-	case "TCP/UDP":
-		var udpRequest domain.ScanTcpUdpRequest
-		if err := json.Unmarshal(msg.Body, &udpRequest); err != nil {
-			log.Errorf("Failed to unmarshal scan request: %v", err)
+	// Пробуем определить тип запроса по наличию полей
+	var scanType struct {
+		ScanMethod  string `json:"scan_method"`
+		ScannerType string `json:"scanner_type"`
+	}
+
+	if err := json.Unmarshal(msg.Body, &scanType); err != nil {
+		log.Errorf("Failed to unmarshal scan type: %v", err)
+		return
+	}
+
+	log.Infof("Scan method: %s, Scanner type: %s", scanType.ScanMethod, scanType.ScannerType)
+
+	// Определяем тип сканирования и обрабатываем
+	switch {
+	case scanType.ScanMethod == "tcp_udp_scan" || scanType.ScannerType == "tcp_scan" || scanType.ScannerType == "udp_scan":
+		var tcpUdpRequest domain.ScanTcpUdpRequest
+		if err := json.Unmarshal(msg.Body, &tcpUdpRequest); err != nil {
+			log.Errorf("Failed to unmarshal TCP/UDP request: %v", err)
 			return
 		}
-		req, err := usecases.UdpTcpScanner(ctx, udpRequest)
+		log.Infof("Processing TCP/UDP scan for %s on ports %s", tcpUdpRequest.IP, tcpUdpRequest.Ports)
+		req, err := usecases.UdpTcpScanner(ctx, tcpUdpRequest)
 		if err != nil {
-			log.Errorf("Failed to scan udp response: %v", err)
+			log.Errorf("Failed to scan TCP/UDP: %v", err)
 		}
 		sendResponse(rabbitMQ, msg, req, err, log)
-	case "OC":
-		var udpRequest domain.OsDetectionRequest
-		if err := json.Unmarshal(msg.Body, &udpRequest); err != nil {
-			log.Errorf("Failed to unmarshal scan request: %v", err)
+
+	case scanType.ScanMethod == "os_detection":
+		var osRequest domain.OsDetectionRequest
+		if err := json.Unmarshal(msg.Body, &osRequest); err != nil {
+			log.Errorf("Failed to unmarshal OS detection request: %v", err)
 			return
 		}
-		req, err := usecases.OSDetectionScanner(ctx, udpRequest)
+		log.Infof("Processing OS detection for %s", osRequest.IP)
+		req, err := usecases.OSDetectionScanner(ctx, osRequest)
 		if err != nil {
-			log.Errorf("Failed to scan udp response: %v", err)
+			log.Errorf("Failed to scan OS detection: %v", err)
 		}
 		sendResponse(rabbitMQ, msg, req, err, log)
-	case "HOST":
-		var udpRequest domain.HostDiscoveryRequest
-		if err := json.Unmarshal(msg.Body, &udpRequest); err != nil {
-			log.Errorf("Failed to unmarshal scan request: %v", err)
+
+	case scanType.ScanMethod == "host_discovery":
+		var hostRequest domain.HostDiscoveryRequest
+		if err := json.Unmarshal(msg.Body, &hostRequest); err != nil {
+			log.Errorf("Failed to unmarshal host discovery request: %v", err)
 			return
 		}
-		req, err := usecases.HostDiscoveryScanner(ctx, udpRequest)
+		log.Infof("Processing host discovery for %s", hostRequest.IP)
+		req, err := usecases.HostDiscoveryScanner(ctx, hostRequest)
 		if err != nil {
-			log.Errorf("Failed to scan udp response: %v", err)
+			log.Errorf("Failed to scan host discovery: %v", err)
 		}
 		sendResponse(rabbitMQ, msg, req, err, log)
+
 	default:
-		log.Errorf("Invalid scan method: %s", rawReq.ScanMethod)
+		log.Errorf("Invalid scan method: %s", scanType.ScanMethod)
 	}
 
 	log.Infof("Scan completed")

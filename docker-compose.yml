@@ -43,10 +43,9 @@ services:
       context: ./scanner_nmap
       dockerfile: Dockerfile
     container_name: scanner-nmap
-    env_file:
-      - ./scanner_nmap/.env
     environment:
       - RABBITMQ_URL=amqp://guest:guest@localhost:5673/
+      - SCANNER_NAME=nmap_service
     depends_on:
       rabbitmq:
         condition: service_healthy

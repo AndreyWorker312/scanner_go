@@ -82,6 +82,7 @@ func (p *RPCScannerPublisher) publishRPC(queueName string, task interface{}) (*m
 		p.mu.Unlock()
 	}()
 
+	log.Printf("About to marshal task for %s: %+v", queueName, task)
 	body, err := json.Marshal(task)
 	if err != nil {
 		return nil, err

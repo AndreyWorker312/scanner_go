@@ -88,6 +88,8 @@ func (c *Client) readPump() {
 
 func (c *Client) processRequest(req *models.Request) *models.Response {
 	taskID := generateTaskID()
+	log.Printf("Processing request for scanner_service: %s", req.ScannerService)
+	log.Printf("Request options: %+v", req.Options)
 
 	switch req.ScannerService {
 	case "arp_service":
@@ -95,8 +97,10 @@ func (c *Client) processRequest(req *models.Request) *models.Response {
 	case "icmp_service", "ping_service":
 		return c.processICMPRequest(req.Options, taskID)
 	case "nmap_service":
+		log.Printf("Calling processNmapRequest")
 		return c.processNmapRequest(req.Options, taskID)
 	default:
+		log.Printf("Unsupported scanner_service: %s", req.ScannerService)
 		return &models.Response{
 			TaskID: taskID,
 			Result: map[string]string{
@@ -186,6 +190,8 @@ func (c *Client) processICMPRequest(options any, taskID string) *models.Response
 }
 
 func (c *Client) processNmapRequest(options any, taskID string) *models.Response {
+	log.Printf("Processing Nmap request with options: %+v", options)
+
 	var nmapOpts struct {
 		ScanMethod  string `json:"scan_method"`
 		IP          string `json:"ip"`
@@ -194,11 +200,15 @@ func (c *Client) processNmapRequest(options any, taskID string) *models.Response
 	}
 
 	if err := parseOptions(options, &nmapOpts); err != nil {
+		log.Printf("Failed to parse Nmap options: %v", err)
 		return &models.Response{
 			TaskID: taskID,
 			Result: map[string]string{"error": "invalid Nmap options: " + err.Error()},
 		}
 	}
+
+	log.Printf("Parsed Nmap options: ScanMethod=%s, IP=%s, Ports=%s, ScannerType=%s",
+		nmapOpts.ScanMethod, nmapOpts.IP, nmapOpts.Ports, nmapOpts.ScannerType)
 
 	// В зависимости от типа сканирования создаем соответствующую структуру
 	switch nmapOpts.ScanMethod {
@@ -217,10 +227,8 @@ func (c *Client) processNmapRequest(options any, taskID string) *models.Response
 			Ports:       nmapOpts.Ports,
 		}
 
-		return c.app.ProcessRequest(&models.Request{
-			ScannerService: "nmap_service",
-			Options:        nmapRequest,
-		})
+		log.Printf("Created NmapTcpUdpRequest: %+v", nmapRequest)
+		return c.app.PublishNmapRequest(nmapRequest)
 
 	case "os_detection":
 		if nmapOpts.IP == "" {
@@ -235,10 +243,8 @@ func (c *Client) processNmapRequest(options any, taskID string) *models.Response
 			IP:     nmapOpts.IP,
 		}
 
-		return c.app.ProcessRequest(&models.Request{
-			ScannerService: "nmap_service",
-			Options:        nmapRequest,
-		})
+		log.Printf("Created NmapOsDetectionRequest: %+v", nmapRequest)
+		return c.app.PublishNmapRequest(nmapRequest)
 
 	case "host_discovery":
 		if nmapOpts.IP == "" {
@@ -253,10 +259,8 @@ func (c *Client) processNmapRequest(options any, taskID string) *models.Response
 			IP:     nmapOpts.IP,
 		}
 
-		return c.app.ProcessRequest(&models.Request{
-			ScannerService: "nmap_service",
-			Options:        nmapRequest,
-		})
+		log.Printf("Created NmapHostDiscoveryRequest: %+v", nmapRequest)
+		return c.app.PublishNmapRequest(nmapRequest)
 
 	default:
 		return &models.Response{

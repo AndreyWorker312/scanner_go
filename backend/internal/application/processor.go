@@ -69,7 +69,7 @@ func (a *App) processNmapRequest(options any) *models.Response {
 				Result: map[string]string{"error": "invalid TCP/UDP request"},
 			}
 		}
-		return a.publishNmapRequest(tcpUdpReq)
+		return a.PublishNmapRequest(tcpUdpReq)
 
 	case scanType.ScanMethod == "os_detection":
 		var osReq models.NmapOsDetectionRequest
@@ -80,7 +80,7 @@ func (a *App) processNmapRequest(options any) *models.Response {
 				Result: map[string]string{"error": "invalid OS detection request"},
 			}
 		}
-		return a.publishNmapRequest(osReq)
+		return a.PublishNmapRequest(osReq)
 
 	case scanType.ScanMethod == "host_discovery":
 		var hostReq models.NmapHostDiscoveryRequest
@@ -91,7 +91,7 @@ func (a *App) processNmapRequest(options any) *models.Response {
 				Result: map[string]string{"error": "invalid host discovery request"},
 			}
 		}
-		return a.publishNmapRequest(hostReq)
+		return a.PublishNmapRequest(hostReq)
 
 	default:
 		// Пробуем как базовый NmapRequest
@@ -103,7 +103,7 @@ func (a *App) processNmapRequest(options any) *models.Response {
 				Result: map[string]string{"error": "invalid nmap request"},
 			}
 		}
-		return a.publishNmapRequest(nmapReq)
+		return a.PublishNmapRequest(nmapReq)
 	}
 }
 
@@ -168,7 +168,8 @@ func (a *App) processIcmpRequest(options any) *models.Response {
 }
 
 // Универсальный метод для публикации Nmap запросов
-func (a *App) publishNmapRequest(req interface{}) *models.Response {
+func (a *App) PublishNmapRequest(req interface{}) *models.Response {
+	log.Printf("Publishing Nmap request: %+v", req)
 	resp, err := a.publisher.PublishNmap(req)
 	if err != nil {
 		log.Printf("Failed to publish Nmap task: %v", err)

@@ -19,7 +19,7 @@ type ScanTcpUdpResponse struct {
 
 type PortTcpUdpInfo struct {
 	Status      string   `json:"status"`
-	AllPorts    []uint16 `json:"close_ports"`
+	AllPorts    []uint16 `json:"all_ports"`
 	Protocols   []string `json:"protocols"`
 	State       []string `json:"state"`
 	ServiceName []string `json:"service_name"`
