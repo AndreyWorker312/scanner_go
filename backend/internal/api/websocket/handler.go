@@ -239,8 +239,9 @@ func (c *Client) processNmapRequest(options any, taskID string) *models.Response
 		}
 
 		nmapRequest := models.NmapOsDetectionRequest{
-			TaskID: taskID,
-			IP:     nmapOpts.IP,
+			TaskID:     taskID,
+			IP:         nmapOpts.IP,
+			ScanMethod: "os_detection",
 		}
 
 		log.Printf("Created NmapOsDetectionRequest: %+v", nmapRequest)
@@ -255,8 +256,9 @@ func (c *Client) processNmapRequest(options any, taskID string) *models.Response
 		}
 
 		nmapRequest := models.NmapHostDiscoveryRequest{
-			TaskID: taskID,
-			IP:     nmapOpts.IP,
+			TaskID:     taskID,
+			IP:         nmapOpts.IP,
+			ScanMethod: "host_discovery",
 		}
 
 		log.Printf("Created NmapHostDiscoveryRequest: %+v", nmapRequest)

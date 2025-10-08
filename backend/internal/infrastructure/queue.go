@@ -177,9 +177,29 @@ func (p *RPCScannerPublisher) parseResponse(body []byte) (*models.Response, erro
 		}, nil
 	}
 
-	// Пробуем как NmapTcpUdpResponse
+	// Пробуем как NmapOsDetectionResponse (проверяем наличие специфичных полей)
+	var nmapOsResp models.NmapOsDetectionResponse
+	if err := json.Unmarshal(body, &nmapOsResp); err == nil && nmapOsResp.TaskID != "" && (nmapOsResp.Name != "" || nmapOsResp.Vendor != "" || nmapOsResp.Family != "") {
+		log.Printf("Received Nmap OS detection response for task %s", nmapOsResp.TaskID)
+		return &models.Response{
+			TaskID: nmapOsResp.TaskID,
+			Result: nmapOsResp,
+		}, nil
+	}
+
+	// Пробуем как NmapHostDiscoveryResponse (проверяем наличие специфичных полей)
+	var nmapHostResp models.NmapHostDiscoveryResponse
+	if err := json.Unmarshal(body, &nmapHostResp); err == nil && nmapHostResp.TaskID != "" && (nmapHostResp.HostUP > 0 || nmapHostResp.HostTotal > 0) {
+		log.Printf("Received Nmap host discovery response for task %s", nmapHostResp.TaskID)
+		return &models.Response{
+			TaskID: nmapHostResp.TaskID,
+			Result: nmapHostResp,
+		}, nil
+	}
+
+	// Пробуем как NmapTcpUdpResponse (проверяем наличие PortInfo)
 	var nmapTcpUdpResp models.NmapTcpUdpResponse
-	if err := json.Unmarshal(body, &nmapTcpUdpResp); err == nil && nmapTcpUdpResp.TaskID != "" {
+	if err := json.Unmarshal(body, &nmapTcpUdpResp); err == nil && nmapTcpUdpResp.TaskID != "" && len(nmapTcpUdpResp.PortInfo) > 0 {
 		log.Printf("Received Nmap TCP/UDP response for task %s", nmapTcpUdpResp.TaskID)
 		return &models.Response{
 			TaskID: nmapTcpUdpResp.TaskID,
@@ -192,26 +212,6 @@ func (p *RPCScannerPublisher) parseResponse(body []byte) (*models.Response, erro
 	if err := json.Unmarshal(body, &response); err == nil && response.TaskID != "" {
 		log.Printf("Received generic response for task %s", response.TaskID)
 		return &response, nil
-	}
-
-	// Пробуем как NmapOsDetectionResponse
-	var nmapOsResp models.NmapOsDetectionResponse
-	if err := json.Unmarshal(body, &nmapOsResp); err == nil && nmapOsResp.TaskID != "" {
-		log.Printf("Received Nmap OS detection response for task %s", nmapOsResp.TaskID)
-		return &models.Response{
-			TaskID: nmapOsResp.TaskID,
-			Result: nmapOsResp,
-		}, nil
-	}
-
-	// Пробуем как NmapHostDiscoveryResponse
-	var nmapHostResp models.NmapHostDiscoveryResponse
-	if err := json.Unmarshal(body, &nmapHostResp); err == nil && nmapHostResp.TaskID != "" {
-		log.Printf("Received Nmap host discovery response for task %s", nmapHostResp.TaskID)
-		return &models.Response{
-			TaskID: nmapHostResp.TaskID,
-			Result: nmapHostResp,
-		}, nil
 	}
 
 	return nil, fmt.Errorf("unable to parse response as any known type")

@@ -90,8 +90,9 @@ type NmapPortTcpUdpInfo struct {
 
 // OS Detection сканирование
 type NmapOsDetectionRequest struct {
-	TaskID string `json:"task_id"`
-	IP     string `json:"ip"`
+	TaskID     string `json:"task_id"`
+	IP         string `json:"ip"`
+	ScanMethod string `json:"scan_method"`
 }
 
 type NmapOsDetectionResponse struct {
@@ -108,8 +109,9 @@ type NmapOsDetectionResponse struct {
 
 // Host Discovery сканирование
 type NmapHostDiscoveryRequest struct {
-	TaskID string `json:"task_id"`
-	IP     string `json:"ip"`
+	TaskID     string `json:"task_id"`
+	IP         string `json:"ip"`
+	ScanMethod string `json:"scan_method"`
 }
 
 type NmapHostDiscoveryResponse struct {

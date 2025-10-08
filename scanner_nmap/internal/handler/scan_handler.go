@@ -124,9 +124,12 @@ func sendResponse[T domain.ScanTcpUdpResponse | domain.OsDetectionResponse | dom
 		}
 
 		body, _ := json.Marshal(response)
+		log.Infof("Sending OS detection response for task %s: %s", r.TaskID, string(body))
 
 		if err := rabbitMQ.SendResponse(msg.ReplyTo, msg.CorrelationId, body); err != nil {
 			log.Errorf("Failed to send OS detection response: %v", err)
+		} else {
+			log.Infof("OS detection response sent successfully for task %s", r.TaskID)
 		}
 
 	case domain.HostDiscoveryResponse:
@@ -147,9 +150,12 @@ func sendResponse[T domain.ScanTcpUdpResponse | domain.OsDetectionResponse | dom
 		}
 
 		body, _ := json.Marshal(response)
+		log.Infof("Sending host discovery response for task %s: %s", r.TaskID, string(body))
 
 		if err := rabbitMQ.SendResponse(msg.ReplyTo, msg.CorrelationId, body); err != nil {
 			log.Errorf("Failed to send host discovery response: %v", err)
+		} else {
+			log.Infof("Host discovery response sent successfully for task %s", r.TaskID)
 		}
 
 	default:
