@@ -71,6 +71,9 @@ func (c *Client) readPump() {
 		if msg.Req != nil {
 			response := c.app.ProcessRequest(msg.Req)
 
+			// Сохраняем результат в базу данных
+			c.app.ProcessResponse(response)
+
 			c.send <- Message{
 				Type: "response",
 				Resp: response,

@@ -290,6 +290,11 @@
       color: white;
     }
 
+    .btn-info {
+      background: #17a2b8;
+      color: white;
+    }
+
     button:disabled {
       opacity: 0.6;
       cursor: not-allowed;
@@ -514,6 +519,24 @@
           Nmap Сканирование
         </a>
       </li>
+      <li class="nav-item">
+        <a href="#" class="nav-link" data-page="arp-history">
+          <span class="nav-icon">📊</span>
+          ARP История
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="#" class="nav-link" data-page="icmp-history">
+          <span class="nav-icon">📊</span>
+          ICMP История
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="#" class="nav-link" data-page="nmap-history">
+          <span class="nav-icon">📊</span>
+          Nmap История
+        </a>
+      </li>
     </ul>
   </nav>
 
@@ -559,6 +582,7 @@
     <div class="button-group">
       <button onclick="connect()" class="btn-success">Connect</button>
       <button onclick="disconnect()" id="disconnectBtn" class="btn-danger" disabled>Disconnect</button>
+      <button onclick="viewARPHistory()" class="btn-info">View History</button>
       <button onclick="clearHistory()" class="btn-secondary">Clear History</button>
     </div>
 
@@ -615,6 +639,7 @@
           <div class="button-group">
             <button onclick="connectIcmp()" class="btn-success">Connect</button>
             <button onclick="disconnectIcmp()" id="disconnectBtnIcmp" class="btn-danger" disabled>Disconnect</button>
+            <button onclick="viewICMPHistory()" class="btn-info">View History</button>
             <button onclick="clearIcmpHistory()" class="btn-secondary">Clear History</button>
           </div>
 
@@ -675,6 +700,7 @@ google.com
           <div class="button-group">
             <button onclick="connectNmap()" class="btn-success">Connect</button>
             <button onclick="disconnectNmap()" id="disconnectBtnNmap" class="btn-danger" disabled>Disconnect</button>
+            <button onclick="viewNmapHistory()" class="btn-info">View History</button>
             <button onclick="clearNmapHistory()" class="btn-secondary">Clear History</button>
           </div>
 
@@ -745,6 +771,87 @@ google.com
     </div>
   </main>
 
+  <!-- ARP History страница -->
+  <div id="arp-history" class="page" style="display: none;">
+    <div class="arp-container">
+      <div class="arp-header">
+        <h1>📊 ARP Scan History</h1>
+        <p>View and manage ARP scanning history</p>
+      </div>
+      
+      <div class="arp-controls">
+        <div class="button-group">
+          <button onclick="showPage('arp')" class="btn-secondary">← Back to ARP Scanner</button>
+          <button onclick="loadARPHistory()" class="btn-primary">Refresh</button>
+          <button onclick="clearARPHistory()" class="btn-danger">Clear All History</button>
+        </div>
+      </div>
+
+      <div class="history-container">
+        <div class="history-panel">
+          <div class="history-header online">📋 ARP History Records</div>
+          <div class="history-content" id="arpHistoryContent">
+            <p style="text-align: center; color: #666; margin-top: 50px;">Loading history...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ICMP History страница -->
+  <div id="icmp-history" class="page" style="display: none;">
+    <div class="arp-container">
+      <div class="arp-header">
+        <h1>📊 ICMP Ping History</h1>
+        <p>View and manage ICMP ping history</p>
+      </div>
+      
+      <div class="arp-controls">
+        <div class="button-group">
+          <button onclick="showPage('icmp')" class="btn-secondary">← Back to ICMP Scanner</button>
+          <button onclick="loadICMPHistory()" class="btn-primary">Refresh</button>
+          <button onclick="clearICMPHistory()" class="btn-danger">Clear All History</button>
+        </div>
+      </div>
+
+      <div class="history-container">
+        <div class="history-panel">
+          <div class="history-header online">📋 ICMP History Records</div>
+          <div class="history-content" id="icmpHistoryContent">
+            <p style="text-align: center; color: #666; margin-top: 50px;">Loading history...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nmap History страница -->
+  <div id="nmap-history" class="page" style="display: none;">
+    <div class="arp-container">
+      <div class="arp-header">
+        <h1>📊 Nmap Scan History</h1>
+        <p>View and manage Nmap scanning history</p>
+      </div>
+      
+      <div class="arp-controls">
+        <div class="button-group">
+          <button onclick="showPage('nmap')" class="btn-secondary">← Back to Nmap Scanner</button>
+          <button onclick="loadNmapHistory()" class="btn-primary">Refresh</button>
+          <button onclick="clearNmapHistory()" class="btn-danger">Clear All History</button>
+        </div>
+      </div>
+
+      <div class="history-container">
+        <div class="history-panel">
+          <div class="history-header online">📋 Nmap History Records</div>
+          <div class="history-content" id="nmapHistoryContent">
+            <p style="text-align: center; color: #666; margin-top: 50px;">Loading history...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 <script>
     // Глобальные переменные для ARP функциональности
   let socket = null;
@@ -762,16 +869,24 @@ google.com
       // Скрыть все страницы
       document.querySelectorAll('.page').forEach(page => {
         page.classList.remove('active');
+        page.style.display = 'none';
       });
       
       // Показать выбранную страницу
-      document.getElementById(pageId).classList.add('active');
+      const targetPage = document.getElementById(pageId);
+      if (targetPage) {
+        targetPage.classList.add('active');
+        targetPage.style.display = 'flex';
+      }
       
       // Обновить активное состояние в меню
       document.querySelectorAll('.nav-link').forEach(link => {
         link.classList.remove('active');
       });
-      document.querySelector(`[data-page="${pageId}"]`).classList.add('active');
+      const navLink = document.querySelector(`[data-page="${pageId}"]`);
+      if (navLink) {
+        navLink.classList.add('active');
+      }
 
       // Подключиться к WebSocket при переходе на страницы
       if (pageId === 'arp' && !socket) {
@@ -1231,7 +1346,7 @@ google.com
     function clearIcmpHistory() {
       icmpHistory = [];
       updateIcmpHistoryDisplay();
-    }
+  }
 
   // Hotkeys
   document.addEventListener('keydown', function(e) {
@@ -1611,6 +1726,282 @@ google.com
     function clearNmapHistory() {
       nmapHistory = [];
       updateNmapHistoryDisplay();
+    }
+
+    // ==================== HISTORY FUNCTIONS ====================
+
+    // ARP History Functions
+    function viewARPHistory() {
+      showPage('arp-history');
+      loadARPHistory();
+    }
+
+    function loadARPHistory() {
+      fetch('/api/history/arp')
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            displayARPHistory(data.data);
+          } else {
+            document.getElementById('arpHistoryContent').innerHTML = 
+              `<p style="text-align: center; color: #dc3545; margin-top: 50px;">Error: ${data.error}</p>`;
+          }
+        })
+        .catch(error => {
+          console.error('Error loading ARP history:', error);
+          document.getElementById('arpHistoryContent').innerHTML = 
+            `<p style="text-align: center; color: #dc3545; margin-top: 50px;">Failed to load history</p>`;
+        });
+    }
+
+    function displayARPHistory(records) {
+      const content = document.getElementById('arpHistoryContent');
+      if (!records || records.length === 0) {
+        content.innerHTML = '<p style="text-align: center; color: #666; margin-top: 50px;">No ARP scan history found</p>';
+        return;
+      }
+
+      let html = '';
+      records.forEach(record => {
+        const date = new Date(record.created_at).toLocaleString();
+        html += `
+          <div class="history-item" style="border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 5px; background: #f9f9f9;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <strong>Task ID: ${record.task_id}</strong>
+              <span style="color: #666; font-size: 12px;">${date}</span>
+            </div>
+            <div style="margin-bottom: 10px;">
+              <strong>Range:</strong> ${record.ip_range} | 
+              <strong>Interface:</strong> ${record.interface_name} | 
+              <strong>Status:</strong> <span style="color: ${record.status === 'completed' ? 'green' : 'red'}">${record.status}</span>
+            </div>
+            <div style="margin-bottom: 10px;">
+              <strong>Total:</strong> ${record.total_count} | 
+              <strong>Online:</strong> ${record.online_count} | 
+              <strong>Offline:</strong> ${record.offline_count}
+            </div>
+            ${record.error ? `<div style="color: red;">Error: ${record.error}</div>` : ''}
+          </div>
+        `;
+      });
+      content.innerHTML = html;
+    }
+
+    function clearARPHistory() {
+      if (confirm('Are you sure you want to clear all ARP history?')) {
+        fetch('/api/history/arp/delete', { method: 'DELETE' })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              alert('ARP history cleared successfully');
+              loadARPHistory();
+            } else {
+              alert('Error: ' + data.error);
+            }
+          })
+          .catch(error => {
+            console.error('Error clearing ARP history:', error);
+            alert('Failed to clear ARP history');
+          });
+      }
+    }
+
+    // ICMP History Functions
+    function viewICMPHistory() {
+      showPage('icmp-history');
+      loadICMPHistory();
+    }
+
+    function loadICMPHistory() {
+      fetch('/api/history/icmp')
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            displayICMPHistory(data.data);
+          } else {
+            document.getElementById('icmpHistoryContent').innerHTML = 
+              `<p style="text-align: center; color: #dc3545; margin-top: 50px;">Error: ${data.error}</p>`;
+          }
+        })
+        .catch(error => {
+          console.error('Error loading ICMP history:', error);
+          document.getElementById('icmpHistoryContent').innerHTML = 
+            `<p style="text-align: center; color: #dc3545; margin-top: 50px;">Failed to load history</p>`;
+        });
+    }
+
+    function displayICMPHistory(records) {
+      const content = document.getElementById('icmpHistoryContent');
+      if (!records || records.length === 0) {
+        content.innerHTML = '<p style="text-align: center; color: #666; margin-top: 50px;">No ICMP ping history found</p>';
+        return;
+      }
+
+      let html = '';
+      records.forEach(record => {
+        const date = new Date(record.created_at).toLocaleString();
+        html += `
+          <div class="history-item" style="border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 5px; background: #f9f9f9;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <strong>Task ID: ${record.task_id}</strong>
+              <span style="color: #666; font-size: 12px;">${date}</span>
+            </div>
+            <div style="margin-bottom: 10px;">
+              <strong>Targets:</strong> ${record.targets.join(', ')} | 
+              <strong>Ping Count:</strong> ${record.ping_count} | 
+              <strong>Status:</strong> <span style="color: ${record.status === 'completed' ? 'green' : 'red'}">${record.status}</span>
+            </div>
+            <div style="margin-bottom: 10px;">
+              <strong>Results:</strong> ${record.results.length} targets scanned
+            </div>
+            ${record.error ? `<div style="color: red;">Error: ${record.error}</div>` : ''}
+          </div>
+        `;
+      });
+      content.innerHTML = html;
+    }
+
+    function clearICMPHistory() {
+      if (confirm('Are you sure you want to clear all ICMP history?')) {
+        fetch('/api/history/icmp/delete', { method: 'DELETE' })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              alert('ICMP history cleared successfully');
+              loadICMPHistory();
+            } else {
+              alert('Error: ' + data.error);
+            }
+          })
+          .catch(error => {
+            console.error('Error clearing ICMP history:', error);
+            alert('Failed to clear ICMP history');
+          });
+      }
+    }
+
+    // Nmap History Functions
+    function viewNmapHistory() {
+      showPage('nmap-history');
+      loadNmapHistory();
+    }
+
+    function loadNmapHistory() {
+      fetch('/api/history/nmap')
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            displayNmapHistory(data.data);
+          } else {
+            document.getElementById('nmapHistoryContent').innerHTML = 
+              `<p style="text-align: center; color: #dc3545; margin-top: 50px;">Error: ${data.error}</p>`;
+          }
+        })
+        .catch(error => {
+          console.error('Error loading Nmap history:', error);
+          document.getElementById('nmapHistoryContent').innerHTML = 
+            `<p style="text-align: center; color: #dc3545; margin-top: 50px;">Failed to load history</p>`;
+        });
+    }
+
+    function displayNmapHistory(data) {
+      const content = document.getElementById('nmapHistoryContent');
+      
+      if (!data || (Object.keys(data).length === 0)) {
+        content.innerHTML = '<p style="text-align: center; color: #666; margin-top: 50px;">No Nmap scan history found</p>';
+        return;
+      }
+
+      let html = '';
+
+      // TCP/UDP Scans
+      if (data.tcp_udp && data.tcp_udp.length > 0) {
+        html += '<h3 style="color: #007bff; margin: 20px 0 10px 0;">🔌 TCP/UDP Scans</h3>';
+        data.tcp_udp.forEach(record => {
+          const date = new Date(record.created_at).toLocaleString();
+          html += `
+            <div class="history-item" style="border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 5px; background: #f9f9f9;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <strong>Task ID: ${record.task_id}</strong>
+                <span style="color: #666; font-size: 12px;">${date}</span>
+              </div>
+              <div style="margin-bottom: 10px;">
+                <strong>Target:</strong> ${record.ip} | 
+                <strong>Type:</strong> ${record.scanner_type} | 
+                <strong>Ports:</strong> ${record.ports} | 
+                <strong>Status:</strong> <span style="color: ${record.status === 'completed' ? 'green' : 'red'}">${record.status}</span>
+              </div>
+              ${record.error ? `<div style="color: red;">Error: ${record.error}</div>` : ''}
+            </div>
+          `;
+        });
+      }
+
+      // OS Detection Scans
+      if (data.os_detection && data.os_detection.length > 0) {
+        html += '<h3 style="color: #28a745; margin: 20px 0 10px 0;">🖥️ OS Detection Scans</h3>';
+        data.os_detection.forEach(record => {
+          const date = new Date(record.created_at).toLocaleString();
+          html += `
+            <div class="history-item" style="border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 5px; background: #f9f9f9;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <strong>Task ID: ${record.task_id}</strong>
+                <span style="color: #666; font-size: 12px;">${date}</span>
+              </div>
+              <div style="margin-bottom: 10px;">
+                <strong>Target:</strong> ${record.ip} | 
+                <strong>OS:</strong> ${record.name} | 
+                <strong>Accuracy:</strong> ${record.accuracy}% | 
+                <strong>Status:</strong> <span style="color: ${record.status === 'completed' ? 'green' : 'red'}">${record.status}</span>
+              </div>
+              ${record.error ? `<div style="color: red;">Error: ${record.error}</div>` : ''}
+            </div>
+          `;
+        });
+      }
+
+      // Host Discovery Scans
+      if (data.host_discovery && data.host_discovery.length > 0) {
+        html += '<h3 style="color: #ffc107; margin: 20px 0 10px 0;">🔍 Host Discovery Scans</h3>';
+        data.host_discovery.forEach(record => {
+          const date = new Date(record.created_at).toLocaleString();
+          html += `
+            <div class="history-item" style="border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 5px; background: #f9f9f9;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <strong>Task ID: ${record.task_id}</strong>
+                <span style="color: #666; font-size: 12px;">${date}</span>
+              </div>
+              <div style="margin-bottom: 10px;">
+                <strong>Target:</strong> ${record.ip} | 
+                <strong>Up/Total:</strong> ${record.host_up}/${record.host_total} | 
+                <strong>Status:</strong> <span style="color: ${record.status === 'completed' ? 'green' : 'red'}">${record.status}</span>
+              </div>
+              ${record.error ? `<div style="color: red;">Error: ${record.error}</div>` : ''}
+            </div>
+          `;
+        });
+      }
+
+      content.innerHTML = html || '<p style="text-align: center; color: #666; margin-top: 50px;">No Nmap scan history found</p>';
+    }
+
+    function clearNmapHistory() {
+      if (confirm('Are you sure you want to clear all Nmap history?')) {
+        fetch('/api/history/nmap/delete', { method: 'DELETE' })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              alert('Nmap history cleared successfully');
+              loadNmapHistory();
+            } else {
+              alert('Error: ' + data.error);
+            }
+          })
+          .catch(error => {
+            console.error('Error clearing Nmap history:', error);
+            alert('Failed to clear Nmap history');
+          });
+      }
     }
 
     // Инициализация при загрузке страницы
