@@ -6,11 +6,11 @@ services:
     image: rabbitmq:3-management
     container_name: rabbitmq
     ports:
-      - "5673:5672"   # AMQP порт
-      - "15673:15672" # Web UI порт
+      - "5673:${RABBITMQ_PORT}"
+      - "15673:${RABBITMQ_MANAGEMENT_PORT}"
     environment:
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
       interval: 10s
@@ -26,15 +26,15 @@ services:
       dockerfile: Dockerfile
     container_name: backend-app
     ports:
-      - "8080:8080"
+      - "${BACKEND_PORT}:8080"
     environment:
-      - RABBITMQ_URL=amqp://guest:guest@localhost:5673/
+      - RABBITMQ_URL=${RABBITMQ_URL}
     depends_on:
       rabbitmq:
         condition: service_healthy
     volumes:
       - ./public:/app/public
-    network_mode: host
+    network_mode: ${NETWORK_MODE}
     restart: unless-stopped
 
   # Nmap сканер
@@ -44,12 +44,12 @@ services:
       dockerfile: Dockerfile
     container_name: scanner-nmap
     environment:
-      - RABBITMQ_URL=amqp://guest:guest@localhost:5673/
-      - SCANNER_NAME=nmap_service
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - SCANNER_NAME=${SCANNER_NMAP_NAME}
     depends_on:
       rabbitmq:
         condition: service_healthy
-    network_mode: host
+    network_mode: ${NETWORK_MODE}
     restart: unless-stopped
     privileged: true
     cap_add:
@@ -62,14 +62,13 @@ services:
       context: ./scanner_arp
       dockerfile: Dockerfile
     container_name: scanner-arp
-    env_file:
-      - ./scanner_arp/.env
     environment:
-      - RABBITMQ_URL=amqp://guest:guest@localhost:5673/
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - SCANNER_NAME=${SCANNER_ARP_NAME}
     depends_on:
       rabbitmq:
         condition: service_healthy
-    network_mode: host
+    network_mode: ${NETWORK_MODE}
     restart: unless-stopped
     privileged: true
     cap_add:
@@ -83,13 +82,13 @@ services:
       dockerfile: Dockerfile
     container_name: scanner-icmp
     environment:
-      - RABBITMQ_URL=amqp://guest:guest@localhost:5673/
-      - SCANNER_NAME=icmp_service
-      - PING_TIMEOUT=10s
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - SCANNER_NAME=${SCANNER_ICMP_NAME}
+      - PING_TIMEOUT=${PING_TIMEOUT}
     depends_on:
       rabbitmq:
         condition: service_healthy
-    network_mode: host
+    network_mode: ${NETWORK_MODE}
     restart: unless-stopped
     privileged: true
     cap_add:
