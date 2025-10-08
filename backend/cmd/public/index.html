@@ -1585,11 +1585,19 @@ google.com
         `;
       } else if (scan.scanType === 'host_discovery') {
         // Host Discovery
+        const host = scan.result.Host || scan.result.host || 'Unknown';
+        const status = scan.result.Status || scan.result.status || 'Unknown';
+        const hostUp = scan.result.HostUP || scan.result.host_up || 0;
+        const hostTotal = scan.result.HostTotal || scan.result.host_total || 0;
+        const dns = scan.result.DNS || scan.result.dns;
+        const reason = scan.result.Reason || scan.result.reason;
+        
         body.innerHTML = `
-          <div><strong>Host:</strong> ${scan.result.host || 'Unknown'}</div>
-          <div><strong>Status:</strong> ${scan.result.status || 'Unknown'}</div>
-          <div><strong>Up/Total:</strong> ${scan.result.host_up || 0}/${scan.result.host_total || 0}</div>
-          ${scan.result.dns ? `<div><strong>DNS:</strong> ${scan.result.dns}</div>` : ''}
+          <div><strong>Host:</strong> ${host}</div>
+          <div><strong>Status:</strong> ${status}</div>
+          <div><strong>Up/Total:</strong> ${hostUp}/${hostTotal}</div>
+          ${reason && reason !== 'unknown' ? `<div><strong>Reason:</strong> ${reason}</div>` : ''}
+          ${dns && dns !== 'unknown' ? `<div><strong>DNS:</strong> ${dns}</div>` : ''}
         `;
       }
       

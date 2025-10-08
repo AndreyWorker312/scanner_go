@@ -189,7 +189,7 @@ func (p *RPCScannerPublisher) parseResponse(body []byte) (*models.Response, erro
 
 	// Пробуем как NmapHostDiscoveryResponse (проверяем наличие специфичных полей)
 	var nmapHostResp models.NmapHostDiscoveryResponse
-	if err := json.Unmarshal(body, &nmapHostResp); err == nil && nmapHostResp.TaskID != "" && (nmapHostResp.HostUP > 0 || nmapHostResp.HostTotal > 0) {
+	if err := json.Unmarshal(body, &nmapHostResp); err == nil && nmapHostResp.TaskID != "" && (nmapHostResp.Status != "" || nmapHostResp.DNS != "" || nmapHostResp.Reason != "") {
 		log.Printf("Received Nmap host discovery response for task %s", nmapHostResp.TaskID)
 		return &models.Response{
 			TaskID: nmapHostResp.TaskID,

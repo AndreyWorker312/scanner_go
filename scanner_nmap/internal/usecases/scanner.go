@@ -116,12 +116,15 @@ func OSDetectionScanner(ctx context.Context, request domain.OsDetectionRequest) 
 }
 
 func HostDiscoveryScanner(ctx context.Context, request domain.HostDiscoveryRequest) (response domain.HostDiscoveryResponse, err error) {
+	fmt.Printf("Starting host discovery for %s\n", request.IP)
 	scanResult, err := nmap_wrapper.HostDiscovery(ctx, request.IP)
 
 	if scanResult == nil {
 		fmt.Println("Host discovery scanner doesn't have any results")
 		return domain.HostDiscoveryResponse{}, err
 	}
+
+	fmt.Printf("Host discovery found %d hosts\n", len(scanResult.Hosts))
 
 	var hostResult string
 	for _, host := range scanResult.Hosts {
@@ -141,7 +144,9 @@ func HostDiscoveryScanner(ctx context.Context, request domain.HostDiscoveryReque
 		Reason:    "unknown",
 	}
 
-	for _, host := range scanResult.Hosts {
+	for i, host := range scanResult.Hosts {
+		fmt.Printf("Host %d: Addresses=%d, Status=%s, Reason=%s\n", i, len(host.Addresses), host.Status.State, host.Status.Reason)
+
 		if len(host.Addresses) == 0 {
 			continue
 		}
@@ -159,6 +164,8 @@ func HostDiscoveryScanner(ctx context.Context, request domain.HostDiscoveryReque
 			}
 		}
 	}
+
+	fmt.Printf("Final result: Host=%s, UP=%d, Total=%d, Status=%s\n", responseResult.Host, responseResult.HostUP, responseResult.HostTotal, responseResult.Status)
 
 	return responseResult, err
 }

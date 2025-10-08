@@ -3,9 +3,10 @@ package nmap_wrapper
 import (
 	"context"
 	"fmt"
-	"github.com/Ullaakut/nmap/v3"
 	"log"
 	"time"
+
+	"github.com/Ullaakut/nmap/v3"
 )
 
 func UDPScan(ctx context.Context, target string, ports string) (*nmap.Run, error) {
@@ -103,10 +104,12 @@ func HostDiscovery(ctx context.Context, target string) (*nmap.Run, error) {
 	scanner, err := nmap.NewScanner(
 		scanCtx,
 		nmap.WithTargets(target),
-		nmap.WithPingScan(),                 // Только проверка доступности
-		nmap.WithTimingTemplate(5),          // Максимальная скорость
-		nmap.WithMaxRetries(1),              // Минимум попыток
-		nmap.WithHostTimeout(5*time.Second), // Таймаут на хост
+		nmap.WithPorts("22,80,443"),          // Сканируем популярные порты
+		nmap.WithConnectScan(),               // TCP Connect scan
+		nmap.WithSkipHostDiscovery(),         // Пропускаем ping
+		nmap.WithTimingTemplate(4),           // Быстрое сканирование
+		nmap.WithMaxRetries(1),               // Минимум попыток
+		nmap.WithHostTimeout(10*time.Second), // Таймаут на хост
 	)
 
 	if err != nil {
