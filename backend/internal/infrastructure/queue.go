@@ -177,13 +177,6 @@ func (p *RPCScannerPublisher) parseResponse(body []byte) (*models.Response, erro
 		}, nil
 	}
 
-	// Потом пробуем как обычный Response
-	var response models.Response
-	if err := json.Unmarshal(body, &response); err == nil && response.TaskID != "" {
-		log.Printf("Received generic response for task %s", response.TaskID)
-		return &response, nil
-	}
-
 	// Пробуем как NmapTcpUdpResponse
 	var nmapTcpUdpResp models.NmapTcpUdpResponse
 	if err := json.Unmarshal(body, &nmapTcpUdpResp); err == nil && nmapTcpUdpResp.TaskID != "" {
@@ -192,6 +185,13 @@ func (p *RPCScannerPublisher) parseResponse(body []byte) (*models.Response, erro
 			TaskID: nmapTcpUdpResp.TaskID,
 			Result: nmapTcpUdpResp,
 		}, nil
+	}
+
+	// Потом пробуем как обычный Response
+	var response models.Response
+	if err := json.Unmarshal(body, &response); err == nil && response.TaskID != "" {
+		log.Printf("Received generic response for task %s", response.TaskID)
+		return &response, nil
 	}
 
 	// Пробуем как NmapOsDetectionResponse

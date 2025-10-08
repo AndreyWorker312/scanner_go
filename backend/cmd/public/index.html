@@ -1295,11 +1295,37 @@ google.com
           if (parsed.type === 'response' && parsed.response && parsed.response.result) {
             console.log('Nmap calling addNmapToHistory with:', parsed.response.result);
             addNmapToHistory(parsed.response.result);
+            
+            // Разблокируем кнопку сканирования
+            const scanBtn = document.getElementById('scanBtnNmap');
+            console.log('Unlocking scan button, scanBtn:', scanBtn);
+            if (scanBtn) {
+              scanBtn.textContent = 'Start Scan';
+              scanBtn.disabled = false;
+              console.log('Scan button unlocked successfully');
+            } else {
+              console.error('Scan button not found!');
+            }
           } else {
             console.log('Nmap message does not match expected format');
+            
+            // Разблокируем кнопку даже если формат неожиданный
+            const scanBtn = document.getElementById('scanBtnNmap');
+            if (scanBtn) {
+              scanBtn.textContent = 'Start Scan';
+              scanBtn.disabled = false;
+              console.log('Scan button unlocked due to unexpected format');
+            }
           }
         } catch (e) {
           console.error('Error parsing Nmap response:', e);
+          
+          // Разблокируем кнопку сканирования при ошибке
+          const scanBtn = document.getElementById('scanBtnNmap');
+          if (scanBtn) {
+            scanBtn.textContent = 'Start Scan';
+            scanBtn.disabled = false;
+          }
         }
       };
 
@@ -1517,12 +1543,33 @@ google.com
         // TCP/UDP сканирование
         if (scan.result.port_info && scan.result.port_info.length > 0) {
           const portInfo = scan.result.port_info[0];
+          console.log('Port info received:', portInfo);
+          const ports = portInfo.AllPorts || portInfo.all_ports || [];
+          const protocols = portInfo.Protocols || portInfo.protocols || [];
+          const states = portInfo.State || portInfo.state || [];
+          const services = portInfo.ServiceName || portInfo.service_name || [];
+          console.log('Parsed data:', { ports, protocols, states, services });
+          
+          let portsDetails = '';
+          if (ports.length > 0) {
+            portsDetails = '<div style="margin-top: 10px;"><strong>Port Details:</strong><ul style="margin: 5px 0; padding-left: 20px;">';
+            for (let i = 0; i < ports.length; i++) {
+              const port = ports[i];
+              const protocol = protocols[i] || 'unknown';
+              const state = states[i] || 'unknown';
+              const service = services[i] || 'unknown';
+              portsDetails += `<li><strong>${port}/${protocol}</strong> - ${state} (${service})</li>`;
+            }
+            portsDetails += '</ul></div>';
+          }
+          
           body.innerHTML = `
             <div><strong>Host:</strong> ${scan.result.host || 'Unknown'}</div>
             <div><strong>Status:</strong> ${scan.result.status || 'Unknown'}</div>
-            <div><strong>Ports found:</strong> ${portInfo.all_ports ? portInfo.all_ports.length : 0}</div>
-            ${portInfo.all_ports && portInfo.all_ports.length > 0 ? 
-              `<div><strong>Ports:</strong> ${portInfo.all_ports.join(', ')}</div>` : ''}
+            <div><strong>Ports found:</strong> ${ports.length}</div>
+            ${ports.length > 0 ? 
+              `<div><strong>Ports:</strong> ${ports.join(', ')}</div>` : ''}
+            ${portsDetails}
           `;
         } else {
           body.innerHTML = `<div>No ports found</div>`;

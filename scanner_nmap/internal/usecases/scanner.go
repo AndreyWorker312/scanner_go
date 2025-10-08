@@ -3,15 +3,17 @@ package usecases
 import (
 	"context"
 	"fmt"
-	"github.com/Ullaakut/nmap/v3"
 	"scanner_nmap/internal/domain"
 	"scanner_nmap/internal/usecases/nmap_wrapper"
+
+	"github.com/Ullaakut/nmap/v3"
 )
 
 func UdpTcpScanner(ctx context.Context, request domain.ScanTcpUdpRequest) (response domain.ScanTcpUdpResponse, err error) {
 	var scanResult *nmap.Run
 
-	if request.ScannerType == "UDP" {
+	// Проверяем разные варианты UDP сканирования
+	if request.ScannerType == "UDP" || request.ScannerType == "udp_scan" {
 		scanResult, err = nmap_wrapper.UDPScan(ctx, request.IP, request.Ports)
 	} else {
 		scanResult, err = nmap_wrapper.TCPScan(ctx, request.IP, request.Ports)
