@@ -14,6 +14,4 @@ WORKDIR /app
 
 COPY --from=builder /scanner /app/scanner
 
-COPY .env /app/.env
-
 CMD ["/app/scanner"]

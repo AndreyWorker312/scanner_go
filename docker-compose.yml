@@ -83,10 +83,10 @@ services:
       context: ./scanner_icmp
       dockerfile: Dockerfile
     container_name: scanner-icmp
-    env_file:
-      - ./scanner_icmp/.env
     environment:
       - RABBITMQ_URL=amqp://guest:guest@localhost:5673/
+      - SCANNER_NAME=icmp_service
+      - PING_TIMEOUT=10s
     depends_on:
       rabbitmq:
         condition: service_healthy

@@ -154,9 +154,19 @@ func (p *RPCScannerPublisher) startReplyConsumer() error {
 func (p *RPCScannerPublisher) parseResponse(body []byte) (*models.Response, error) {
 	log.Printf("Raw response body: %s", string(body))
 
-	// Сначала пробуем как ARPResponse (более специфичный)
+	// Сначала пробуем как ICMPResponse (проверяем наличие results)
+	var icmpResp models.ICMPResponse
+	if err := json.Unmarshal(body, &icmpResp); err == nil && icmpResp.TaskID != "" && len(icmpResp.Results) > 0 {
+		log.Printf("Received ICMP response for task %s with %d results", icmpResp.TaskID, len(icmpResp.Results))
+		return &models.Response{
+			TaskID: icmpResp.TaskID,
+			Result: icmpResp,
+		}, nil
+	}
+
+	// Потом пробуем как ARPResponse (проверяем наличие online_devices/offline_devices)
 	var arpResp models.ARPResponse
-	if err := json.Unmarshal(body, &arpResp); err == nil && arpResp.TaskID != "" {
+	if err := json.Unmarshal(body, &arpResp); err == nil && arpResp.TaskID != "" && (len(arpResp.OnlineDevices) > 0 || len(arpResp.OfflineDevices) > 0) {
 		log.Printf("Received ARP response for task %s: Total=%d, Online=%d, Offline=%d",
 			arpResp.TaskID, arpResp.TotalCount, arpResp.OnlineCount, arpResp.OfflineCount)
 		log.Printf("ARP response details: Status=%s, Error=%s", arpResp.Status, arpResp.Error)
@@ -171,16 +181,6 @@ func (p *RPCScannerPublisher) parseResponse(body []byte) (*models.Response, erro
 	if err := json.Unmarshal(body, &response); err == nil && response.TaskID != "" {
 		log.Printf("Received generic response for task %s", response.TaskID)
 		return &response, nil
-	}
-
-	// Пробуем как ICMPResponse
-	var icmpResp models.ICMPResponse
-	if err := json.Unmarshal(body, &icmpResp); err == nil && icmpResp.TaskID != "" {
-		log.Printf("Received ICMP response for task %s with %d results", icmpResp.TaskID, len(icmpResp.Results))
-		return &models.Response{
-			TaskID: icmpResp.TaskID,
-			Result: icmpResp,
-		}, nil
 	}
 
 	// Пробуем как NmapTcpUdpResponse

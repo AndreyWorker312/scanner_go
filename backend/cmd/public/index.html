@@ -944,10 +944,15 @@ google.com
 
         socketIcmp.onmessage = function(event) {
           try {
+            console.log('ICMP WebSocket message received:', event.data);
             const parsed = JSON.parse(event.data);
+            console.log('ICMP parsed message:', parsed);
             
             if (parsed.type === 'response' && parsed.response && parsed.response.result) {
+              console.log('ICMP calling addIcmpToHistory with:', parsed.response.result);
               addIcmpToHistory(parsed.response.result);
+            } else {
+              console.log('ICMP message does not match expected format');
             }
           } catch (e) {
             console.error('Error parsing ICMP response:', e);
@@ -1035,6 +1040,7 @@ google.com
 
     function addIcmpToHistory(result) {
       console.log('addIcmpToHistory called with:', result);
+      console.log('result.results:', result.results);
       const timestamp = new Date().toLocaleTimeString();
       const scanId = Date.now();
       
@@ -1045,9 +1051,12 @@ google.com
         totalTargets: result.results ? result.results.length : 0
       };
       
+      console.log('Created pingResult:', pingResult);
+      
       icmpHistory.unshift(pingResult);
       if (icmpHistory.length > 10) icmpHistory.pop();
       
+      console.log('ICMP history length:', icmpHistory.length);
       updateIcmpHistoryDisplay();
     }
 
