@@ -3,7 +3,7 @@ package application
 import (
 	"backend/domain/models"
 	"backend/internal/application/services"
-	rabbitmq "backend/internal/infrastructure"
+	rabbitmq "backend/internal/infrastructure/messaging"
 )
 
 // App представляет основное приложение с чистой архитектурой

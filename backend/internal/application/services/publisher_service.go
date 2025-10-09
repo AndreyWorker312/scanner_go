@@ -2,7 +2,7 @@ package services
 
 import (
 	"backend/domain/models"
-	rabbitmq "backend/internal/infrastructure"
+	rabbitmq "backend/internal/infrastructure/messaging"
 	"log"
 )
 

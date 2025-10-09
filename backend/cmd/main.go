@@ -3,40 +3,30 @@ package main
 import (
 	"log"
 	"net/http"
-	"os"
 
-	"backend/internal/api/rest"
-	wb "backend/internal/api/websocket"
 	"backend/internal/application"
-	rabbitmq "backend/internal/infrastructure"
+	database "backend/internal/infrastructure/database"
+	rabbitmq "backend/internal/infrastructure/messaging"
+	rest "backend/internal/presentation/http"
+	wb "backend/internal/presentation/websocket"
 )
 
 func main() {
-	// Initialize RabbitMQ
+
 	publisher, err := rabbitmq.GetRPCconnection("amqp://guest:guest@localhost:5673/")
 	if err != nil {
 		log.Fatalf("Failed to initialize rabbitmq connection: %v", err)
 	}
 
-	// Initialize MongoDB
-	mongoURI := os.Getenv("MONGODB_URI")
-	if mongoURI == "" {
-		mongoURI = "mongodb://localhost:27017"
-	}
 
-	dbName := os.Getenv("MONGODB_DATABASE")
-	if dbName == "" {
-		dbName = "network_scanner"
-	}
-
-	db, err := rabbitmq.NewDatabase(mongoURI, dbName)
+	db, err := database.NewDatabase("mongodb://localhost:27017", "network_scanner")
 	if err != nil {
 		log.Fatalf("Failed to initialize MongoDB connection: %v", err)
 	}
 	defer db.Close()
 
 	// Initialize Repository
-	repo := rabbitmq.NewRepository(db)
+	repo := database.NewRepository(db)
 
 	// Initialize App with both publisher and repository
 	app := application.NewApp(publisher, repo)
