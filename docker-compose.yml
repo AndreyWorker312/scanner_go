@@ -125,6 +125,24 @@ services:
       - NET_RAW
       - NET_ADMIN
 
+  # TCP сканер
+  scanner_tcp:
+    build:
+      context: ./scanner_tcp
+      dockerfile: Dockerfile
+    container_name: scanner-tcp
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - SCANNER_NAME=${SCANNER_TCP_NAME}
+      - CONN_TIMEOUT=${CONN_TIMEOUT}
+      - BANNER_TIMEOUT=${BANNER_TIMEOUT}
+      - MAX_BANNER_SIZE=${MAX_BANNER_SIZE}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    network_mode: ${NETWORK_MODE}
+    restart: unless-stopped
+
 
 networks:
   scanner-network:

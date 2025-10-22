@@ -288,3 +288,57 @@ func (r *Repository) DeleteNmapHostDiscoveryHistory() error {
 	log.Printf("Deleted %d Nmap Host Discovery history records", result.DeletedCount)
 	return nil
 }
+
+// ==================== TCP REPOSITORY METHODS ====================
+
+func (r *Repository) SaveTCPHistory(record *models.TCPHistoryRecord) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	record.CreatedAt = time.Now()
+	_, err := r.db.TCPCollection().InsertOne(ctx, record)
+	if err != nil {
+		log.Printf("Error saving TCP history: %v", err)
+		return err
+	}
+
+	log.Printf("TCP history saved successfully for task: %s", record.TaskID)
+	return nil
+}
+
+func (r *Repository) GetTCPHistory(limit int) ([]models.TCPHistoryRecord, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}})
+	if limit > 0 {
+		opts.SetLimit(int64(limit))
+	}
+
+	cursor, err := r.db.TCPCollection().Find(ctx, bson.D{}, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var records []models.TCPHistoryRecord
+	if err = cursor.All(ctx, &records); err != nil {
+		return nil, err
+	}
+
+	return records, nil
+}
+
+func (r *Repository) DeleteTCPHistory() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	result, err := r.db.TCPCollection().DeleteMany(ctx, bson.D{})
+	if err != nil {
+		log.Printf("Error deleting TCP history: %v", err)
+		return err
+	}
+
+	log.Printf("Deleted %d TCP history records", result.DeletedCount)
+	return nil
+}

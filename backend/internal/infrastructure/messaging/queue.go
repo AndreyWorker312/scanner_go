@@ -69,6 +69,10 @@ func (p *RPCScannerPublisher) PublishIcmp(req models.ICMPRequest) (*models.Respo
 	return p.publishRPC("icmp_service", req)
 }
 
+func (p *RPCScannerPublisher) PublishTcp(req models.TCPRequest) (*models.Response, error) {
+	return p.publishRPC("tcp_scanner", req)
+}
+
 func (p *RPCScannerPublisher) publishRPC(queueName string, task interface{}) (*models.Response, error) {
 	correlationID := generateCorrelationID()
 	replyChan := make(chan *models.Response, 1)
@@ -238,6 +242,23 @@ func (p *RPCScannerPublisher) parseResponse(body []byte) (*models.Response, erro
 		response := &models.Response{
 			TaskID: nmapHostResp.TaskID,
 			Result: nmapHostResp,
+		}
+
+		// Вызываем callback если он установлен
+		if p.onResponse != nil {
+			p.onResponse(response)
+		}
+
+		return response, nil
+	}
+
+	// Пробуем как TCPResponse (проверяем наличие results)
+	var tcpResp models.TCPResponse
+	if err := json.Unmarshal(body, &tcpResp); err == nil && tcpResp.TaskID != "" && len(tcpResp.Results) > 0 {
+		log.Printf("Received TCP response for task %s with %d results", tcpResp.TaskID, len(tcpResp.Results))
+		response := &models.Response{
+			TaskID: tcpResp.TaskID,
+			Result: tcpResp,
 		}
 
 		// Вызываем callback если он установлен

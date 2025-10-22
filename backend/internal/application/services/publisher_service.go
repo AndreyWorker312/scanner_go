@@ -76,6 +76,21 @@ func (ps *PublisherService) PublishICMPRequest(req models.ICMPRequest) *models.R
 	return resp
 }
 
+// PublishTCPRequest публикует TCP запрос
+func (ps *PublisherService) PublishTCPRequest(req models.TCPRequest) *models.Response {
+	log.Printf("Publishing TCP request: %+v", req)
+
+	resp, err := ps.publisher.PublishTcp(req)
+	if err != nil {
+		log.Printf("Failed to publish TCP task: %v", err)
+		return &models.Response{
+			TaskID: req.TaskID,
+			Result: map[string]string{"error": err.Error()},
+		}
+	}
+	return resp
+}
+
 // SetResponseCallback устанавливает callback для ответов
 func (ps *PublisherService) SetResponseCallback(callback func(*models.Response)) {
 	ps.publisher.SetResponseCallback(callback)

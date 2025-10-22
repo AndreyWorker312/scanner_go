@@ -65,6 +65,12 @@ func (a *App) ProcessRequest(req *models.Request) *models.Response {
 				a.historyService.CacheRequest(icmpReq.TaskID, icmpReq)
 				return a.publisherService.PublishICMPRequest(icmpReq)
 			}
+
+		case "tcp_service":
+			if tcpReq, ok := response.Result.(models.TCPRequest); ok {
+				a.historyService.CacheRequest(tcpReq.TaskID, tcpReq)
+				return a.publisherService.PublishTCPRequest(tcpReq)
+			}
 		}
 	}
 
@@ -120,4 +126,12 @@ func (a *App) DeleteNmapOsDetectionHistory() error {
 
 func (a *App) DeleteNmapHostDiscoveryHistory() error {
 	return a.historyService.GetRepo().DeleteNmapHostDiscoveryHistory()
+}
+
+func (a *App) GetTCPHistory(limit int) ([]models.TCPHistoryRecord, error) {
+	return a.historyService.GetRepo().GetTCPHistory(limit)
+}
+
+func (a *App) DeleteTCPHistory() error {
+	return a.historyService.GetRepo().DeleteTCPHistory()
 }

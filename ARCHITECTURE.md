@@ -18,6 +18,7 @@
 - **ARP Scanner**: Обнаружение устройств в локальной сети
 - **ICMP Scanner**: Ping сканирование хостов
 - **Nmap Scanner**: Продвинутое сканирование портов и определение ОС
+- **TCP Scanner**: TCP сканирование с banner grabbing для идентификации сервисов
 
 ### 3. База данных
 - **MongoDB**: Хранение истории сканирования
@@ -26,6 +27,7 @@
   - `nmap_tcp_udp_history`: Результаты TCP/UDP сканирования
   - `nmap_os_detection_history`: Результаты определения ОС
   - `nmap_host_discovery_history`: Результаты обнаружения хостов
+  - `tcp_history`: Результаты TCP сканирования с banner grabbing
 
 ### 4. Очереди сообщений
 - **RabbitMQ**: Асинхронная обработка задач сканирования
@@ -39,7 +41,7 @@
 
 ```
 1. Пользователь → Фронтенд → WebSocket → Backend
-2. Backend → RabbitMQ → Сканер (ARP/ICMP/Nmap)
+2. Backend → RabbitMQ → Сканер (ARP/ICMP/Nmap/TCP)
 3. Сканер → RabbitMQ → Backend
 4. Backend → MongoDB (автоматическое сохранение)
 5. Backend → WebSocket → Фронтенд (real-time результаты)
@@ -58,6 +60,8 @@
 - `DELETE /api/history/icmp/delete` - Очистить историю ICMP
 - `GET /api/history/nmap` - Получить историю Nmap сканирования
 - `DELETE /api/history/nmap/delete` - Очистить историю Nmap
+- `GET /api/history/tcp` - Получить историю TCP сканирования
+- `DELETE /api/history/tcp/delete` - Очистить историю TCP
 
 ## Структура данных
 
@@ -99,6 +103,20 @@ type ICMPHistoryRecord struct {
 - `NmapOsDetectionHistoryRecord` - Определение операционной системы
 - `NmapHostDiscoveryHistoryRecord` - Обнаружение хостов
 
+### TCP History Record
+```go
+type TCPHistoryRecord struct {
+    ID        string           `bson:"_id,omitempty" json:"id"`
+    TaskID    string           `bson:"task_id" json:"task_id"`
+    Host      string           `bson:"host" json:"host"`
+    Ports     []string         `bson:"ports" json:"ports"`
+    Results   []PortScanResult `bson:"results" json:"results"`
+    Status    string           `bson:"status" json:"status"`
+    Error     string           `bson:"error,omitempty" json:"error,omitempty"`
+    CreatedAt time.Time        `bson:"created_at" json:"created_at"`
+}
+```
+
 ## Особенности реализации
 
 1. **Автоматическое сохранение**: Все результаты сканирования автоматически сохраняются в MongoDB через `ProcessResponse` метод
@@ -116,5 +134,6 @@ type ICMPHistoryRecord struct {
 - ARP Scanner
 - ICMP Scanner  
 - Nmap Scanner
+- TCP Scanner
 
-Все сервисы настроены для работы в привилегированном режиме с необходимыми сетевыми правами для сканирования.
+Сканеры ARP, ICMP и Nmap настроены для работы в привилегированном режиме с необходимыми сетевыми правами для низкоуровневого сканирования. TCP Scanner работает в обычном режиме без дополнительных привилегий.

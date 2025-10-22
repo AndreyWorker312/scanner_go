@@ -44,11 +44,13 @@ func main() {
 	http.HandleFunc("/api/history/arp", historyHandler.GetARPHistory)
 	http.HandleFunc("/api/history/icmp", historyHandler.GetICMPHistory)
 	http.HandleFunc("/api/history/nmap", historyHandler.GetNmapHistory)
+	http.HandleFunc("/api/history/tcp", historyHandler.GetTCPHistory)
 
 	// DELETE endpoints for history
 	http.HandleFunc("/api/history/arp/delete", historyHandler.DeleteARPHistory)
 	http.HandleFunc("/api/history/icmp/delete", historyHandler.DeleteICMPHistory)
 	http.HandleFunc("/api/history/nmap/delete", historyHandler.DeleteNmapHistory)
+	http.HandleFunc("/api/history/tcp/delete", historyHandler.DeleteTCPHistory)
 
 	// Static files
 	http.Handle("/", http.FileServer(http.Dir("./cmd/public")))
