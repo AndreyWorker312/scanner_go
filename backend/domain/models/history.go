@@ -80,6 +80,19 @@ type NmapHostDiscoveryHistoryRecord struct {
 	CreatedAt time.Time `bson:"created_at" json:"created_at"`
 }
 
+// ==================== TCP HISTORY MODELS ====================
+type TCPHistoryRecord struct {
+	ID           string    `bson:"_id,omitempty" json:"id"`
+	TaskID       string    `bson:"task_id" json:"task_id"`
+	Host         string    `bson:"host" json:"host"`
+	Port         string    `bson:"port" json:"port"`
+	HexObjectKey string    `bson:"hex_object_key" json:"hex_object_key"`
+	DecodedText  string    `bson:"decoded_text" json:"decoded_text"`
+	Status       string    `bson:"status" json:"status"`
+	Error        string    `bson:"error,omitempty" json:"error,omitempty"`
+	CreatedAt    time.Time `bson:"created_at" json:"created_at"`
+}
+
 // ==================== API RESPONSE MODELS ====================
 type HistoryResponse struct {
 	Success bool        `json:"success"`

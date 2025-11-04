@@ -23,6 +23,8 @@ func (rs *RequestService) ProcessRequest(req *models.Request) *models.Response {
 		return rs.processArpRequest(req.Options)
 	case "icmp_service":
 		return rs.processIcmpRequest(req.Options)
+	case "tcp_service":
+		return rs.processTcpRequest(req.Options)
 	default:
 		return &models.Response{
 			TaskID: "unknown",
@@ -146,4 +148,27 @@ func (rs *RequestService) processIcmpRequest(options any) *models.Response {
 	}
 
 	return &models.Response{TaskID: icmpReq.TaskID, Result: icmpReq}
+}
+
+// processTcpRequest обрабатывает TCP запросы
+func (rs *RequestService) processTcpRequest(options any) *models.Response {
+	var tcpReq models.TCPRequest
+	optionsJSON, err := json.Marshal(options)
+	if err != nil {
+		log.Printf("Failed to marshal TCP options: %v", err)
+		return &models.Response{
+			TaskID: "error",
+			Result: map[string]string{"error": "invalid TCP options"},
+		}
+	}
+
+	if err := json.Unmarshal(optionsJSON, &tcpReq); err != nil {
+		log.Printf("Failed to unmarshal TCP request: %v", err)
+		return &models.Response{
+			TaskID: "error",
+			Result: map[string]string{"error": "invalid TCP request"},
+		}
+	}
+
+	return &models.Response{TaskID: tcpReq.TaskID, Result: tcpReq}
 }

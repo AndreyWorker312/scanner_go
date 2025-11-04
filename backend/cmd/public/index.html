@@ -520,6 +520,12 @@
         </a>
       </li>
       <li class="nav-item">
+        <a href="#" class="nav-link" data-page="tcp">
+          <span class="nav-icon">🔌</span>
+          TCP Сканирование
+        </a>
+      </li>
+      <li class="nav-item">
         <a href="#" class="nav-link" data-page="arp-history">
           <span class="nav-icon">📊</span>
           ARP История
@@ -535,6 +541,12 @@
         <a href="#" class="nav-link" data-page="nmap-history">
           <span class="nav-icon">📊</span>
           Nmap История
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="#" class="nav-link" data-page="tcp-history">
+          <span class="nav-icon">📊</span>
+          TCP История
         </a>
       </li>
     </ul>
@@ -565,6 +577,12 @@
             <div class="feature-icon">⚡</div>
             <div class="feature-title">Nmap Сканирование</div>
             <div class="feature-description">Продвинутое сканирование портов и определение ОС</div>
+          </div>
+          
+          <div class="feature-card" onclick="showPage('tcp')">
+            <div class="feature-icon">🔌</div>
+            <div class="feature-title">TCP Сканирование</div>
+            <div class="feature-description">Чтение данных из TCP канала и получение баннеров</div>
           </div>
         </div>
       </div>
@@ -769,6 +787,59 @@ google.com
         </div>
       </div>
     </div>
+
+    <!-- TCP страница -->
+    <div id="tcp" class="page nmap-page">
+      <div class="arp-container">
+        <div class="arp-header">
+          <h1>🔌 Network Scanner - TCP Banner Grabber</h1>
+          <p>Read data from TCP channel and get service banners</p>
+        </div>
+
+        <div class="arp-controls">
+          <div class="button-group">
+            <button onclick="connectTcp()" class="btn-success">Connect</button>
+            <button onclick="disconnectTcp()" id="disconnectBtnTcp" class="btn-danger" disabled>Disconnect</button>
+            <button onclick="viewTcpHistory()" class="btn-info">View History</button>
+            <button onclick="clearTcpHistory()" class="btn-secondary">Clear History</button>
+          </div>
+
+          <div id="statusTcp" class="status disconnected">Disconnected</div>
+
+          <div style="display: flex; gap: 20px;">
+            <div class="form-group" style="flex: 1;">
+              <label for="targetHostTcp">Target Host:</label>
+              <input type="text" id="targetHostTcp" placeholder="telehack.com" value="telehack.com">
+            </div>
+            
+            <div class="form-group" style="flex: 1;">
+              <label for="targetPortTcp">Port:</label>
+              <input type="text" id="targetPortTcp" placeholder="23" value="23">
+            </div>
+            
+            <div class="form-group" style="flex: 0 0 auto; display: flex; align-items: end;">
+              <button onclick="startTcpScan()" id="scanBtnTcp" class="btn-primary" disabled>Start Scan</button>
+            </div>
+          </div>
+
+          <div class="button-group" style="margin-top: 15px;">
+            <button onclick="setQuickTcp('telehack.com', '23')" class="btn-secondary" style="padding: 5px 10px; font-size: 12px;">Telehack</button>
+            <button onclick="setQuickTcp('google.com', '80')" class="btn-secondary" style="padding: 5px 10px; font-size: 12px;">Google HTTP</button>
+            <button onclick="setQuickTcp('google.com', '443')" class="btn-secondary" style="padding: 5px 10px; font-size: 12px;">Google HTTPS</button>
+            <button onclick="setQuickTcp('192.168.1.1', '80')" class="btn-secondary" style="padding: 5px 10px; font-size: 12px;">Router</button>
+          </div>
+        </div>
+
+        <div class="history-container">
+          <div class="history-panel">
+            <div class="history-header online">🔌 TCP Results</div>
+            <div class="history-content" id="tcpResults">
+              <p style="text-align: center; color: #666; margin-top: 50px;">No TCP scan results yet</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 
   <!-- ARP History страница -->
@@ -852,6 +923,33 @@ google.com
     </div>
   </div>
 
+  <!-- TCP History страница -->
+  <div id="tcp-history" class="page" style="display: none;">
+    <div class="arp-container">
+      <div class="arp-header">
+        <h1>📊 TCP Scan History</h1>
+        <p>View and manage TCP scanning history</p>
+      </div>
+      
+      <div class="arp-controls">
+        <div class="button-group">
+          <button onclick="showPage('tcp')" class="btn-secondary">← Back to TCP Scanner</button>
+          <button onclick="loadTcpHistory()" class="btn-primary">Refresh</button>
+          <button onclick="clearTcpHistory()" class="btn-danger">Clear All History</button>
+        </div>
+      </div>
+
+      <div class="history-container">
+        <div class="history-panel">
+          <div class="history-header online">📋 TCP History Records</div>
+          <div class="history-content" id="tcpHistoryContent">
+            <p style="text-align: center; color: #666; margin-top: 50px;">Loading history...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 <script>
     // Глобальные переменные для ARP функциональности
   let socket = null;
@@ -863,6 +961,10 @@ google.com
     let socketNmap = null;
     let nmapHistory = [];
     let selectedScanType = null;
+
+    // Глобальные переменные для TCP функциональности
+    let socketTcp = null;
+    let tcpHistory = [];
 
     // Навигация между страницами
     function showPage(pageId) {
@@ -894,6 +996,9 @@ google.com
       }
       if (pageId === 'icmp' && !socketIcmp) {
         setTimeout(connectIcmp, 500);
+      }
+      if (pageId === 'tcp' && !socketTcp) {
+        setTimeout(connectTcp, 500);
       }
       
       // Обновить статус подключения в верхнем углу
@@ -1126,7 +1231,8 @@ google.com
       const globalStatus = document.getElementById('connectionStatus');
       const isConnected = (socket && socket.readyState === WebSocket.OPEN) || 
                          (socketIcmp && socketIcmp.readyState === WebSocket.OPEN) ||
-                         (socketNmap && socketNmap.readyState === WebSocket.OPEN);
+                         (socketNmap && socketNmap.readyState === WebSocket.OPEN) ||
+                         (socketTcp && socketTcp.readyState === WebSocket.OPEN);
       
       if (isConnected) {
         globalStatus.textContent = '🟢 Подключено';
@@ -1358,9 +1464,296 @@ google.com
           startIcmpScan();
         } else if (activePage === 'nmap') {
           startNmapScan();
+        } else if (activePage === 'tcp') {
+          startTcpScan();
         }
       }
     });
+
+    // ===== TCP ФУНКЦИОНАЛЬНОСТЬ =====
+
+    // Подключение к WebSocket для TCP
+    function connectTcp() {
+      if (socketTcp && socketTcp.readyState === WebSocket.OPEN) {
+        return;
+      }
+
+      socketTcp = new WebSocket('ws://localhost:8080/ws');
+
+      socketTcp.onopen = function(event) {
+        updateTcpStatus(true);
+      };
+
+      socketTcp.onmessage = function(event) {
+        try {
+          console.log('TCP WebSocket message received:', event.data);
+          const parsed = JSON.parse(event.data);
+          console.log('TCP parsed message:', parsed);
+          
+          if (parsed.type === 'response' && parsed.response && parsed.response.result) {
+            console.log('TCP calling addTcpToHistory with:', parsed.response.result);
+            addTcpToHistory(parsed.response.result);
+            
+            const scanBtn = document.getElementById('scanBtnTcp');
+            if (scanBtn) {
+              scanBtn.textContent = 'Start Scan';
+              scanBtn.disabled = false;
+            }
+          }
+        } catch (e) {
+          console.error('Error parsing TCP response:', e);
+          const scanBtn = document.getElementById('scanBtnTcp');
+          if (scanBtn) {
+            scanBtn.textContent = 'Start Scan';
+            scanBtn.disabled = false;
+          }
+        }
+      };
+
+      socketTcp.onerror = function(error) {
+        console.error('TCP WebSocket error:', error);
+      };
+
+      socketTcp.onclose = function(event) {
+        updateTcpStatus(false);
+      };
+    }
+
+    // Отключение от WebSocket для TCP
+    function disconnectTcp() {
+      if (socketTcp) {
+        socketTcp.close();
+        socketTcp = null;
+        updateTcpStatus(false);
+      }
+    }
+
+    // Обновление статуса подключения для TCP
+    function updateTcpStatus(connected) {
+      const status = document.getElementById('statusTcp');
+      const connectBtn = document.querySelector('button[onclick="connectTcp()"]');
+      const disconnectBtn = document.getElementById('disconnectBtnTcp');
+      const scanBtn = document.getElementById('scanBtnTcp');
+
+      if (connected) {
+        status.textContent = 'Connected';
+        status.className = 'status connected';
+        connectBtn.disabled = true;
+        disconnectBtn.disabled = false;
+        scanBtn.disabled = false;
+      } else {
+        status.textContent = 'Disconnected';
+        status.className = 'status disconnected';
+        connectBtn.disabled = false;
+        disconnectBtn.disabled = true;
+        scanBtn.disabled = true;
+      }
+      
+      updateGlobalConnectionStatus();
+    }
+
+    // Запуск TCP сканирования
+    function startTcpScan() {
+      if (!socketTcp || socketTcp.readyState !== WebSocket.OPEN) {
+        alert('Please connect first');
+        return;
+      }
+
+      const targetHost = document.getElementById('targetHostTcp').value.trim();
+      const targetPort = document.getElementById('targetPortTcp').value.trim();
+      
+      if (!targetHost) {
+        alert('Please enter target host');
+        return;
+      }
+      if (!targetPort) {
+        alert('Please enter port');
+        return;
+      }
+
+      const scanBtn = document.getElementById('scanBtnTcp');
+      scanBtn.textContent = 'Scanning...';
+      scanBtn.disabled = true;
+
+      const request = {
+        type: "request",
+        request: {
+          scanner_service: "tcp_service",
+          options: {
+            host: targetHost,
+            port: targetPort
+          }
+        }
+      };
+
+      try {
+        console.log('Sending TCP request:', JSON.stringify(request, null, 2));
+        socketTcp.send(JSON.stringify(request));
+        
+        setTimeout(() => {
+          scanBtn.textContent = 'Start Scan';
+          scanBtn.disabled = false;
+        }, 30000);
+        
+      } catch (error) {
+        console.error('Error sending TCP request:', error);
+        scanBtn.textContent = 'Start Scan';
+        scanBtn.disabled = false;
+      }
+    }
+
+    // Быстрая установка хоста и порта
+    function setQuickTcp(host, port) {
+      document.getElementById('targetHostTcp').value = host;
+      document.getElementById('targetPortTcp').value = port;
+    }
+
+    // Добавление результата TCP в историю
+    function addTcpToHistory(result) {
+      console.log('addTcpToHistory called with:', result);
+      const timestamp = new Date().toLocaleTimeString();
+      const scanId = Date.now();
+      
+      const tcpResult = {
+        id: scanId,
+        timestamp: timestamp,
+        result: result
+      };
+      
+      console.log('Created tcpResult:', tcpResult);
+      
+      tcpHistory.unshift(tcpResult);
+      if (tcpHistory.length > 10) tcpHistory.pop();
+      
+      console.log('TCP history length:', tcpHistory.length);
+      updateTcpHistoryDisplay();
+    }
+
+    // Обновление отображения истории TCP
+    function updateTcpHistoryDisplay() {
+      const tcpResults = document.getElementById('tcpResults');
+      tcpResults.innerHTML = '';
+      
+      if (tcpHistory.length === 0) {
+        tcpResults.innerHTML = '<p style="text-align: center; color: #666; margin-top: 50px;">No TCP scan results yet</p>';
+        return;
+      }
+      
+      tcpHistory.forEach((scan, index) => {
+        const resultPanel = createTcpResultPanel(scan);
+        tcpResults.appendChild(resultPanel);
+      });
+    }
+
+    // Создание панели результата TCP
+    function createTcpResultPanel(scan) {
+      const panel = document.createElement('div');
+      panel.className = 'scan-result';
+      
+      const header = document.createElement('div');
+      header.className = 'scan-header';
+      header.innerHTML = `
+        <div>🔌 ${scan.timestamp}</div>
+      `;
+      
+      const body = document.createElement('div');
+      body.className = 'scan-body';
+      
+      const result = scan.result;
+      const status = result.status || 'unknown';
+      const decodedText = result.decoded_text || result.DecodedText || '';
+      const hexObjectKey = result.hex_object_key || result.HexObjectKey || '';
+      const host = result.host || result.Host || '';
+      const port = result.port || result.Port || '';
+      const error = result.error || result.Error || '';
+      
+      body.innerHTML = `
+        <div><strong>Host:</strong> ${host}:${port}</div>
+        <div><strong>Status:</strong> <span style="color: ${status === 'completed' ? 'green' : 'red'}">${status}</span></div>
+        ${hexObjectKey ? `<div><strong>Hex Object Key:</strong> ${hexObjectKey}</div>` : ''}
+        ${decodedText ? `<div style="margin-top: 10px;"><strong>Decoded Text:</strong></div>
+        <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin-top: 5px; font-family: monospace; white-space: pre-wrap; word-break: break-all;">${decodedText}</div>` : ''}
+        ${error ? `<div style="color: red; margin-top: 10px;"><strong>Error:</strong> ${error}</div>` : ''}
+      `;
+      
+      panel.appendChild(header);
+      panel.appendChild(body);
+      
+      return panel;
+    }
+
+    // TCP History Functions
+    function viewTcpHistory() {
+      showPage('tcp-history');
+      loadTcpHistory();
+    }
+
+    function loadTcpHistory() {
+      fetch('/api/history/tcp')
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            displayTcpHistory(data.data);
+          } else {
+            document.getElementById('tcpHistoryContent').innerHTML = 
+              `<p style="text-align: center; color: #dc3545; margin-top: 50px;">Error: ${data.error}</p>`;
+          }
+        })
+        .catch(error => {
+          console.error('Error loading TCP history:', error);
+          document.getElementById('tcpHistoryContent').innerHTML = 
+            `<p style="text-align: center; color: #dc3545; margin-top: 50px;">Failed to load history</p>`;
+        });
+    }
+
+    function displayTcpHistory(records) {
+      const content = document.getElementById('tcpHistoryContent');
+      if (!records || records.length === 0) {
+        content.innerHTML = '<p style="text-align: center; color: #666; margin-top: 50px;">No TCP scan history found</p>';
+        return;
+      }
+
+      let html = '';
+      records.forEach(record => {
+        const date = new Date(record.created_at).toLocaleString();
+        html += `
+          <div class="history-item" style="border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 5px; background: #f9f9f9;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <strong>Task ID: ${record.task_id}</strong>
+              <span style="color: #666; font-size: 12px;">${date}</span>
+            </div>
+            <div style="margin-bottom: 10px;">
+              <strong>Target:</strong> ${record.host}:${record.port} | 
+              <strong>Status:</strong> <span style="color: ${record.status === 'completed' ? 'green' : 'red'}">${record.status}</span>
+            </div>
+            ${record.hex_object_key ? `<div style="margin-bottom: 10px;"><strong>Hex Object Key:</strong> ${record.hex_object_key}</div>` : ''}
+            ${record.decoded_text ? `<div style="margin-bottom: 10px;"><strong>Decoded Text:</strong></div>
+            <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; word-break: break-all;">${record.decoded_text}</div>` : ''}
+            ${record.error ? `<div style="color: red;">Error: ${record.error}</div>` : ''}
+          </div>
+        `;
+      });
+      content.innerHTML = html;
+    }
+
+    function clearTcpHistory() {
+      if (confirm('Are you sure you want to clear all TCP history?')) {
+        fetch('/api/history/tcp/delete', { method: 'DELETE' })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              alert('TCP history cleared successfully');
+              loadTcpHistory();
+            } else {
+              alert('Error: ' + data.error);
+            }
+          })
+          .catch(error => {
+            console.error('Error clearing TCP history:', error);
+            alert('Failed to clear TCP history');
+          });
+      }
+    }
 
     // ===== NMAP ФУНКЦИОНАЛЬНОСТЬ =====
 

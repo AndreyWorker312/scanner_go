@@ -32,6 +32,11 @@ type RepositoryInterface interface {
 	SaveNmapHostDiscoveryHistory(record *models.NmapHostDiscoveryHistoryRecord) error
 	GetNmapHostDiscoveryHistory(limit int) ([]models.NmapHostDiscoveryHistoryRecord, error)
 	DeleteNmapHostDiscoveryHistory() error
+
+	// TCP methods
+	SaveTCPHistory(record *models.TCPHistoryRecord) error
+	GetTCPHistory(limit int) ([]models.TCPHistoryRecord, error)
+	DeleteTCPHistory() error
 }
 
 // HistoryService управляет историей сканирования
@@ -249,6 +254,38 @@ func (hs *HistoryService) SaveNmapHostDiscoveryResponse(result models.NmapHostDi
 		log.Printf("Failed to save Nmap Host Discovery history: %v", err)
 	} else {
 		log.Printf("Successfully saved Nmap Host Discovery history for task %s", result.TaskID)
+		hs.RemoveCachedRequest(result.TaskID)
+	}
+}
+
+// SaveTCPResponse сохраняет TCP ответ
+func (hs *HistoryService) SaveTCPResponse(result models.TCPResponse) {
+	if hs.repo == nil {
+		return
+	}
+
+	var host, port string
+	if cachedReq := hs.GetCachedRequest(result.TaskID); cachedReq != nil {
+		if tcpReq, ok := cachedReq.(models.TCPRequest); ok {
+			host = tcpReq.Host
+			port = tcpReq.Port
+		}
+	}
+
+	historyRecord := &models.TCPHistoryRecord{
+		TaskID:       result.TaskID,
+		Host:         host,
+		Port:         port,
+		HexObjectKey: result.HexObjectKey,
+		DecodedText:  result.DecodedText,
+		Status:       result.Status,
+		Error:        result.Error,
+	}
+
+	if err := hs.repo.SaveTCPHistory(historyRecord); err != nil {
+		log.Printf("Failed to save TCP history: %v", err)
+	} else {
+		log.Printf("Successfully saved TCP history for task %s", result.TaskID)
 		hs.RemoveCachedRequest(result.TaskID)
 	}
 }

@@ -43,6 +43,9 @@ func (rs *ResponseService) ProcessResponse(response *models.Response) {
 	case models.NmapHostDiscoveryResponse:
 		log.Printf("Processing Nmap Host Discovery response")
 		rs.historyService.SaveNmapHostDiscoveryResponse(result)
+	case models.TCPResponse:
+		log.Printf("Processing TCP response")
+		rs.historyService.SaveTCPResponse(result)
 	default:
 		log.Printf("Unknown response type: %T", result)
 	}

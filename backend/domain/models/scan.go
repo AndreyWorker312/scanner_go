@@ -124,3 +124,20 @@ type NmapHostDiscoveryResponse struct {
 	Reason    string `json:"reason"`
 	Error     string `json:"error,omitempty"`
 }
+
+// ==================== TCP SCANNER MODELS ====================
+type TCPRequest struct {
+	TaskID string `json:"task_id"`
+	Host   string `json:"host"`
+	Port   string `json:"port"`
+}
+
+type TCPResponse struct {
+	TaskID       string `json:"task_id"`
+	Host         string `json:"host"`
+	Port         string `json:"port"`
+	HexObjectKey string `json:"hex_object_key"`
+	DecodedText  string `json:"decoded_text"`
+	Status       string `json:"status"`
+	Error        string `json:"error,omitempty"`
+}

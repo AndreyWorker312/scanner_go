@@ -64,3 +64,7 @@ func (d *Database) NmapOsDetectionCollection() *mongo.Collection {
 func (d *Database) NmapHostDiscoveryCollection() *mongo.Collection {
 	return d.Database.Collection("nmap_host_discovery_history")
 }
+
+func (d *Database) TCPCollection() *mongo.Collection {
+	return d.Database.Collection("tcp_banners")
+}

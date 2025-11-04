@@ -65,6 +65,12 @@ func (a *App) ProcessRequest(req *models.Request) *models.Response {
 				a.historyService.CacheRequest(icmpReq.TaskID, icmpReq)
 				return a.publisherService.PublishICMPRequest(icmpReq)
 			}
+
+		case "tcp_service":
+			if tcpReq, ok := response.Result.(models.TCPRequest); ok {
+				a.historyService.CacheRequest(tcpReq.TaskID, tcpReq)
+				return a.publisherService.PublishTCPRequest(tcpReq)
+			}
 		}
 	}
 

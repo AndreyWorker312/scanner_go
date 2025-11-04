@@ -38,6 +38,11 @@ type RepositoryInterface interface {
 	SaveNmapHostDiscoveryHistory(record *models.NmapHostDiscoveryHistoryRecord) error
 	GetNmapHostDiscoveryHistory(limit int) ([]models.NmapHostDiscoveryHistoryRecord, error)
 	DeleteNmapHostDiscoveryHistory() error
+
+	// TCP methods
+	SaveTCPHistory(record *models.TCPHistoryRecord) error
+	GetTCPHistory(limit int) ([]models.TCPHistoryRecord, error)
+	DeleteTCPHistory() error
 }
 
 func NewHistoryHandler(repo RepositoryInterface) *HistoryHandler {
@@ -337,6 +342,91 @@ func (h *HistoryHandler) DeleteNmapHistory(w http.ResponseWriter, r *http.Reques
 	response := models.HistoryResponse{
 		Success: true,
 		Data:    result,
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
+// ==================== TCP HISTORY ENDPOINTS ====================
+
+func (h *HistoryHandler) GetTCPHistory(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if r.Method != "GET" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	limitStr := r.URL.Query().Get("limit")
+	limit := 0
+	if limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
+			limit = parsedLimit
+		}
+	}
+
+	records, err := h.repo.GetTCPHistory(limit)
+	if err != nil {
+		log.Printf("Error getting TCP history: %v", err)
+		response := models.HistoryResponse{
+			Success: false,
+			Error:   "Failed to retrieve TCP history",
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	response := models.HistoryResponse{
+		Success: true,
+		Data:    records,
+		Count:   len(records),
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *HistoryHandler) DeleteTCPHistory(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if r.Method != "DELETE" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	err := h.repo.DeleteTCPHistory()
+	if err != nil {
+		log.Printf("Error deleting TCP history: %v", err)
+		response := models.HistoryResponse{
+			Success: false,
+			Error:   "Failed to delete TCP history",
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	response := models.HistoryResponse{
+		Success: true,
+		Data:    "TCP history deleted successfully",
 	}
 
 	w.WriteHeader(http.StatusOK)

@@ -99,6 +99,8 @@ func (c *Client) processRequest(req *models.Request) *models.Response {
 	case "nmap_service":
 		log.Printf("Calling processNmapRequest")
 		return c.processNmapRequest(req.Options, taskID)
+	case "tcp_service":
+		return c.processTCPRequest(req.Options, taskID)
 	default:
 		log.Printf("Unsupported scanner_service: %s", req.ScannerService)
 		return &models.Response{
@@ -270,6 +272,47 @@ func (c *Client) processNmapRequest(options any, taskID string) *models.Response
 			Result: map[string]string{"error": "unsupported nmap scan method: " + nmapOpts.ScanMethod},
 		}
 	}
+}
+
+func (c *Client) processTCPRequest(options any, taskID string) *models.Response {
+	var tcpOpts struct {
+		Host string `json:"host"`
+		Port string `json:"port"`
+	}
+
+	if err := parseOptions(options, &tcpOpts); err != nil {
+		return &models.Response{
+			TaskID: taskID,
+			Result: map[string]string{"error": "invalid TCP options: " + err.Error()},
+		}
+	}
+
+	// Валидация
+	if tcpOpts.Host == "" {
+		return &models.Response{
+			TaskID: taskID,
+			Result: map[string]string{"error": "host is required for TCP scan"},
+		}
+	}
+	if tcpOpts.Port == "" {
+		return &models.Response{
+			TaskID: taskID,
+			Result: map[string]string{"error": "port is required for TCP scan"},
+		}
+	}
+
+	// Создаем TCPRequest с TaskID
+	tcpRequest := models.TCPRequest{
+		TaskID: taskID,
+		Host:   tcpOpts.Host,
+		Port:   tcpOpts.Port,
+	}
+
+	// Отправляем в application слой
+	return c.app.ProcessRequest(&models.Request{
+		ScannerService: "tcp_service",
+		Options:        tcpRequest,
+	})
 }
 
 // Вспомогательные функции
