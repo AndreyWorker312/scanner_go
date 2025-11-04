@@ -134,6 +134,11 @@ func HostDiscoveryScanner(ctx context.Context, request domain.HostDiscoveryReque
 		}
 	}
 
+	// Если не нашли хост в результатах, используем исходный IP из запроса
+	if hostResult == "" {
+		hostResult = request.IP
+	}
+
 	responseResult := domain.HostDiscoveryResponse{
 		TaskID:    request.TaskID,
 		Host:      hostResult,

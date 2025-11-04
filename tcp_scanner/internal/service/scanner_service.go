@@ -106,12 +106,20 @@ func (s *Service) handle(ctx context.Context, d queue.Delivery) {
 		}
 		// store decoded to MongoDB
 		coll := s.mdb.Collection(s.cfg.MongoColl)
+		status := "completed"
+		errorMsg := ""
+		if readErr != nil {
+			status = "failed"
+			errorMsg = readErr.Error()
+		}
 		_, err = coll.InsertOne(ctx, bson.M{
 			"task_id":        req.TaskID,
 			"host":           req.Host,
 			"port":           req.Port,
 			"hex_object_key": objKey,
 			"decoded_text":   decoded,
+			"status":         status,
+			"error":          errorMsg,
 			"created_at":     time.Now(),
 		})
 		if err != nil {

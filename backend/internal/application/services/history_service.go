@@ -172,6 +172,11 @@ func (hs *HistoryService) SaveNmapTcpUdpResponse(result models.NmapTcpUdpRespons
 		}
 	}
 
+	// Если IP не из кэша, используем Host из ответа
+	if ip == "" && result.Host != "" {
+		ip = result.Host
+	}
+
 	historyRecord := &models.NmapTcpUdpHistoryRecord{
 		TaskID:      result.TaskID,
 		IP:          ip,
@@ -238,10 +243,20 @@ func (hs *HistoryService) SaveNmapHostDiscoveryResponse(result models.NmapHostDi
 		}
 	}
 
+	// Если IP не из кэша, используем Host из ответа
+	if ip == "" && result.Host != "" {
+		ip = result.Host
+	}
+	// Если Host пустой, используем IP
+	host := result.Host
+	if host == "" {
+		host = ip
+	}
+
 	historyRecord := &models.NmapHostDiscoveryHistoryRecord{
 		TaskID:    result.TaskID,
 		IP:        ip,
-		Host:      result.Host,
+		Host:      host,
 		HostUP:    result.HostUP,
 		HostTotal: result.HostTotal,
 		Status:    result.Status,

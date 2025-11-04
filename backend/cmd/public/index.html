@@ -345,14 +345,23 @@
     .history-container {
       display: flex;
       gap: 20px;
+      justify-content: flex-start;
+      align-items: flex-start;
+      width: 100%;
+      max-width: 100%;
+      padding: 0;
+      margin: 0;
     }
 
     .history-panel { 
-      flex: 1; 
+      flex: 1;
+      width: 100%;
+      max-width: 100%;
       background: white; 
       border-radius: 8px; 
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       overflow: hidden;
+      margin: 0;
     }
 
     .history-header { 
@@ -372,9 +381,10 @@
     }
 
     .history-content { 
-      padding: 15px; 
-      max-height: 500px; 
+      padding: 20px; 
+      max-height: 600px; 
       overflow-y: auto;
+      width: 100%;
     }
 
     .scan-result { 
@@ -1692,44 +1702,47 @@ google.com
       fetch('/api/history/tcp')
         .then(response => response.json())
         .then(data => {
+          console.log('TCP History data:', data);
           if (data.success) {
-            displayTcpHistory(data.data);
+            displayTcpHistory(data.data || []);
           } else {
             document.getElementById('tcpHistoryContent').innerHTML = 
-              `<p style="text-align: center; color: #dc3545; margin-top: 50px;">Error: ${data.error}</p>`;
+              `<p style="text-align: center; color: #dc3545; margin-top: 50px;">Error: ${data.error || 'Unknown error'}</p>`;
           }
         })
         .catch(error => {
           console.error('Error loading TCP history:', error);
           document.getElementById('tcpHistoryContent').innerHTML = 
-            `<p style="text-align: center; color: #dc3545; margin-top: 50px;">Failed to load history</p>`;
+            `<p style="text-align: center; color: #dc3545; margin-top: 50px;">Failed to load history: ${error.message}</p>`;
         });
     }
 
     function displayTcpHistory(records) {
       const content = document.getElementById('tcpHistoryContent');
-      if (!records || records.length === 0) {
-        content.innerHTML = '<p style="text-align: center; color: #666; margin-top: 50px;">No TCP scan history found</p>';
+      console.log('Displaying TCP history, records:', records);
+      
+      if (!records || !Array.isArray(records) || records.length === 0) {
+        content.innerHTML = '<p style="text-align: center; color: #666; margin-top: 50px; padding: 20px;">No TCP scan history found</p>';
         return;
       }
 
       let html = '';
       records.forEach(record => {
-        const date = new Date(record.created_at).toLocaleString();
+        const date = record.created_at ? new Date(record.created_at).toLocaleString() : 'N/A';
         html += `
-          <div class="history-item" style="border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 5px; background: #f9f9f9;">
+          <div class="history-item" style="border: 1px solid #ddd; margin: 0; padding: 15px; border-radius: 0; background: #f9f9f9; border-top: none;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-              <strong>Task ID: ${record.task_id}</strong>
+              <strong>Task ID: ${record.task_id || 'N/A'}</strong>
               <span style="color: #666; font-size: 12px;">${date}</span>
             </div>
             <div style="margin-bottom: 10px;">
-              <strong>Target:</strong> ${record.host}:${record.port} | 
-              <strong>Status:</strong> <span style="color: ${record.status === 'completed' ? 'green' : 'red'}">${record.status}</span>
+              <strong>Target:</strong> ${record.host || 'N/A'}:${record.port || 'N/A'} | 
+              <strong>Status:</strong> <span style="color: ${record.status === 'completed' ? 'green' : 'red'}">${record.status || 'unknown'}</span>
             </div>
             ${record.hex_object_key ? `<div style="margin-bottom: 10px;"><strong>Hex Object Key:</strong> ${record.hex_object_key}</div>` : ''}
             ${record.decoded_text ? `<div style="margin-bottom: 10px;"><strong>Decoded Text:</strong></div>
-            <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; word-break: break-all;">${record.decoded_text}</div>` : ''}
-            ${record.error ? `<div style="color: red;">Error: ${record.error}</div>` : ''}
+            <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; word-break: break-all; max-height: 300px; overflow-y: auto;">${record.decoded_text}</div>` : ''}
+            ${record.error ? `<div style="color: red; margin-top: 10px;">Error: ${record.error}</div>` : ''}
           </div>
         `;
       });
@@ -2133,47 +2146,71 @@ google.com
       fetch('/api/history/arp')
         .then(response => response.json())
         .then(data => {
+          console.log('ARP History data:', data);
           if (data.success) {
-            displayARPHistory(data.data);
+            displayARPHistory(data.data || []);
           } else {
             document.getElementById('arpHistoryContent').innerHTML = 
-              `<p style="text-align: center; color: #dc3545; margin-top: 50px;">Error: ${data.error}</p>`;
+              `<p style="text-align: center; color: #dc3545; margin-top: 50px;">Error: ${data.error || 'Unknown error'}</p>`;
           }
         })
         .catch(error => {
           console.error('Error loading ARP history:', error);
           document.getElementById('arpHistoryContent').innerHTML = 
-            `<p style="text-align: center; color: #dc3545; margin-top: 50px;">Failed to load history</p>`;
+            `<p style="text-align: center; color: #dc3545; margin-top: 50px;">Failed to load history: ${error.message}</p>`;
         });
     }
 
     function displayARPHistory(records) {
       const content = document.getElementById('arpHistoryContent');
-      if (!records || records.length === 0) {
-        content.innerHTML = '<p style="text-align: center; color: #666; margin-top: 50px;">No ARP scan history found</p>';
+      console.log('Displaying ARP history, records:', records);
+      
+      if (!records || !Array.isArray(records) || records.length === 0) {
+        content.innerHTML = '<p style="text-align: center; color: #666; margin-top: 50px; padding: 20px;">No ARP scan history found</p>';
         return;
       }
 
       let html = '';
       records.forEach(record => {
-        const date = new Date(record.created_at).toLocaleString();
+        const date = record.created_at ? new Date(record.created_at).toLocaleString() : 'N/A';
+        const onlineDevices = Array.isArray(record.online_devices) ? record.online_devices : [];
+        const offlineDevices = Array.isArray(record.offline_devices) ? record.offline_devices : [];
+        
+        let devicesHtml = '';
+        if (onlineDevices.length > 0) {
+          devicesHtml += '<div style="margin-top: 10px;"><strong style="color: #28a745;">🟢 Online Devices:</strong><ul style="margin: 5px 0; padding-left: 20px;">';
+          onlineDevices.forEach(device => {
+            devicesHtml += `<li><strong>${device.ip || 'N/A'}</strong> - MAC: ${device.mac || 'Unknown'}</li>`;
+          });
+          devicesHtml += '</ul></div>';
+        }
+        
+        if (offlineDevices.length > 0) {
+          devicesHtml += '<div style="margin-top: 10px;"><strong style="color: #dc3545;">🔴 Offline Devices:</strong><ul style="margin: 5px 0; padding-left: 20px;">';
+          offlineDevices.forEach(device => {
+            devicesHtml += `<li><strong>${device.ip || 'N/A'}</strong> - MAC: ${device.mac || 'Unknown'}</li>`;
+          });
+          devicesHtml += '</ul></div>';
+        }
+        
         html += `
-          <div class="history-item" style="border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 5px; background: #f9f9f9;">
+          <div class="history-item" style="border: 1px solid #ddd; margin: 0; padding: 15px; border-radius: 0; background: #f9f9f9; border-top: none;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-              <strong>Task ID: ${record.task_id}</strong>
+              <strong>Task ID: ${record.task_id || 'N/A'}</strong>
               <span style="color: #666; font-size: 12px;">${date}</span>
             </div>
             <div style="margin-bottom: 10px;">
-              <strong>Range:</strong> ${record.ip_range} | 
-              <strong>Interface:</strong> ${record.interface_name} | 
-              <strong>Status:</strong> <span style="color: ${record.status === 'completed' ? 'green' : 'red'}">${record.status}</span>
+              <strong>Range:</strong> ${record.ip_range || 'N/A'} | 
+              <strong>Interface:</strong> ${record.interface_name || 'N/A'} | 
+              <strong>Status:</strong> <span style="color: ${record.status === 'completed' ? 'green' : 'red'}">${record.status || 'unknown'}</span>
             </div>
             <div style="margin-bottom: 10px;">
-              <strong>Total:</strong> ${record.total_count} | 
-              <strong>Online:</strong> ${record.online_count} | 
-              <strong>Offline:</strong> ${record.offline_count}
+              <strong>Total:</strong> ${record.total_count || 0} | 
+              <strong>Online:</strong> ${record.online_count || 0} | 
+              <strong>Offline:</strong> ${record.offline_count || 0}
             </div>
-            ${record.error ? `<div style="color: red;">Error: ${record.error}</div>` : ''}
+            ${devicesHtml}
+            ${record.error ? `<div style="color: red; margin-top: 10px;">Error: ${record.error}</div>` : ''}
           </div>
         `;
       });
@@ -2209,45 +2246,69 @@ google.com
       fetch('/api/history/icmp')
         .then(response => response.json())
         .then(data => {
+          console.log('ICMP History data:', data);
           if (data.success) {
-            displayICMPHistory(data.data);
+            displayICMPHistory(data.data || []);
           } else {
             document.getElementById('icmpHistoryContent').innerHTML = 
-              `<p style="text-align: center; color: #dc3545; margin-top: 50px;">Error: ${data.error}</p>`;
+              `<p style="text-align: center; color: #dc3545; margin-top: 50px;">Error: ${data.error || 'Unknown error'}</p>`;
           }
         })
         .catch(error => {
           console.error('Error loading ICMP history:', error);
           document.getElementById('icmpHistoryContent').innerHTML = 
-            `<p style="text-align: center; color: #dc3545; margin-top: 50px;">Failed to load history</p>`;
+            `<p style="text-align: center; color: #dc3545; margin-top: 50px;">Failed to load history: ${error.message}</p>`;
         });
     }
 
     function displayICMPHistory(records) {
       const content = document.getElementById('icmpHistoryContent');
-      if (!records || records.length === 0) {
-        content.innerHTML = '<p style="text-align: center; color: #666; margin-top: 50px;">No ICMP ping history found</p>';
+      console.log('Displaying ICMP history, records:', records);
+      
+      if (!records || !Array.isArray(records) || records.length === 0) {
+        content.innerHTML = '<p style="text-align: center; color: #666; margin-top: 50px; padding: 20px;">No ICMP ping history found</p>';
         return;
       }
 
       let html = '';
       records.forEach(record => {
-        const date = new Date(record.created_at).toLocaleString();
+        const date = record.created_at ? new Date(record.created_at).toLocaleString() : 'N/A';
+        const targets = Array.isArray(record.targets) ? record.targets.join(', ') : (record.targets || 'N/A');
+        const results = Array.isArray(record.results) ? record.results : [];
+        
+        let resultsHtml = '';
+        if (results.length > 0) {
+          resultsHtml += '<div style="margin-top: 10px;"><strong>📊 Ping Results:</strong><ul style="margin: 5px 0; padding-left: 20px;">';
+          results.forEach(result => {
+            const isSuccess = result.packets_received > 0;
+            const packetLoss = result.packet_loss_percent || 0;
+            resultsHtml += `<li style="margin: 5px 0;">
+              <strong>${result.target || 'N/A'}</strong> (${result.address || 'N/A'}) - 
+              Packets: ${result.packets_received || 0}/${result.packets_sent || 0} - 
+              Loss: ${packetLoss.toFixed(1)}% 
+              <span style="color: ${isSuccess ? 'green' : 'red'};">${isSuccess ? '✅' : '❌'}</span>
+              ${result.error ? `<br><span style="color: red; font-size: 11px;">Error: ${result.error}</span>` : ''}
+            </li>`;
+          });
+          resultsHtml += '</ul></div>';
+        }
+        
         html += `
-          <div class="history-item" style="border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 5px; background: #f9f9f9;">
+          <div class="history-item" style="border: 1px solid #ddd; margin: 0; padding: 15px; border-radius: 0; background: #f9f9f9; border-top: none;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-              <strong>Task ID: ${record.task_id}</strong>
+              <strong>Task ID: ${record.task_id || 'N/A'}</strong>
               <span style="color: #666; font-size: 12px;">${date}</span>
             </div>
             <div style="margin-bottom: 10px;">
-              <strong>Targets:</strong> ${record.targets.join(', ')} | 
-              <strong>Ping Count:</strong> ${record.ping_count} | 
-              <strong>Status:</strong> <span style="color: ${record.status === 'completed' ? 'green' : 'red'}">${record.status}</span>
+              <strong>Targets:</strong> ${targets} | 
+              <strong>Ping Count:</strong> ${record.ping_count || 0} | 
+              <strong>Status:</strong> <span style="color: ${record.status === 'completed' ? 'green' : 'red'}">${record.status || 'unknown'}</span>
             </div>
             <div style="margin-bottom: 10px;">
-              <strong>Results:</strong> ${record.results.length} targets scanned
+              <strong>Results:</strong> ${results.length} targets scanned
             </div>
-            ${record.error ? `<div style="color: red;">Error: ${record.error}</div>` : ''}
+            ${resultsHtml}
+            ${record.error ? `<div style="color: red; margin-top: 10px;">Error: ${record.error}</div>` : ''}
           </div>
         `;
       });
@@ -2283,93 +2344,189 @@ google.com
       fetch('/api/history/nmap')
         .then(response => response.json())
         .then(data => {
+          console.log('Nmap History data:', data);
           if (data.success) {
-            displayNmapHistory(data.data);
+            displayNmapHistory(data.data || {});
           } else {
             document.getElementById('nmapHistoryContent').innerHTML = 
-              `<p style="text-align: center; color: #dc3545; margin-top: 50px;">Error: ${data.error}</p>`;
+              `<p style="text-align: center; color: #dc3545; margin-top: 50px;">Error: ${data.error || 'Unknown error'}</p>`;
           }
         })
         .catch(error => {
           console.error('Error loading Nmap history:', error);
           document.getElementById('nmapHistoryContent').innerHTML = 
-            `<p style="text-align: center; color: #dc3545; margin-top: 50px;">Failed to load history</p>`;
+            `<p style="text-align: center; color: #dc3545; margin-top: 50px;">Failed to load history: ${error.message}</p>`;
         });
     }
 
     function displayNmapHistory(data) {
       const content = document.getElementById('nmapHistoryContent');
+      console.log('Displaying Nmap history, data:', data);
       
-      if (!data || (Object.keys(data).length === 0)) {
-        content.innerHTML = '<p style="text-align: center; color: #666; margin-top: 50px;">No Nmap scan history found</p>';
+      if (!data || (typeof data !== 'object') || (Array.isArray(data) && data.length === 0) || (!Array.isArray(data) && Object.keys(data).length === 0)) {
+        content.innerHTML = '<p style="text-align: center; color: #666; margin-top: 50px; padding: 20px;">No Nmap scan history found</p>';
         return;
       }
 
       let html = '';
 
-      // TCP/UDP Scans
-      if (data.tcp_udp && data.tcp_udp.length > 0) {
-        html += '<h3 style="color: #007bff; margin: 20px 0 10px 0;">🔌 TCP/UDP Scans</h3>';
-        data.tcp_udp.forEach(record => {
-          const date = new Date(record.created_at).toLocaleString();
+      // Если данные пришли как массив, обрабатываем их
+      if (Array.isArray(data) && data.length > 0) {
+        html += '<h3 style="color: #007bff; margin: 20px 0 10px 0;">📋 Nmap Scans</h3>';
+        data.forEach(record => {
+          const date = record.created_at ? new Date(record.created_at).toLocaleString() : 'N/A';
           html += `
-            <div class="history-item" style="border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 5px; background: #f9f9f9;">
+            <div class="history-item" style="border: 1px solid #ddd; margin: 0; padding: 15px; border-radius: 0; background: #f9f9f9; border-top: none;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <strong>Task ID: ${record.task_id}</strong>
+                <strong>Task ID: ${record.task_id || 'N/A'}</strong>
                 <span style="color: #666; font-size: 12px;">${date}</span>
               </div>
               <div style="margin-bottom: 10px;">
-                <strong>Target:</strong> ${record.ip} | 
-                <strong>Type:</strong> ${record.scanner_type} | 
-                <strong>Ports:</strong> ${record.ports} | 
-                <strong>Status:</strong> <span style="color: ${record.status === 'completed' ? 'green' : 'red'}">${record.status}</span>
+                <strong>Target:</strong> ${record.ip || record.host || 'N/A'} | 
+                <strong>Type:</strong> ${record.scanner_type || record.type || 'N/A'} | 
+                <strong>Status:</strong> <span style="color: ${record.status === 'completed' ? 'green' : 'red'}">${record.status || 'unknown'}</span>
               </div>
               ${record.error ? `<div style="color: red;">Error: ${record.error}</div>` : ''}
+            </div>
+          `;
+        });
+        content.innerHTML = html;
+        return;
+      }
+
+      // TCP/UDP Scans
+      if (data.tcp_udp && Array.isArray(data.tcp_udp) && data.tcp_udp.length > 0) {
+        html += '<h3 style="color: #007bff; margin: 20px 0 10px 0;">🔌 TCP/UDP Scans</h3>';
+        data.tcp_udp.forEach(record => {
+          const date = record.created_at ? new Date(record.created_at).toLocaleString() : 'N/A';
+          const target = record.ip || record.host || record.target || 'N/A';
+          const scannerType = record.scanner_type || record.type || 'N/A';
+          
+          // Извлекаем порты из port_info, если ports не указан
+          let ports = record.ports || 'N/A';
+          if (ports === 'N/A' && record.port_info) {
+            if (Array.isArray(record.port_info) && record.port_info.length > 0) {
+              const portInfo = record.port_info[0];
+              if (portInfo.AllPorts && Array.isArray(portInfo.AllPorts) && portInfo.AllPorts.length > 0) {
+                ports = portInfo.AllPorts.join(', ');
+              } else if (portInfo.all_ports && Array.isArray(portInfo.all_ports) && portInfo.all_ports.length > 0) {
+                ports = portInfo.all_ports.join(', ');
+              }
+            } else if (record.port_info.AllPorts && Array.isArray(record.port_info.AllPorts)) {
+              ports = record.port_info.AllPorts.join(', ');
+            } else if (record.port_info.all_ports && Array.isArray(record.port_info.all_ports)) {
+              ports = record.port_info.all_ports.join(', ');
+            }
+          }
+          
+          // Обработка port_info
+          let portInfoHtml = '';
+          if (record.port_info) {
+            let portInfoArray = [];
+            if (Array.isArray(record.port_info)) {
+              portInfoArray = record.port_info;
+            } else if (record.port_info.Port || record.port_info.port) {
+              portInfoArray = [record.port_info];
+            }
+            
+            if (portInfoArray.length > 0) {
+              portInfoHtml = '<div style="margin-top: 10px;"><strong>Port Details:</strong><ul style="margin: 5px 0; padding-left: 20px;">';
+              portInfoArray.forEach(p => {
+                const port = p.Port || p.port || 'N/A';
+                const protocol = p.Protocol || p.protocol || 'tcp';
+                const state = p.State || p.state || 'unknown';
+                const service = p.Service || p.service || p.ServiceName || p.service_name || 'unknown service';
+                portInfoHtml += `<li><strong>${port}/${protocol}</strong> - ${state} (${service})</li>`;
+              });
+              portInfoHtml += '</ul></div>';
+            } else if (record.port_info.AllPorts || record.port_info.all_ports) {
+              // Обработка структуры с массивами
+              const allPorts = record.port_info.AllPorts || record.port_info.all_ports || [];
+              const protocols = record.port_info.Protocols || record.port_info.protocols || [];
+              const states = record.port_info.State || record.port_info.state || [];
+              const services = record.port_info.ServiceName || record.port_info.service_name || [];
+              
+              if (allPorts.length > 0) {
+                portInfoHtml = '<div style="margin-top: 10px;"><strong>Port Details:</strong><ul style="margin: 5px 0; padding-left: 20px;">';
+                for (let i = 0; i < allPorts.length; i++) {
+                  const port = allPorts[i];
+                  const protocol = protocols[i] || 'tcp';
+                  const state = states[i] || 'unknown';
+                  const service = services[i] || 'unknown service';
+                  portInfoHtml += `<li><strong>${port}/${protocol}</strong> - ${state} (${service})</li>`;
+                }
+                portInfoHtml += '</ul></div>';
+              }
+            }
+          }
+          
+          html += `
+            <div class="history-item" style="border: 1px solid #ddd; margin: 0; padding: 15px; border-radius: 0; background: #f9f9f9; border-top: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <strong>Task ID: ${record.task_id || 'N/A'}</strong>
+                <span style="color: #666; font-size: 12px;">${date}</span>
+              </div>
+              <div style="margin-bottom: 10px;">
+                <strong>Target:</strong> ${target} | 
+                <strong>Type:</strong> ${scannerType} | 
+                <strong>Ports:</strong> ${ports} | 
+                <strong>Status:</strong> <span style="color: ${record.status === 'completed' ? 'green' : 'red'}">${record.status || 'unknown'}</span>
+              </div>
+              ${portInfoHtml}
+              ${record.error ? `<div style="color: red; margin-top: 10px;">Error: ${record.error}</div>` : ''}
             </div>
           `;
         });
       }
 
       // OS Detection Scans
-      if (data.os_detection && data.os_detection.length > 0) {
+      if (data.os_detection && Array.isArray(data.os_detection) && data.os_detection.length > 0) {
         html += '<h3 style="color: #28a745; margin: 20px 0 10px 0;">🖥️ OS Detection Scans</h3>';
         data.os_detection.forEach(record => {
-          const date = new Date(record.created_at).toLocaleString();
+          const date = record.created_at ? new Date(record.created_at).toLocaleString() : 'N/A';
+          const target = record.ip || record.host || 'N/A';
+          const osName = record.name || 'Unknown';
+          const accuracy = record.accuracy !== undefined ? record.accuracy : 'N/A';
           html += `
-            <div class="history-item" style="border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 5px; background: #f9f9f9;">
+            <div class="history-item" style="border: 1px solid #ddd; margin: 0; padding: 15px; border-radius: 0; background: #f9f9f9; border-top: none;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <strong>Task ID: ${record.task_id}</strong>
+                <strong>Task ID: ${record.task_id || 'N/A'}</strong>
                 <span style="color: #666; font-size: 12px;">${date}</span>
               </div>
               <div style="margin-bottom: 10px;">
-                <strong>Target:</strong> ${record.ip} | 
-                <strong>OS:</strong> ${record.name} | 
-                <strong>Accuracy:</strong> ${record.accuracy}% | 
-                <strong>Status:</strong> <span style="color: ${record.status === 'completed' ? 'green' : 'red'}">${record.status}</span>
+                <strong>Target:</strong> ${target} | 
+                <strong>OS:</strong> ${osName}${record.vendor ? ' (' + record.vendor + ')' : ''}${record.family ? ' - ' + record.family : ''} | 
+                <strong>Accuracy:</strong> ${accuracy}% | 
+                <strong>Status:</strong> <span style="color: ${record.status === 'completed' ? 'green' : 'red'}">${record.status || 'unknown'}</span>
               </div>
-              ${record.error ? `<div style="color: red;">Error: ${record.error}</div>` : ''}
+              ${record.error ? `<div style="color: red; margin-top: 10px;">Error: ${record.error}</div>` : ''}
             </div>
           `;
         });
       }
 
       // Host Discovery Scans
-      if (data.host_discovery && data.host_discovery.length > 0) {
+      if (data.host_discovery && Array.isArray(data.host_discovery) && data.host_discovery.length > 0) {
         html += '<h3 style="color: #ffc107; margin: 20px 0 10px 0;">🔍 Host Discovery Scans</h3>';
         data.host_discovery.forEach(record => {
-          const date = new Date(record.created_at).toLocaleString();
+          const date = record.created_at ? new Date(record.created_at).toLocaleString() : 'N/A';
+          const target = record.ip || record.host || record.target || 'N/A';
+          const hostUp = record.host_up !== undefined ? record.host_up : 0;
+          const hostTotal = record.host_total !== undefined ? record.host_total : 0;
           html += `
-            <div class="history-item" style="border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 5px; background: #f9f9f9;">
+            <div class="history-item" style="border: 1px solid #ddd; margin: 0; padding: 15px; border-radius: 0; background: #f9f9f9; border-top: none;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <strong>Task ID: ${record.task_id}</strong>
+                <strong>Task ID: ${record.task_id || 'N/A'}</strong>
                 <span style="color: #666; font-size: 12px;">${date}</span>
               </div>
               <div style="margin-bottom: 10px;">
-                <strong>Target:</strong> ${record.ip} | 
-                <strong>Up/Total:</strong> ${record.host_up}/${record.host_total} | 
-                <strong>Status:</strong> <span style="color: ${record.status === 'completed' ? 'green' : 'red'}">${record.status}</span>
+                <strong>Target:</strong> ${target} | 
+                <strong>Up/Total:</strong> ${hostUp}/${hostTotal} | 
+                <strong>Status:</strong> <span style="color: ${record.status === 'completed' ? 'green' : 'red'}">${record.status || 'unknown'}</span>
+                ${record.dns ? ` | <strong>DNS:</strong> ${record.dns}` : ''}
+                ${record.reason ? ` | <strong>Reason:</strong> ${record.reason}` : ''}
               </div>
-              ${record.error ? `<div style="color: red;">Error: ${record.error}</div>` : ''}
+              ${record.error ? `<div style="color: red; margin-top: 10px;">Error: ${record.error}</div>` : ''}
             </div>
           `;
         });
