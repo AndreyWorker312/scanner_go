@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Nmap Scan History - Network Scanner</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .header-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 15px;
+      padding: 30px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .header-card h1 {
+      color: #333;
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .header-card p {
+      color: #666;
+      font-size: 16px;
+    }
+
+    .controls-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 15px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
+
+    .btn-primary {
+      background: #007bff;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #0056b3;
+    }
+
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #c82333;
+    }
+
+    .history-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      overflow: hidden;
+    }
+
+    .history-header {
+      background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+      color: white;
+      padding: 20px 30px;
+      font-weight: 700;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .history-content {
+      padding: 30px;
+      max-height: calc(100vh - 400px);
+      overflow-y: auto;
+      text-align: left;
+    }
+
+    .section-title {
+      color: #007bff;
+      font-size: 24px;
+      font-weight: 700;
+      margin: 30px 0 20px 0;
+      padding-bottom: 10px;
+      border-bottom: 3px solid #007bff;
+    }
+
+    .section-title.os {
+      color: #28a745;
+      border-bottom-color: #28a745;
+    }
+
+    .section-title.discovery {
+      color: #ffc107;
+      border-bottom-color: #ffc107;
+    }
+
+    .history-item {
+      background: #f8f9fa;
+      border: 2px solid #e9ecef;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      transition: all 0.3s ease;
+      text-align: left;
+    }
+
+    .history-item:hover {
+      border-color: #007bff;
+      box-shadow: 0 5px 15px rgba(0, 123, 255, 0.2);
+      transform: translateY(-2px);
+    }
+
+    .history-item-header {
+      margin-bottom: 15px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #dee2e6;
+    }
+
+    .task-id {
+      font-size: 16px;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 5px;
+    }
+
+    .task-date {
+      font-size: 13px;
+      color: #6c757d;
+    }
+
+    .history-item-body {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+
+    .info-item {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .info-label {
+      font-size: 12px;
+      color: #6c757d;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .info-value {
+      font-size: 14px;
+      color: #333;
+      font-weight: 600;
+    }
+
+    .status-completed {
+      color: #28a745;
+    }
+
+    .status-error {
+      color: #dc3545;
+    }
+
+    .port-info-section {
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 2px solid #dee2e6;
+    }
+
+    .port-info-list {
+      margin-top: 10px;
+    }
+
+    .port-info-list ul {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .port-info-list li {
+      padding: 10px 15px;
+      margin: 5px 0;
+      background: white;
+      border-radius: 8px;
+      border-left: 4px solid #007bff;
+      text-align: left;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #6c757d;
+    }
+
+    .empty-state-icon {
+      font-size: 64px;
+      margin-bottom: 20px;
+      opacity: 0.5;
+    }
+
+    .error-message {
+      background: #f8d7da;
+      color: #721c24;
+      padding: 15px;
+      border-radius: 8px;
+      border-left: 4px solid #dc3545;
+      margin: 20px 0;
+      text-align: left;
+    }
+
+    /* Scrollbar styling */
+    .history-content::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .history-content::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 10px;
+    }
+
+    .history-content::-webkit-scrollbar-thumb {
+      background: #007bff;
+      border-radius: 10px;
+    }
+
+    .history-content::-webkit-scrollbar-thumb:hover {
+      background: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header-card">
+      <h1>📊 Nmap Scan History</h1>
+      <p>View and manage Nmap scanning history</p>
+    </div>
+
+    <div class="controls-card">
+      <div class="button-group">
+        <button onclick="window.location.href='index.html#nmap'" class="btn-secondary">← Back to Nmap Scanner</button>
+        <button onclick="loadNmapHistory()" class="btn-primary">🔄 Refresh</button>
+        <button onclick="clearNmapHistory()" class="btn-danger">🗑️ Clear All History</button>
+      </div>
+    </div>
+
+    <div class="history-card">
+      <div class="history-header">
+        <span>📋</span>
+        <span>Nmap History Records</span>
+      </div>
+      <div class="history-content" id="nmapHistoryContent">
+        <div class="empty-state">
+          <div class="empty-state-icon">⏳</div>
+          <p>Loading history...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function loadNmapHistory() {
+      const content = document.getElementById('nmapHistoryContent');
+      content.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⏳</div><p>Loading history...</p></div>';
+
+      fetch('/api/history/nmap')
+        .then(response => response.json())
+        .then(data => {
+          console.log('Nmap History data:', data);
+          if (data.success) {
+            displayNmapHistory(data.data || {});
+          } else {
+            content.innerHTML = `<div class="error-message">Error: ${data.error || 'Unknown error'}</div>`;
+          }
+        })
+        .catch(error => {
+          console.error('Error loading Nmap history:', error);
+          content.innerHTML = `<div class="error-message">Failed to load history: ${error.message}</div>`;
+        });
+    }
+
+    function displayNmapHistory(data) {
+      const content = document.getElementById('nmapHistoryContent');
+      
+      if (!data || (typeof data !== 'object') || (Array.isArray(data) && data.length === 0) || (!Array.isArray(data) && Object.keys(data).length === 0)) {
+        content.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📭</div>
+            <p>No Nmap scan history found</p>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+
+      // Если данные пришли как массив
+      if (Array.isArray(data) && data.length > 0) {
+        html += '<h3 class="section-title">📋 Nmap Scans</h3>';
+        data.forEach(record => {
+          const date = record.created_at ? new Date(record.created_at).toLocaleString('ru-RU') : 'N/A';
+          html += `
+            <div class="history-item">
+              <div class="history-item-header">
+                <div class="task-id">Task ID: ${record.task_id || 'N/A'}</div>
+                <div class="task-date">${date}</div>
+              </div>
+              <div class="history-item-body">
+                <div class="info-item">
+                  <span class="info-label">Target</span>
+                  <span class="info-value">${record.ip || record.host || 'N/A'}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Type</span>
+                  <span class="info-value">${record.scanner_type || record.type || 'N/A'}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Status</span>
+                  <span class="info-value status-${record.status === 'completed' ? 'completed' : 'error'}">${record.status || 'unknown'}</span>
+                </div>
+              </div>
+              ${record.error ? `<div class="error-message">Error: ${record.error}</div>` : ''}
+            </div>
+          `;
+        });
+        content.innerHTML = html;
+        return;
+      }
+
+      // TCP/UDP Scans
+      if (data.tcp_udp && Array.isArray(data.tcp_udp) && data.tcp_udp.length > 0) {
+        html += '<h3 class="section-title">🔌 TCP/UDP Scans</h3>';
+        data.tcp_udp.forEach(record => {
+          const date = record.created_at ? new Date(record.created_at).toLocaleString('ru-RU') : 'N/A';
+          const target = record.ip || record.host || record.target || 'N/A';
+          const scannerType = record.scanner_type || record.type || 'N/A';
+          
+          let ports = record.ports || 'N/A';
+          if (ports === 'N/A' && record.port_info) {
+            if (Array.isArray(record.port_info) && record.port_info.length > 0) {
+              const portInfo = record.port_info[0];
+              if (portInfo.AllPorts && Array.isArray(portInfo.AllPorts) && portInfo.AllPorts.length > 0) {
+                ports = portInfo.AllPorts.join(', ');
+              } else if (portInfo.all_ports && Array.isArray(portInfo.all_ports) && portInfo.all_ports.length > 0) {
+                ports = portInfo.all_ports.join(', ');
+              }
+            } else if (record.port_info.AllPorts && Array.isArray(record.port_info.AllPorts)) {
+              ports = record.port_info.AllPorts.join(', ');
+            } else if (record.port_info.all_ports && Array.isArray(record.port_info.all_ports)) {
+              ports = record.port_info.all_ports.join(', ');
+            }
+          }
+          
+          let portInfoHtml = '';
+          if (record.port_info) {
+            let portInfoArray = [];
+            if (Array.isArray(record.port_info)) {
+              portInfoArray = record.port_info;
+            } else if (record.port_info.Port || record.port_info.port) {
+              portInfoArray = [record.port_info];
+            }
+            
+            if (portInfoArray.length > 0) {
+              portInfoHtml = '<div class="port-info-section"><div class="port-info-list"><strong>Port Details:</strong><ul>';
+              portInfoArray.forEach(p => {
+                const port = p.Port || p.port || 'N/A';
+                const protocol = p.Protocol || p.protocol || 'tcp';
+                const state = p.State || p.state || 'unknown';
+                const service = p.Service || p.service || p.ServiceName || p.service_name || 'unknown service';
+                portInfoHtml += `<li><strong>${port}/${protocol}</strong> - ${state} (${service})</li>`;
+              });
+              portInfoHtml += '</ul></div></div>';
+            } else if (record.port_info.AllPorts || record.port_info.all_ports) {
+              const allPorts = record.port_info.AllPorts || record.port_info.all_ports || [];
+              const protocols = record.port_info.Protocols || record.port_info.protocols || [];
+              const states = record.port_info.State || record.port_info.state || [];
+              const services = record.port_info.ServiceName || record.port_info.service_name || [];
+              
+              if (allPorts.length > 0) {
+                portInfoHtml = '<div class="port-info-section"><div class="port-info-list"><strong>Port Details:</strong><ul>';
+                for (let i = 0; i < allPorts.length; i++) {
+                  const port = allPorts[i];
+                  const protocol = protocols[i] || 'tcp';
+                  const state = states[i] || 'unknown';
+                  const service = services[i] || 'unknown service';
+                  portInfoHtml += `<li><strong>${port}/${protocol}</strong> - ${state} (${service})</li>`;
+                }
+                portInfoHtml += '</ul></div></div>';
+              }
+            }
+          }
+          
+          html += `
+            <div class="history-item">
+              <div class="history-item-header">
+                <div class="task-id">Task ID: ${record.task_id || 'N/A'}</div>
+                <div class="task-date">${date}</div>
+              </div>
+              <div class="history-item-body">
+                <div class="info-item">
+                  <span class="info-label">Target</span>
+                  <span class="info-value">${target}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Type</span>
+                  <span class="info-value">${scannerType}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Ports</span>
+                  <span class="info-value">${ports}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Status</span>
+                  <span class="info-value status-${record.status === 'completed' ? 'completed' : 'error'}">${record.status || 'unknown'}</span>
+                </div>
+              </div>
+              ${portInfoHtml}
+              ${record.error ? `<div class="error-message">Error: ${record.error}</div>` : ''}
+            </div>
+          `;
+        });
+      }
+
+      // OS Detection Scans
+      if (data.os_detection && Array.isArray(data.os_detection) && data.os_detection.length > 0) {
+        html += '<h3 class="section-title os">🖥️ OS Detection Scans</h3>';
+        data.os_detection.forEach(record => {
+          const date = record.created_at ? new Date(record.created_at).toLocaleString('ru-RU') : 'N/A';
+          const target = record.ip || record.host || 'N/A';
+          const osName = record.name || 'Unknown';
+          const accuracy = record.accuracy !== undefined ? record.accuracy : 'N/A';
+          html += `
+            <div class="history-item">
+              <div class="history-item-header">
+                <div class="task-id">Task ID: ${record.task_id || 'N/A'}</div>
+                <div class="task-date">${date}</div>
+              </div>
+              <div class="history-item-body">
+                <div class="info-item">
+                  <span class="info-label">Target</span>
+                  <span class="info-value">${target}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">OS</span>
+                  <span class="info-value">${osName}${record.vendor ? ' (' + record.vendor + ')' : ''}${record.family ? ' - ' + record.family : ''}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Accuracy</span>
+                  <span class="info-value">${accuracy}%</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Status</span>
+                  <span class="info-value status-${record.status === 'completed' ? 'completed' : 'error'}">${record.status || 'unknown'}</span>
+                </div>
+              </div>
+              ${record.error ? `<div class="error-message">Error: ${record.error}</div>` : ''}
+            </div>
+          `;
+        });
+      }
+
+      // Host Discovery Scans
+      if (data.host_discovery && Array.isArray(data.host_discovery) && data.host_discovery.length > 0) {
+        html += '<h3 class="section-title discovery">🔍 Host Discovery Scans</h3>';
+        data.host_discovery.forEach(record => {
+          const date = record.created_at ? new Date(record.created_at).toLocaleString('ru-RU') : 'N/A';
+          const target = record.ip || record.host || record.target || 'N/A';
+          const hostUp = record.host_up !== undefined ? record.host_up : 0;
+          const hostTotal = record.host_total !== undefined ? record.host_total : 0;
+          html += `
+            <div class="history-item">
+              <div class="history-item-header">
+                <div class="task-id">Task ID: ${record.task_id || 'N/A'}</div>
+                <div class="task-date">${date}</div>
+              </div>
+              <div class="history-item-body">
+                <div class="info-item">
+                  <span class="info-label">Target</span>
+                  <span class="info-value">${target}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Up/Total</span>
+                  <span class="info-value">${hostUp}/${hostTotal}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Status</span>
+                  <span class="info-value status-${record.status === 'completed' ? 'completed' : 'error'}">${record.status || 'unknown'}</span>
+                </div>
+                ${record.dns ? `<div class="info-item"><span class="info-label">DNS</span><span class="info-value">${record.dns}</span></div>` : ''}
+                ${record.reason ? `<div class="info-item"><span class="info-label">Reason</span><span class="info-value">${record.reason}</span></div>` : ''}
+              </div>
+              ${record.error ? `<div class="error-message">Error: ${record.error}</div>` : ''}
+            </div>
+          `;
+        });
+      }
+
+      content.innerHTML = html || '<div class="empty-state"><div class="empty-state-icon">📭</div><p>No Nmap scan history found</p></div>';
+    }
+
+    function clearNmapHistory() {
+      if (confirm('Are you sure you want to clear all Nmap history?')) {
+        fetch('/api/history/nmap/delete', { method: 'DELETE' })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              alert('Nmap history cleared successfully');
+              loadNmapHistory();
+            } else {
+              alert('Error: ' + data.error);
+            }
+          })
+          .catch(error => {
+            console.error('Error clearing Nmap history:', error);
+            alert('Failed to clear Nmap history');
+          });
+      }
+    }
+
+    // Load history on page load
+    window.addEventListener('DOMContentLoaded', function() {
+      loadNmapHistory();
+    });
+  </script>
+</body>
+</html>
+

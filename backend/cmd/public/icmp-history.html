@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ICMP Ping History - Network Scanner</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .header-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 15px;
+      padding: 30px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .header-card h1 {
+      color: #333;
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .header-card p {
+      color: #666;
+      font-size: 16px;
+    }
+
+    .controls-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 15px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
+
+    .btn-primary {
+      background: #007bff;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #0056b3;
+    }
+
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #c82333;
+    }
+
+    .history-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      overflow: hidden;
+    }
+
+    .history-header {
+      background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+      color: white;
+      padding: 20px 30px;
+      font-weight: 700;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .history-content {
+      padding: 30px;
+      max-height: calc(100vh - 400px);
+      overflow-y: auto;
+      text-align: left;
+    }
+
+    .history-item {
+      background: #f8f9fa;
+      border: 2px solid #e9ecef;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      transition: all 0.3s ease;
+      text-align: left;
+    }
+
+    .history-item:hover {
+      border-color: #17a2b8;
+      box-shadow: 0 5px 15px rgba(23, 162, 184, 0.2);
+      transform: translateY(-2px);
+    }
+
+    .history-item-header {
+      margin-bottom: 15px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #dee2e6;
+    }
+
+    .task-id {
+      font-size: 16px;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 5px;
+    }
+
+    .task-date {
+      font-size: 13px;
+      color: #6c757d;
+    }
+
+    .history-item-body {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+
+    .info-item {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .info-label {
+      font-size: 12px;
+      color: #6c757d;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .info-value {
+      font-size: 14px;
+      color: #333;
+      font-weight: 600;
+    }
+
+    .status-completed {
+      color: #28a745;
+    }
+
+    .status-error {
+      color: #dc3545;
+    }
+
+    .results-section {
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 2px solid #dee2e6;
+    }
+
+    .results-list {
+      margin-top: 10px;
+    }
+
+    .results-list ul {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .results-list li {
+      padding: 12px 15px;
+      margin: 8px 0;
+      background: white;
+      border-radius: 8px;
+      border-left: 4px solid;
+      text-align: left;
+    }
+
+    .result-success {
+      border-left-color: #28a745;
+    }
+
+    .result-failed {
+      border-left-color: #dc3545;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #6c757d;
+    }
+
+    .empty-state-icon {
+      font-size: 64px;
+      margin-bottom: 20px;
+      opacity: 0.5;
+    }
+
+    .error-message {
+      background: #f8d7da;
+      color: #721c24;
+      padding: 15px;
+      border-radius: 8px;
+      border-left: 4px solid #dc3545;
+      margin: 20px 0;
+      text-align: left;
+    }
+
+    /* Scrollbar styling */
+    .history-content::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .history-content::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 10px;
+    }
+
+    .history-content::-webkit-scrollbar-thumb {
+      background: #17a2b8;
+      border-radius: 10px;
+    }
+
+    .history-content::-webkit-scrollbar-thumb:hover {
+      background: #138496;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header-card">
+      <h1>📊 ICMP Ping History</h1>
+      <p>View and manage ICMP ping history</p>
+    </div>
+
+    <div class="controls-card">
+      <div class="button-group">
+        <button onclick="window.location.href='index.html#icmp'" class="btn-secondary">← Back to ICMP Scanner</button>
+        <button onclick="loadICMPHistory()" class="btn-primary">🔄 Refresh</button>
+        <button onclick="clearICMPHistory()" class="btn-danger">🗑️ Clear All History</button>
+      </div>
+    </div>
+
+    <div class="history-card">
+      <div class="history-header">
+        <span>📋</span>
+        <span>ICMP History Records</span>
+      </div>
+      <div class="history-content" id="icmpHistoryContent">
+        <div class="empty-state">
+          <div class="empty-state-icon">⏳</div>
+          <p>Loading history...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function loadICMPHistory() {
+      const content = document.getElementById('icmpHistoryContent');
+      content.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⏳</div><p>Loading history...</p></div>';
+
+      fetch('/api/history/icmp')
+        .then(response => response.json())
+        .then(data => {
+          console.log('ICMP History data:', data);
+          if (data.success) {
+            displayICMPHistory(data.data || []);
+          } else {
+            content.innerHTML = `<div class="error-message">Error: ${data.error || 'Unknown error'}</div>`;
+          }
+        })
+        .catch(error => {
+          console.error('Error loading ICMP history:', error);
+          content.innerHTML = `<div class="error-message">Failed to load history: ${error.message}</div>`;
+        });
+    }
+
+    function displayICMPHistory(records) {
+      const content = document.getElementById('icmpHistoryContent');
+      
+      if (!records || !Array.isArray(records) || records.length === 0) {
+        content.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📭</div>
+            <p>No ICMP ping history found</p>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+      records.forEach(record => {
+        const date = record.created_at ? new Date(record.created_at).toLocaleString('ru-RU') : 'N/A';
+        const targets = Array.isArray(record.targets) ? record.targets.join(', ') : (record.targets || 'N/A');
+        const results = Array.isArray(record.results) ? record.results : [];
+        
+        let resultsHtml = '';
+        if (results.length > 0) {
+          resultsHtml = '<div class="results-section"><div class="results-list"><strong>📊 Ping Results:</strong><ul>';
+          results.forEach(result => {
+            const isSuccess = result.packets_received > 0;
+            const packetLoss = result.packet_loss_percent || 0;
+            const resultClass = isSuccess ? 'result-success' : 'result-failed';
+            resultsHtml += `<li class="${resultClass}">
+              <strong>${result.target || 'N/A'}</strong> (${result.address || 'N/A'})<br>
+              Packets: ${result.packets_received || 0}/${result.packets_sent || 0} | 
+              Loss: ${packetLoss.toFixed(1)}% 
+              <span style="color: ${isSuccess ? 'green' : 'red'}; margin-left: 10px;">${isSuccess ? '✅' : '❌'}</span>
+              ${result.error ? `<br><span style="color: red; font-size: 12px; margin-top: 5px; display: block;">Error: ${result.error}</span>` : ''}
+            </li>`;
+          });
+          resultsHtml += '</ul></div></div>';
+        }
+        
+        html += `
+          <div class="history-item">
+            <div class="history-item-header">
+              <div class="task-id">Task ID: ${record.task_id || 'N/A'}</div>
+              <div class="task-date">${date}</div>
+            </div>
+            <div class="history-item-body">
+              <div class="info-item">
+                <span class="info-label">Targets</span>
+                <span class="info-value">${targets}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Ping Count</span>
+                <span class="info-value">${record.ping_count || 0}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Status</span>
+                <span class="info-value status-${record.status === 'completed' ? 'completed' : 'error'}">${record.status || 'unknown'}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Results</span>
+                <span class="info-value">${results.length} targets scanned</span>
+              </div>
+            </div>
+            ${resultsHtml}
+            ${record.error ? `<div class="error-message">Error: ${record.error}</div>` : ''}
+          </div>
+        `;
+      });
+      content.innerHTML = html;
+    }
+
+    function clearICMPHistory() {
+      if (confirm('Are you sure you want to clear all ICMP history?')) {
+        fetch('/api/history/icmp/delete', { method: 'DELETE' })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              alert('ICMP history cleared successfully');
+              loadICMPHistory();
+            } else {
+              alert('Error: ' + data.error);
+            }
+          })
+          .catch(error => {
+            console.error('Error clearing ICMP history:', error);
+            alert('Failed to clear ICMP history');
+          });
+      }
+    }
+
+    // Load history on page load
+    window.addEventListener('DOMContentLoaded', function() {
+      loadICMPHistory();
+    });
+  </script>
+</body>
+</html>
+

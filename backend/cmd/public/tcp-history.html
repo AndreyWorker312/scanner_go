@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>TCP Scan History - Network Scanner</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .header-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 15px;
+      padding: 30px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .header-card h1 {
+      color: #333;
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .header-card p {
+      color: #666;
+      font-size: 16px;
+    }
+
+    .controls-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 15px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
+
+    .btn-primary {
+      background: #007bff;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #0056b3;
+    }
+
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #c82333;
+    }
+
+    .history-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      overflow: hidden;
+    }
+
+    .history-header {
+      background: linear-gradient(135deg, #fd7e14 0%, #e85d04 100%);
+      color: white;
+      padding: 20px 30px;
+      font-weight: 700;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .history-content {
+      padding: 30px;
+      max-height: calc(100vh - 400px);
+      overflow-y: auto;
+      text-align: left;
+    }
+
+    .history-item {
+      background: #f8f9fa;
+      border: 2px solid #e9ecef;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      transition: all 0.3s ease;
+      text-align: left;
+    }
+
+    .history-item:hover {
+      border-color: #fd7e14;
+      box-shadow: 0 5px 15px rgba(253, 126, 20, 0.2);
+      transform: translateY(-2px);
+    }
+
+    .history-item-header {
+      margin-bottom: 15px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #dee2e6;
+    }
+
+    .task-id {
+      font-size: 16px;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 5px;
+    }
+
+    .task-date {
+      font-size: 13px;
+      color: #6c757d;
+    }
+
+    .history-item-body {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+
+    .info-item {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .info-label {
+      font-size: 12px;
+      color: #6c757d;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .info-value {
+      font-size: 14px;
+      color: #333;
+      font-weight: 600;
+    }
+
+    .status-completed {
+      color: #28a745;
+    }
+
+    .status-error {
+      color: #dc3545;
+    }
+
+    .hex-key-section {
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 2px solid #dee2e6;
+    }
+
+    .decoded-text-section {
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 2px solid #dee2e6;
+    }
+
+    .decoded-text {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 400px;
+      overflow-y: auto;
+      border: 1px solid #dee2e6;
+      margin-top: 10px;
+      text-align: left;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #6c757d;
+    }
+
+    .empty-state-icon {
+      font-size: 64px;
+      margin-bottom: 20px;
+      opacity: 0.5;
+    }
+
+    .error-message {
+      background: #f8d7da;
+      color: #721c24;
+      padding: 15px;
+      border-radius: 8px;
+      border-left: 4px solid #dc3545;
+      margin: 20px 0;
+      text-align: left;
+    }
+
+    /* Scrollbar styling */
+    .history-content::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .history-content::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 10px;
+    }
+
+    .history-content::-webkit-scrollbar-thumb {
+      background: #fd7e14;
+      border-radius: 10px;
+    }
+
+    .history-content::-webkit-scrollbar-thumb:hover {
+      background: #e85d04;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header-card">
+      <h1>📊 TCP Scan History</h1>
+      <p>View and manage TCP scanning history</p>
+    </div>
+
+    <div class="controls-card">
+      <div class="button-group">
+        <button onclick="window.location.href='index.html#tcp'" class="btn-secondary">← Back to TCP Scanner</button>
+        <button onclick="loadTcpHistory()" class="btn-primary">🔄 Refresh</button>
+        <button onclick="clearTcpHistory()" class="btn-danger">🗑️ Clear All History</button>
+      </div>
+    </div>
+
+    <div class="history-card">
+      <div class="history-header">
+        <span>📋</span>
+        <span>TCP History Records</span>
+      </div>
+      <div class="history-content" id="tcpHistoryContent">
+        <div class="empty-state">
+          <div class="empty-state-icon">⏳</div>
+          <p>Loading history...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function loadTcpHistory() {
+      const content = document.getElementById('tcpHistoryContent');
+      content.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⏳</div><p>Loading history...</p></div>';
+
+      fetch('/api/history/tcp')
+        .then(response => response.json())
+        .then(data => {
+          console.log('TCP History data:', data);
+          if (data.success) {
+            displayTcpHistory(data.data || []);
+          } else {
+            content.innerHTML = `<div class="error-message">Error: ${data.error || 'Unknown error'}</div>`;
+          }
+        })
+        .catch(error => {
+          console.error('Error loading TCP history:', error);
+          content.innerHTML = `<div class="error-message">Failed to load history: ${error.message}</div>`;
+        });
+    }
+
+    function displayTcpHistory(records) {
+      const content = document.getElementById('tcpHistoryContent');
+      
+      if (!records || !Array.isArray(records) || records.length === 0) {
+        content.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📭</div>
+            <p>No TCP scan history found</p>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+      records.forEach(record => {
+        const date = record.created_at ? new Date(record.created_at).toLocaleString('ru-RU') : 'N/A';
+        
+        html += `
+          <div class="history-item">
+            <div class="history-item-header">
+              <div class="task-id">Task ID: ${record.task_id || 'N/A'}</div>
+              <div class="task-date">${date}</div>
+            </div>
+            <div class="history-item-body">
+              <div class="info-item">
+                <span class="info-label">Target</span>
+                <span class="info-value">${record.host || 'N/A'}:${record.port || 'N/A'}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Status</span>
+                <span class="info-value status-${record.status === 'completed' ? 'completed' : 'error'}">${record.status || 'unknown'}</span>
+              </div>
+            </div>
+            ${record.hex_object_key ? `
+              <div class="hex-key-section">
+                <div class="info-item">
+                  <span class="info-label">Hex Object Key</span>
+                  <span class="info-value" style="font-family: monospace; font-size: 12px;">${record.hex_object_key}</span>
+                </div>
+              </div>
+            ` : ''}
+            ${record.decoded_text ? `
+              <div class="decoded-text-section">
+                <div class="info-item">
+                  <span class="info-label">Decoded Text</span>
+                </div>
+                <div class="decoded-text">${record.decoded_text}</div>
+              </div>
+            ` : ''}
+            ${record.error ? `<div class="error-message">Error: ${record.error}</div>` : ''}
+          </div>
+        `;
+      });
+      content.innerHTML = html;
+    }
+
+    function clearTcpHistory() {
+      if (confirm('Are you sure you want to clear all TCP history?')) {
+        fetch('/api/history/tcp/delete', { method: 'DELETE' })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              alert('TCP history cleared successfully');
+              loadTcpHistory();
+            } else {
+              alert('Error: ' + data.error);
+            }
+          })
+          .catch(error => {
+            console.error('Error clearing TCP history:', error);
+            alert('Failed to clear TCP history');
+          });
+      }
+    }
+
+    // Load history on page load
+    window.addEventListener('DOMContentLoaded', function() {
+      loadTcpHistory();
+    });
+  </script>
+</body>
+</html>
+
