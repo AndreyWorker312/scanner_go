@@ -1,12 +1,14 @@
 package scanner
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"log"
 	"net"
 	"net/netip"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -54,86 +56,135 @@ func (s *arpScanner) Scan(ctx context.Context, ipRange string) ([]DeviceInfo, er
 	if err != nil {
 		return nil, fmt.Errorf("interface not found: %w", err)
 	}
-	log.Printf("Found interface: %s, MAC: %s", iface.Name, iface.HardwareAddr)
 
 	ips, err := parseIPRange(ipRange)
 	if err != nil {
 		return nil, fmt.Errorf("parse IP range failed: %w", err)
 	}
-	log.Printf("Parsed %d IP addresses to scan", len(ips))
-
-	client, err := arp.Dial(iface)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open ARP client: %w", err)
-	}
-	defer client.Close()
-	log.Printf("ARP client opened successfully")
+	log.Printf("Scanning %d IP addresses...", len(ips))
 
 	var (
-		results []DeviceInfo
-		mu      sync.Mutex
-		wg      sync.WaitGroup
+		results   = make(map[string]DeviceInfo)
+		resultsMu sync.Mutex
 	)
 
+	// Оптимизированное сканирование как в arp-scan: быстрая отправка + параллельное чтение
+	var wg sync.WaitGroup
+	const maxConcurrency = 200 // Увеличиваем параллелизм
+	semaphore := make(chan struct{}, maxConcurrency)
+
+	// Таймаут для быстрого сканирования (увеличиваем для надежности)
+	requestTimeout := 200 * time.Millisecond
+
 	for _, ip := range ips {
-		wg.Add(1)
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+			wg.Add(1)
+			semaphore <- struct{}{}
 
-		go func(ip netip.Addr) {
-			defer wg.Done()
+			go func(targetIP netip.Addr) {
+				defer wg.Done()
+				defer func() { <-semaphore }()
 
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				var mac net.HardwareAddr
-				var success bool
+				// Создаем клиент для запроса
+				client, err := arp.Dial(iface)
+				if err != nil {
+					return
+				}
+				defer client.Close()
 
-				for attempt := 0; attempt < s.maxRetries; attempt++ {
-					// Устанавливаем более короткий таймаут для чтения
-					if err := client.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
-						log.Printf("Failed to set deadline for %s: %v", ip, err)
-						break
+				// Быстрый запрос с коротким таймаутом
+				client.SetReadDeadline(time.Now().Add(requestTimeout))
+				mac, err := client.Resolve(targetIP)
+
+				if err == nil && mac != nil {
+					ipStr := targetIP.String()
+					macStr := mac.String()
+
+					resultsMu.Lock()
+					results[ipStr] = DeviceInfo{
+						IP:     ipStr,
+						MAC:    macStr,
+						Status: "online",
 					}
-					mac, err = client.Resolve(ip)
-					if err == nil && mac != nil {
-						log.Printf("Successfully resolved %s to %s", ip, mac)
-						success = true
-						break
-					} else if err != nil {
-						// Просто логируем ошибку, не пытаемся извлечь MAC из таймаута
-						log.Printf("Failed to resolve %s (attempt %d): %v", ip, attempt+1, err)
-					}
-					time.Sleep(s.retryDelay)
+					resultsMu.Unlock()
 				}
-
-				status := "offline"
-				macStr := ""
-				if success && mac != nil {
-					status = "online"
-					macStr = mac.String()
-					log.Printf("Successfully resolved %s to %s", ip, macStr)
-				} else {
-					// Не считаем устройство онлайн, если получили только таймаут с MAC роутера
-					status = "offline"
-					macStr = ""
-					log.Printf("Device %s is offline (timeout or no response)", ip)
-				}
-
-				device := DeviceInfo{
-					IP:     ip.String(),
-					MAC:    macStr,
-					Status: status,
-				}
-
-				mu.Lock()
-				results = append(results, device)
-				mu.Unlock()
-			}
-		}(ip)
+			}(ip)
+		}
 	}
 
+	// Ждем завершения всех запросов
 	wg.Wait()
-	return results, nil
+
+	// Преобразуем map в slice
+	var devices []DeviceInfo
+	resultsMu.Lock()
+	for _, device := range results {
+		devices = append(devices, device)
+	}
+	resultsMu.Unlock()
+
+	// Дополнительно читаем системную ARP таблицу для уже известных устройств
+	systemDevices := readSystemARPTable(iface)
+	for ip, mac := range systemDevices {
+		if _, exists := results[ip]; !exists {
+			resultsMu.Lock()
+			results[ip] = DeviceInfo{
+				IP:     ip,
+				MAC:    mac,
+				Status: "online",
+			}
+			resultsMu.Unlock()
+		}
+	}
+
+	// Преобразуем map в slice еще раз после добавления системных устройств
+	devices = []DeviceInfo{}
+	resultsMu.Lock()
+	for _, device := range results {
+		devices = append(devices, device)
+	}
+	resultsMu.Unlock()
+
+	log.Printf("Scan completed. Found %d active devices", len(devices))
+	return devices, nil
+}
+
+// readSystemARPTable читает системную ARP таблицу для получения уже известных устройств
+func readSystemARPTable(iface *net.Interface) map[string]string {
+	devices := make(map[string]string)
+
+	// Читаем /proc/net/arp для Linux
+	file, err := os.Open("/proc/net/arp")
+	if err != nil {
+		return devices
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	// Пропускаем заголовок
+	if scanner.Scan() {
+		scanner.Text()
+	}
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		fields := strings.Fields(line)
+		if len(fields) >= 6 {
+			ip := fields[0]
+			mac := fields[3]
+			device := fields[5]
+
+			// Проверяем, что это наш интерфейс и MAC валидный
+			if device == iface.Name && mac != "00:00:00:00:00:00" && strings.Contains(mac, ":") {
+				devices[ip] = mac
+			}
+		}
+	}
+
+	return devices
 }
 
 func parseIPRange(ipRange string) ([]netip.Addr, error) {
