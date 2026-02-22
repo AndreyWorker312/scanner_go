@@ -2,11 +2,13 @@ package models
 
 import (
 	"time"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // ==================== ARP HISTORY MODELS ====================
 type ARPHistoryRecord struct {
-	ID             string      `bson:"_id,omitempty" json:"id"`
+	ID             primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	TaskID         string      `bson:"task_id" json:"task_id"`
 	InterfaceName  string      `bson:"interface_name" json:"interface_name"`
 	IPRange        string      `bson:"ip_range" json:"ip_range"`
@@ -23,7 +25,7 @@ type ARPHistoryRecord struct {
 
 // ==================== ICMP HISTORY MODELS ====================
 type ICMPHistoryRecord struct {
-	ID        string       `bson:"_id,omitempty" json:"id"`
+	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	TaskID    string       `bson:"task_id" json:"task_id"`
 	Targets   []string     `bson:"targets" json:"targets"`
 	PingCount int          `bson:"ping_count" json:"ping_count"`
@@ -37,7 +39,7 @@ type ICMPHistoryRecord struct {
 
 // TCP/UDP Scan History
 type NmapTcpUdpHistoryRecord struct {
-	ID          string               `bson:"_id,omitempty" json:"id"`
+	ID          primitive.ObjectID   `bson:"_id,omitempty" json:"id"`
 	TaskID      string               `bson:"task_id" json:"task_id"`
 	IP          string               `bson:"ip" json:"ip"`
 	ScannerType string               `bson:"scanner_type" json:"scanner_type"`
@@ -51,7 +53,7 @@ type NmapTcpUdpHistoryRecord struct {
 
 // OS Detection History
 type NmapOsDetectionHistoryRecord struct {
-	ID        string    `bson:"_id,omitempty" json:"id"`
+	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	TaskID    string    `bson:"task_id" json:"task_id"`
 	IP        string    `bson:"ip" json:"ip"`
 	Host      string    `bson:"host" json:"host"`
@@ -67,7 +69,7 @@ type NmapOsDetectionHistoryRecord struct {
 
 // Host Discovery History
 type NmapHostDiscoveryHistoryRecord struct {
-	ID        string    `bson:"_id,omitempty" json:"id"`
+	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	TaskID    string    `bson:"task_id" json:"task_id"`
 	IP        string    `bson:"ip" json:"ip"`
 	Host      string    `bson:"host" json:"host"`
@@ -82,7 +84,7 @@ type NmapHostDiscoveryHistoryRecord struct {
 
 // ==================== TCP HISTORY MODELS ====================
 type TCPHistoryRecord struct {
-	ID           string    `bson:"_id,omitempty" json:"id"`
+	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	TaskID       string    `bson:"task_id" json:"task_id"`
 	Host         string    `bson:"host" json:"host"`
 	Port         string    `bson:"port" json:"port"`

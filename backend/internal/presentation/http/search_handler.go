@@ -9,8 +9,6 @@ import (
 	"backend/domain/models"
 	api "backend/internal/application"
 	"backend/internal/application/services"
-
-	"github.com/google/uuid"
 )
 
 // SearchHandler обрабатывает поиск: есть в БД — отдаём с датой, нет — запускаем скан.
@@ -42,9 +40,7 @@ type SearchResponse struct {
 	Error     string      `json:"error,omitempty"`
 }
 
-// POST /api/search/icmp
-// Body: {"targets": ["8.8.8.8"], "ping_count": 4, "rescan": false}
-// Если rescan=true или в БД нет — запускаем скан, возвращаем task_id. Иначе — записи с датами.
+// POST /api/search/icmp — только поиск в БД. Если не найдено — клиент может перейти на страницу сканера с автозаполнением.
 func (h *SearchHandler) SearchICMP(w http.ResponseWriter, r *http.Request) {
 	h.setCORS(w)
 	if r.Method == "OPTIONS" {
@@ -58,9 +54,8 @@ func (h *SearchHandler) SearchICMP(w http.ResponseWriter, r *http.Request) {
 
 	var body struct {
 		Targets   []string `json:"targets"`
-		PingCount int     `json:"ping_count"`
-		Rescan    bool    `json:"rescan"`
-		Limit     int     `json:"limit"`
+		PingCount int      `json:"ping_count"`
+		Limit     int      `json:"limit"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -79,24 +74,6 @@ func (h *SearchHandler) SearchICMP(w http.ResponseWriter, r *http.Request) {
 		body.Limit = 20
 	}
 
-	if body.Rescan {
-		taskID := uuid.New().String()
-		req := models.ICMPRequest{TaskID: taskID, Targets: body.Targets, PingCount: body.PingCount}
-		resp := h.app.ProcessRequest(&models.Request{ScannerService: "icmp_service", Options: req})
-		if resp.TaskID == "error" || resp.TaskID == "unknown" {
-			errMsg := "failed to start scan"
-			if m, ok := resp.Result.(map[string]string); ok && m["error"] != "" {
-				errMsg = m["error"]
-			}
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(SearchResponse{Success: false, Error: errMsg})
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(SearchResponse{Success: true, Found: false, TaskID: resp.TaskID})
-		return
-	}
-
 	records, err := h.repo.GetICMPHistoryByTargets(body.Targets, body.Limit)
 	if err != nil {
 		log.Printf("Search ICMP by targets: %v", err)
@@ -105,20 +82,8 @@ func (h *SearchHandler) SearchICMP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(records) == 0 {
-		taskID := uuid.New().String()
-		req := models.ICMPRequest{TaskID: taskID, Targets: body.Targets, PingCount: body.PingCount}
-		resp := h.app.ProcessRequest(&models.Request{ScannerService: "icmp_service", Options: req})
-		if resp.TaskID == "error" || resp.TaskID == "unknown" {
-			errMsg := "failed to start scan"
-			if m, ok := resp.Result.(map[string]string); ok && m["error"] != "" {
-				errMsg = m["error"]
-			}
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(SearchResponse{Success: false, Error: errMsg})
-			return
-		}
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(SearchResponse{Success: true, Found: false, TaskID: resp.TaskID})
+		json.NewEncoder(w).Encode(SearchResponse{Success: true, Found: false})
 		return
 	}
 
@@ -129,8 +94,7 @@ func (h *SearchHandler) SearchICMP(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// POST /api/search/nmap
-// Body: {"scan_method": "tcp_udp_scan"|"os_detection"|"host_discovery", "ip": "...", "ports": "...", "rescan": false}
+// POST /api/search/nmap — только поиск в БД.
 func (h *SearchHandler) SearchNmap(w http.ResponseWriter, r *http.Request) {
 	h.setCORS(w)
 	if r.Method == "OPTIONS" {
@@ -143,12 +107,11 @@ func (h *SearchHandler) SearchNmap(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var body struct {
-		ScanMethod string `json:"scan_method"`
-		IP         string `json:"ip"`
-		Ports      string `json:"ports"`
-		ScannerType string `json:"scanner_type"`
-		Rescan     bool   `json:"rescan"`
-		Limit      int    `json:"limit"`
+		ScanMethod   string `json:"scan_method"`
+		IP           string `json:"ip"`
+		Ports        string `json:"ports"`
+		ScannerType  string `json:"scanner_type"`
+		Limit        int    `json:"limit"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -167,107 +130,54 @@ func (h *SearchHandler) SearchNmap(w http.ResponseWriter, r *http.Request) {
 		body.ScanMethod = "tcp_udp_scan"
 	}
 
-	doRescan := body.Rescan
-
 	switch body.ScanMethod {
 	case "tcp_udp_scan":
-		if !doRescan {
-			records, err := h.repo.GetNmapTcpUdpHistoryByIP(body.IP, body.Limit)
-			if err != nil {
-				log.Printf("Search Nmap TCP/UDP by IP: %v", err)
-				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(SearchResponse{Success: false, Error: "search failed"})
-				return
-			}
-			if len(records) > 0 {
-				w.WriteHeader(http.StatusOK)
-				json.NewEncoder(w).Encode(SearchResponse{
-					Success: true, Found: true, FromCache: true,
-					Data: records, Count: len(records),
-				})
-				return
-			}
+		records, err := h.repo.GetNmapTcpUdpHistoryByIP(body.IP, body.Limit)
+		if err != nil {
+			log.Printf("Search Nmap TCP/UDP by IP: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(SearchResponse{Success: false, Error: "search failed"})
+			return
 		}
-		taskID := uuid.New().String()
-		req := models.NmapTcpUdpRequest{TaskID: taskID, IP: body.IP, Ports: body.Ports, ScannerType: body.ScannerType}
-		resp := h.app.ProcessRequest(&models.Request{ScannerService: "nmap_service", Options: req})
-		if resp.TaskID == "error" || resp.TaskID == "unknown" {
-			errMsg := "failed to start scan"
-			if m, ok := resp.Result.(map[string]string); ok && m["error"] != "" {
-				errMsg = m["error"]
-			}
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(SearchResponse{Success: false, Error: errMsg})
+		if len(records) == 0 {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(SearchResponse{Success: true, Found: false})
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(SearchResponse{Success: true, Found: false, TaskID: resp.TaskID})
+		json.NewEncoder(w).Encode(SearchResponse{Success: true, Found: true, FromCache: true, Data: records, Count: len(records)})
 
 	case "os_detection":
-		if !doRescan {
-			records, err := h.repo.GetNmapOsDetectionHistoryByIP(body.IP, body.Limit)
-			if err != nil {
-				log.Printf("Search Nmap OS by IP: %v", err)
-				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(SearchResponse{Success: false, Error: "search failed"})
-				return
-			}
-			if len(records) > 0 {
-				w.WriteHeader(http.StatusOK)
-				json.NewEncoder(w).Encode(SearchResponse{
-					Success: true, Found: true, FromCache: true,
-					Data: records, Count: len(records),
-				})
-				return
-			}
+		records, err := h.repo.GetNmapOsDetectionHistoryByIP(body.IP, body.Limit)
+		if err != nil {
+			log.Printf("Search Nmap OS by IP: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(SearchResponse{Success: false, Error: "search failed"})
+			return
 		}
-		taskID := uuid.New().String()
-		req := models.NmapOsDetectionRequest{TaskID: taskID, IP: body.IP, ScanMethod: "os_detection"}
-		resp := h.app.ProcessRequest(&models.Request{ScannerService: "nmap_service", Options: req})
-		if resp.TaskID == "error" || resp.TaskID == "unknown" {
-			errMsg := "failed to start scan"
-			if m, ok := resp.Result.(map[string]string); ok && m["error"] != "" {
-				errMsg = m["error"]
-			}
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(SearchResponse{Success: false, Error: errMsg})
+		if len(records) == 0 {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(SearchResponse{Success: true, Found: false})
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(SearchResponse{Success: true, Found: false, TaskID: resp.TaskID})
+		json.NewEncoder(w).Encode(SearchResponse{Success: true, Found: true, FromCache: true, Data: records, Count: len(records)})
 
 	case "host_discovery":
-		if !doRescan {
-			records, err := h.repo.GetNmapHostDiscoveryHistoryByIP(body.IP, body.Limit)
-			if err != nil {
-				log.Printf("Search Nmap HostDiscovery by IP: %v", err)
-				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(SearchResponse{Success: false, Error: "search failed"})
-				return
-			}
-			if len(records) > 0 {
-				w.WriteHeader(http.StatusOK)
-				json.NewEncoder(w).Encode(SearchResponse{
-					Success: true, Found: true, FromCache: true,
-					Data: records, Count: len(records),
-				})
-				return
-			}
+		records, err := h.repo.GetNmapHostDiscoveryHistoryByIP(body.IP, body.Limit)
+		if err != nil {
+			log.Printf("Search Nmap HostDiscovery by IP: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(SearchResponse{Success: false, Error: "search failed"})
+			return
 		}
-		taskID := uuid.New().String()
-		req := models.NmapHostDiscoveryRequest{TaskID: taskID, IP: body.IP, ScanMethod: "host_discovery"}
-		resp := h.app.ProcessRequest(&models.Request{ScannerService: "nmap_service", Options: req})
-		if resp.TaskID == "error" || resp.TaskID == "unknown" {
-			errMsg := "failed to start scan"
-			if m, ok := resp.Result.(map[string]string); ok && m["error"] != "" {
-				errMsg = m["error"]
-			}
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(SearchResponse{Success: false, Error: errMsg})
+		if len(records) == 0 {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(SearchResponse{Success: true, Found: false})
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(SearchResponse{Success: true, Found: false, TaskID: resp.TaskID})
+		json.NewEncoder(w).Encode(SearchResponse{Success: true, Found: true, FromCache: true, Data: records, Count: len(records)})
 
 	default:
 		w.WriteHeader(http.StatusBadRequest)
@@ -275,8 +185,7 @@ func (h *SearchHandler) SearchNmap(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// POST /api/search/arp
-// Body: {"interface_name": "...", "ip_range": "192.168.1.0/24", "rescan": false}
+// POST /api/search/arp — только поиск в БД.
 func (h *SearchHandler) SearchARP(w http.ResponseWriter, r *http.Request) {
 	h.setCORS(w)
 	if r.Method == "OPTIONS" {
@@ -291,7 +200,6 @@ func (h *SearchHandler) SearchARP(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		InterfaceName string `json:"interface_name"`
 		IPRange       string `json:"ip_range"`
-		Rescan        bool   `json:"rescan"`
 		Limit         int    `json:"limit"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -308,42 +216,23 @@ func (h *SearchHandler) SearchARP(w http.ResponseWriter, r *http.Request) {
 		body.Limit = 20
 	}
 
-	if !body.Rescan {
-		records, err := h.repo.GetARPHistoryByIPRange(body.IPRange, body.Limit)
-		if err != nil {
-			log.Printf("Search ARP by ip_range: %v", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(SearchResponse{Success: false, Error: "search failed"})
-			return
-		}
-		if len(records) > 0 {
-			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(SearchResponse{
-				Success: true, Found: true, FromCache: true,
-				Data: records, Count: len(records),
-			})
-			return
-		}
+	records, err := h.repo.GetARPHistoryByIPRange(body.IPRange, body.Limit)
+	if err != nil {
+		log.Printf("Search ARP by ip_range: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(SearchResponse{Success: false, Error: "search failed"})
+		return
 	}
-
-	taskID := uuid.New().String()
-	req := models.ARPRequest{TaskID: taskID, InterfaceName: body.InterfaceName, IPRange: body.IPRange}
-	resp := h.app.ProcessRequest(&models.Request{ScannerService: "arp_service", Options: req})
-	if resp.TaskID == "error" || resp.TaskID == "unknown" {
-		errMsg := "failed to start scan"
-		if m, ok := resp.Result.(map[string]string); ok && m["error"] != "" {
-			errMsg = m["error"]
-		}
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(SearchResponse{Success: false, Error: errMsg})
+	if len(records) == 0 {
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(SearchResponse{Success: true, Found: false})
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(SearchResponse{Success: true, Found: false, TaskID: resp.TaskID})
+	json.NewEncoder(w).Encode(SearchResponse{Success: true, Found: true, FromCache: true, Data: records, Count: len(records)})
 }
 
-// POST /api/search/tcp
-// Body: {"host": "...", "port": "80", "rescan": false}
+// POST /api/search/tcp — только поиск в БД.
 func (h *SearchHandler) SearchTCP(w http.ResponseWriter, r *http.Request) {
 	h.setCORS(w)
 	if r.Method == "OPTIONS" {
@@ -356,10 +245,9 @@ func (h *SearchHandler) SearchTCP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var body struct {
-		Host    string `json:"host"`
-		Port    string `json:"port"`
-		Rescan  bool   `json:"rescan"`
-		Limit   int    `json:"limit"`
+		Host  string `json:"host"`
+		Port  string `json:"port"`
+		Limit int    `json:"limit"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -375,38 +263,20 @@ func (h *SearchHandler) SearchTCP(w http.ResponseWriter, r *http.Request) {
 		body.Limit = 20
 	}
 
-	if !body.Rescan {
-		records, err := h.repo.GetTCPHistoryByHostPort(body.Host, body.Port, body.Limit)
-		if err != nil {
-			log.Printf("Search TCP by host/port: %v", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(SearchResponse{Success: false, Error: "search failed"})
-			return
-		}
-		if len(records) > 0 {
-			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(SearchResponse{
-				Success: true, Found: true, FromCache: true,
-				Data: records, Count: len(records),
-			})
-			return
-		}
+	records, err := h.repo.GetTCPHistoryByHostPort(body.Host, body.Port, body.Limit)
+	if err != nil {
+		log.Printf("Search TCP by host/port: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(SearchResponse{Success: false, Error: "search failed"})
+		return
 	}
-
-	taskID := uuid.New().String()
-	req := models.TCPRequest{TaskID: taskID, Host: body.Host, Port: body.Port}
-	resp := h.app.ProcessRequest(&models.Request{ScannerService: "tcp_service", Options: req})
-	if resp.TaskID == "error" || resp.TaskID == "unknown" {
-		errMsg := "failed to start scan"
-		if m, ok := resp.Result.(map[string]string); ok && m["error"] != "" {
-			errMsg = m["error"]
-		}
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(SearchResponse{Success: false, Error: errMsg})
+	if len(records) == 0 {
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(SearchResponse{Success: true, Found: false})
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(SearchResponse{Success: true, Found: false, TaskID: resp.TaskID})
+	json.NewEncoder(w).Encode(SearchResponse{Success: true, Found: true, FromCache: true, Data: records, Count: len(records)})
 }
 
 // GetHistoryByID возвращает одну запись истории по ID.

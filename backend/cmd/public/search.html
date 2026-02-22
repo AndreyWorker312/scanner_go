@@ -88,6 +88,11 @@
       font-size: 14px;
     }
     .view-link:hover { color: #0056b3; }
+    .btn-goto-scanner {
+      display: inline-block; margin-top: 8px; padding: 12px 20px; background: #28a745; color: #fff;
+      border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;
+    }
+    .btn-goto-scanner:hover { background: #218838; color: #fff; }
     .back-link { display: inline-block; margin-bottom: 16px; color: #667eea; text-decoration: none; font-weight: 600; }
     .back-link:hover { text-decoration: underline; }
     .hidden { display: none !important; }
@@ -99,8 +104,7 @@
     <a href="index.html" class="back-link">← На главную</a>
 
     <div class="card">
-      <h2>🔍 Поиск информации</h2>
-      <p style="color: #666; margin-bottom: 16px;">Есть в БД — покажем с датой. Нет — запустим скан. История хранится, можно пересканировать и смотреть несколько сканов за раз.</p>
+      <h2>🔍 Поиск скана в БД</h2>
 
       <label>Тип скана</label>
       <select id="scanType">
@@ -142,12 +146,7 @@
         <input type="text" id="tcpPort" placeholder="80">
       </div>
 
-      <div class="checkbox-row">
-        <input type="checkbox" id="rescan">
-        <label for="rescan" style="margin:0;">Пересканировать (запустить новый скан даже если есть в БД)</label>
-      </div>
-
-      <button type="button" id="btnSearch">Искать</button>
+      <button type="button" id="btnSearch">Искать в БД</button>
       <div id="searchResult" class="result-box hidden"></div>
     </div>
 
@@ -193,9 +192,37 @@
       searchResult.classList.remove('hidden');
     }
 
+    function recordId(rec) {
+      return rec.id != null && rec.id !== '' ? String(rec.id) : (rec._id != null ? String(rec._id) : '');
+    }
+
+    function apiFetch(url, opts) {
+      opts = opts || {};
+      return fetch(url, opts)
+        .then(function(r) {
+          var ct = r.headers.get('Content-Type') || '';
+          return r.text().then(function(text) {
+            if (ct.indexOf('application/json') !== -1) {
+              try {
+                var data = JSON.parse(text);
+                if (!r.ok) data._httpOk = false;
+                return data;
+              } catch (e) {
+                return { success: false, error: text || 'Invalid JSON' };
+              }
+            }
+            if (!r.ok) return { success: false, error: text || 'HTTP ' + r.status };
+            try { return JSON.parse(text); } catch (e) { return { success: false, error: text }; }
+          });
+        })
+        .then(function(data) {
+          if (data && data._httpOk === false) delete data._httpOk;
+          return data;
+        });
+    }
+
     document.getElementById('btnSearch').addEventListener('click', function() {
-      const rescan = document.getElementById('rescan').checked;
-      const type = scanType.value;
+      var type = scanType.value;
 
       if (type === 'icmp') {
         const targetsStr = document.getElementById('icmpTargets').value.trim();
@@ -203,34 +230,36 @@
         const targets = targetsStr.split(',').map(s => s.trim()).filter(Boolean);
         const pingCount = parseInt(document.getElementById('icmpPingCount').value, 10) || 4;
 
-        fetch('/api/search/icmp', {
+        apiFetch('/api/search/icmp', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ targets, ping_count: pingCount, rescan: rescan, limit: 20 })
+          body: JSON.stringify({ targets: targets, ping_count: pingCount, limit: 20 })
         })
-          .then(r => r.json())
-          .then(data => {
+          .then(function(data) {
             if (!data.success) {
               showSearchResult('Ошибка: ' + (data.error || 'unknown'), 'error');
               return;
             }
             if (data.found && data.data) {
-              const list = Array.isArray(data.data) ? data.data : [data.data];
-              let html = 'Данные из БД (за даты):<br><br>';
-              list.forEach(rec => {
-                const date = rec.created_at ? new Date(rec.created_at).toLocaleString('ru-RU') : 'N/A';
+              var list = Array.isArray(data.data) ? data.data : [data.data];
+              var html = 'Найдено в БД (по датам):<br><br>';
+              list.forEach(function(rec) {
+                var date = rec.created_at ? new Date(rec.created_at).toLocaleString('ru-RU') : 'N/A';
+                var id = recordId(rec);
                 html += '<div class="history-item">';
                 html += '<span>Task: ' + (rec.task_id || '') + ' <span class="date-badge">' + date + '</span></span>';
-                html += '<a class="view-link" data-id="' + rec.id + '" data-type="icmp">Просмотр</a>';
+                if (id) html += '<a class="view-link" data-id="' + id.replace(/"/g, '&quot;') + '" data-type="icmp">Просмотр</a>';
                 html += '</div>';
               });
               showSearchResult(html, 'from-cache');
               bindViewLinks();
             } else {
-              showSearchResult('Скан запущен. Task ID: ' + data.task_id + '\nРезультат появится в истории после завершения. Обновите историю или подождите.', 'scan-started');
+              var url = getScannerUrl('icmp');
+              html = 'В БД такого скана нет.<br><br><a href="' + url + '" class="btn-goto-scanner">Выполнить этот скан →</a>';
+              showSearchResult(html, 'scan-started');
             }
           })
-          .catch(e => showSearchResult('Ошибка запроса: ' + e.message, 'error'));
+          .catch(function(e) { showSearchResult('Ошибка запроса: ' + e.message + '. Откройте страницу через сервер (например http://localhost:8080/search.html).', 'error'); });
         return;
       }
 
@@ -240,41 +269,37 @@
         const ports = document.getElementById('nmapPorts').value.trim();
         const scanMethod = type === 'nmap_tcp_udp' ? 'tcp_udp_scan' : type === 'nmap_os' ? 'os_detection' : 'host_discovery';
 
-        fetch('/api/search/nmap', {
+        apiFetch('/api/search/nmap', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            scan_method: scanMethod,
-            ip: ip,
-            ports: ports,
-            rescan: rescan,
-            limit: 20
-          })
+          body: JSON.stringify({ scan_method: scanMethod, ip: ip, ports: ports, limit: 20 })
         })
-          .then(r => r.json())
-          .then(data => {
+          .then(function(data) {
             if (!data.success) {
               showSearchResult('Ошибка: ' + (data.error || 'unknown'), 'error');
               return;
             }
             if (data.found && data.data) {
-              const list = Array.isArray(data.data) ? data.data : [data.data];
-              let html = 'Данные из БД (за даты):<br><br>';
-              const byIdType = type === 'nmap_tcp_udp' ? 'nmap_tcp_udp' : type === 'nmap_os' ? 'nmap_os_detection' : 'nmap_host_discovery';
-              list.forEach(rec => {
-                const date = rec.created_at ? new Date(rec.created_at).toLocaleString('ru-RU') : 'N/A';
+              var list = Array.isArray(data.data) ? data.data : [data.data];
+              var html = 'Найдено в БД (по датам):<br><br>';
+              var byIdType = type === 'nmap_tcp_udp' ? 'nmap_tcp_udp' : type === 'nmap_os' ? 'nmap_os_detection' : 'nmap_host_discovery';
+              list.forEach(function(rec) {
+                var date = rec.created_at ? new Date(rec.created_at).toLocaleString('ru-RU') : 'N/A';
+                var id = recordId(rec);
                 html += '<div class="history-item">';
                 html += '<span>Task: ' + (rec.task_id || '') + ' <span class="date-badge">' + date + '</span></span>';
-                html += '<a class="view-link" data-id="' + rec.id + '" data-type="' + byIdType + '">Просмотр</a>';
+                if (id) html += '<a class="view-link" data-id="' + id.replace(/"/g, '&quot;') + '" data-type="' + byIdType + '">Просмотр</a>';
                 html += '</div>';
               });
               showSearchResult(html, 'from-cache');
               bindViewLinks();
             } else {
-              showSearchResult('Скан запущен. Task ID: ' + data.task_id + '\nРезультат появится в истории после завершения.', 'scan-started');
+              var url = getScannerUrl(type);
+              html = 'В БД такого скана нет.<br><br><a href="' + url + '" class="btn-goto-scanner">Выполнить этот скан →</a>';
+              showSearchResult(html, 'scan-started');
             }
           })
-          .catch(e => showSearchResult('Ошибка запроса: ' + e.message, 'error'));
+          .catch(function(e) { showSearchResult('Ошибка запроса: ' + e.message, 'error'); });
         return;
       }
 
@@ -283,39 +308,36 @@
         const range = document.getElementById('arpRange').value.trim();
         if (!iface || !range) { showSearchResult('Укажите интерфейс и диапазон IP.', 'error'); return; }
 
-        fetch('/api/search/arp', {
+        apiFetch('/api/search/arp', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            interface_name: iface,
-            ip_range: range,
-            rescan: rescan,
-            limit: 20
-          })
+          body: JSON.stringify({ interface_name: iface, ip_range: range, limit: 20 })
         })
-          .then(r => r.json())
-          .then(data => {
+          .then(function(data) {
             if (!data.success) {
               showSearchResult('Ошибка: ' + (data.error || 'unknown'), 'error');
               return;
             }
             if (data.found && data.data) {
-              const list = Array.isArray(data.data) ? data.data : [data.data];
-              let html = 'Данные из БД (за даты):<br><br>';
-              list.forEach(rec => {
-                const date = rec.created_at ? new Date(rec.created_at).toLocaleString('ru-RU') : 'N/A';
+              var list = Array.isArray(data.data) ? data.data : [data.data];
+              var html = 'Найдено в БД (по датам):<br><br>';
+              list.forEach(function(rec) {
+                var date = rec.created_at ? new Date(rec.created_at).toLocaleString('ru-RU') : 'N/A';
+                var id = recordId(rec);
                 html += '<div class="history-item">';
                 html += '<span>Task: ' + (rec.task_id || '') + ' <span class="date-badge">' + date + '</span></span>';
-                html += '<a class="view-link" data-id="' + rec.id + '" data-type="arp">Просмотр</a>';
+                if (id) html += '<a class="view-link" data-id="' + id.replace(/"/g, '&quot;') + '" data-type="arp">Просмотр</a>';
                 html += '</div>';
               });
               showSearchResult(html, 'from-cache');
               bindViewLinks();
             } else {
-              showSearchResult('Скан запущен. Task ID: ' + data.task_id + '\nРезультат появится в истории после завершения.', 'scan-started');
+              var url = getScannerUrl('arp');
+              html = 'В БД такого скана нет.<br><br><a href="' + url + '" class="btn-goto-scanner">Выполнить этот скан →</a>';
+              showSearchResult(html, 'scan-started');
             }
           })
-          .catch(e => showSearchResult('Ошибка запроса: ' + e.message, 'error'));
+          .catch(function(e) { showSearchResult('Ошибка запроса: ' + e.message, 'error'); });
         return;
       }
 
@@ -324,39 +346,67 @@
         const port = document.getElementById('tcpPort').value.trim();
         if (!host || !port) { showSearchResult('Укажите хост и порт.', 'error'); return; }
 
-        fetch('/api/search/tcp', {
+        apiFetch('/api/search/tcp', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ host, port, rescan: rescan, limit: 20 })
+          body: JSON.stringify({ host: host, port: port, limit: 20 })
         })
-          .then(r => r.json())
-          .then(data => {
+          .then(function(data) {
             if (!data.success) {
               showSearchResult('Ошибка: ' + (data.error || 'unknown'), 'error');
               return;
             }
             if (data.found && data.data) {
-              const list = Array.isArray(data.data) ? data.data : [data.data];
-              let html = 'Данные из БД (за даты):<br><br>';
-              list.forEach(rec => {
-                const date = rec.created_at ? new Date(rec.created_at).toLocaleString('ru-RU') : 'N/A';
+              var list = Array.isArray(data.data) ? data.data : [data.data];
+              var html = 'Найдено в БД (по датам):<br><br>';
+              list.forEach(function(rec) {
+                var date = rec.created_at ? new Date(rec.created_at).toLocaleString('ru-RU') : 'N/A';
+                var id = recordId(rec);
                 html += '<div class="history-item">';
                 html += '<span>Task: ' + (rec.task_id || '') + ' <span class="date-badge">' + date + '</span></span>';
-                html += '<a class="view-link" data-id="' + rec.id + '" data-type="tcp">Просмотр</a>';
+                if (id) html += '<a class="view-link" data-id="' + id.replace(/"/g, '&quot;') + '" data-type="tcp">Просмотр</a>';
                 html += '</div>';
               });
               showSearchResult(html, 'from-cache');
               bindViewLinks();
             } else {
-              showSearchResult('Скан запущен. Task ID: ' + data.task_id + '\nРезультат появится в истории после завершения.', 'scan-started');
+              var url = getScannerUrl('tcp');
+              html = 'В БД такого скана нет.<br><br><a href="' + url + '" class="btn-goto-scanner">Выполнить этот скан →</a>';
+              showSearchResult(html, 'scan-started');
             }
           })
-          .catch(e => showSearchResult('Ошибка запроса: ' + e.message, 'error'));
+          .catch(function(e) { showSearchResult('Ошибка запроса: ' + e.message, 'error'); });
       }
     });
 
+    function getScannerUrl(scanTypeValue) {
+      var base = 'index.html?';
+      if (scanTypeValue === 'icmp') {
+        var t = document.getElementById('icmpTargets').value.trim();
+        var pc = document.getElementById('icmpPingCount').value || '4';
+        return base + 'page=icmp&targets=' + encodeURIComponent(t) + '&ping_count=' + encodeURIComponent(pc);
+      }
+      if (scanTypeValue === 'arp') {
+        var iface = document.getElementById('arpInterface').value.trim();
+        var range = document.getElementById('arpRange').value.trim();
+        return base + 'page=arp&interface=' + encodeURIComponent(iface) + '&ip_range=' + encodeURIComponent(range);
+      }
+      if (scanTypeValue === 'tcp') {
+        var host = document.getElementById('tcpHost').value.trim();
+        var port = document.getElementById('tcpPort').value.trim();
+        return base + 'page=tcp&host=' + encodeURIComponent(host) + '&port=' + encodeURIComponent(port);
+      }
+      if (scanTypeValue === 'nmap_tcp_udp' || scanTypeValue === 'nmap_os' || scanTypeValue === 'nmap_host') {
+        var ip = document.getElementById('nmapIp').value.trim();
+        var ports = document.getElementById('nmapPorts').value.trim();
+        var nmapType = scanTypeValue === 'nmap_tcp_udp' ? 'tcp_udp' : scanTypeValue === 'nmap_os' ? 'os_detection' : 'host_discovery';
+        return base + 'page=nmap&ip=' + encodeURIComponent(ip) + '&ports=' + encodeURIComponent(ports) + '&nmap_type=' + encodeURIComponent(nmapType);
+      }
+      return 'index.html';
+    }
+
     function getHistoryUrl() {
-      const type = scanType.value;
+      var type = scanType.value;
       if (type === 'icmp') return '/api/history/icmp?limit=20';
       if (type === 'nmap_tcp_udp' || type === 'nmap_os' || type === 'nmap_host') return '/api/history/nmap?limit=20&type=' + (type === 'nmap_tcp_udp' ? 'tcp_udp' : type === 'nmap_os' ? 'os_detection' : 'host_discovery');
       if (type === 'arp') return '/api/history/arp?limit=20';
@@ -377,68 +427,71 @@
     }
 
     function bindViewLinks() {
-      document.querySelectorAll('.view-link').forEach(a => {
+      document.querySelectorAll('.view-link').forEach(function(a) {
         a.onclick = function(e) {
           e.preventDefault();
-          const id = this.getAttribute('data-id');
-          const type = this.getAttribute('data-type');
-          const url = getByIdUrl(type);
-          if (!url) return;
-          fetch(url + '?id=' + encodeURIComponent(id))
-            .then(r => r.json())
-            .then(data => {
-              if (!data.success) {
+          var id = this.getAttribute('data-id');
+          var type = this.getAttribute('data-type');
+          var url = getByIdUrl(type);
+          if (!url || !id) return;
+          detailContent.innerHTML = 'Загрузка...';
+          detailCard.classList.remove('hidden');
+          apiFetch(url + '?id=' + encodeURIComponent(id))
+            .then(function(data) {
+              if (!data || !data.success) {
                 detailContent.innerHTML = '<p class="error">Не найдено.</p>';
               } else {
                 detailContent.innerHTML = '<pre style="background:#f8f9fa;padding:16px;border-radius:8px;overflow:auto;">' + JSON.stringify(data.data, null, 2) + '</pre>';
               }
-              detailCard.classList.remove('hidden');
               detailCard.scrollIntoView({ behavior: 'smooth' });
             })
-            .catch(() => { detailContent.innerHTML = '<p class="error">Ошибка загрузки.</p>'; detailCard.classList.remove('hidden'); });
+            .catch(function() {
+              detailContent.innerHTML = '<p class="error">Ошибка загрузки.</p>';
+              detailCard.classList.remove('hidden');
+            });
         };
       });
     }
 
     document.getElementById('btnLoadHistory').addEventListener('click', function() {
-      const url = getHistoryUrl();
+      var url = getHistoryUrl();
       if (!url) { historyList.innerHTML = 'Не выбран тип.'; return; }
       historyList.innerHTML = 'Загрузка...';
 
-      fetch(url)
-        .then(r => r.json())
-        .then(data => {
-          if (!data.success) {
+      apiFetch(url)
+        .then(function(data) {
+          if (!data || !data.success) {
             historyList.innerHTML = 'Ошибка: ' + (data.error || 'unknown');
             return;
           }
-          let list = [];
-          const type = scanType.value;
+          var list = [];
+          var type = scanType.value;
           if (type === 'icmp') list = data.data || [];
           else if (type === 'arp') list = data.data || [];
           else if (type === 'tcp') list = data.data || [];
           else {
-            const key = type === 'nmap_tcp_udp' ? 'tcp_udp' : type === 'nmap_os' ? 'os_detection' : 'host_discovery';
+            var key = type === 'nmap_tcp_udp' ? 'tcp_udp' : type === 'nmap_os' ? 'os_detection' : 'host_discovery';
             list = (data.data && data.data[key]) || [];
           }
 
-          const idType = type === 'nmap_tcp_udp' ? 'nmap_tcp_udp' : type === 'nmap_os' ? 'nmap_os_detection' : type === 'nmap_host' ? 'nmap_host_discovery' : type;
+          var idType = type === 'nmap_tcp_udp' ? 'nmap_tcp_udp' : type === 'nmap_os' ? 'nmap_os_detection' : type === 'nmap_host' ? 'nmap_host_discovery' : type;
           if (list.length === 0) {
             historyList.innerHTML = 'Нет записей в истории.';
             return;
           }
-          let html = '';
-          list.forEach(rec => {
-            const date = rec.created_at ? new Date(rec.created_at).toLocaleString('ru-RU') : 'N/A';
+          var html = '';
+          list.forEach(function(rec) {
+            var date = rec.created_at ? new Date(rec.created_at).toLocaleString('ru-RU') : 'N/A';
+            var id = recordId(rec);
             html += '<div class="history-item">';
-            html += '<span>' + (rec.task_id || rec.id || '') + ' <span class="date-badge">' + date + '</span></span>';
-            html += '<a class="view-link" data-id="' + rec.id + '" data-type="' + idType + '">Просмотр</a>';
+            html += '<span>' + (rec.task_id || id || '') + ' <span class="date-badge">' + date + '</span></span>';
+            if (id) html += '<a class="view-link" data-id="' + id.replace(/"/g, '&quot;') + '" data-type="' + idType + '">Просмотр</a>';
             html += '</div>';
           });
           historyList.innerHTML = html;
           bindViewLinks();
         })
-        .catch(e => { historyList.innerHTML = 'Ошибка: ' + e.message; });
+        .catch(function(e) { historyList.innerHTML = 'Ошибка: ' + (e && e.message ? e.message : 'Проверьте, что страница открыта через сервер (http://localhost:8080/search.html).'); });
     });
   </script>
 </body>

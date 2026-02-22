@@ -1958,12 +1958,70 @@ google.com
       window.location.href = 'tcp-history.html';
     }
 
+    // Автозаполнение из URL (переход с страницы поиска «Выполнить этот скан»)
+    function applyUrlPrefill() {
+      const params = new URLSearchParams(window.location.search);
+      const page = params.get('page');
+      if (!page) return;
+      showPage(page);
+      if (page === 'icmp') {
+        const targets = params.get('targets');
+        if (targets) {
+          const el = document.getElementById('targetsInput');
+          if (el) el.value = targets.split(',').map(s => s.trim()).filter(Boolean).join('\n');
+        }
+        const pingCount = params.get('ping_count');
+        if (pingCount) {
+          const el = document.getElementById('pingCountSelect');
+          if (el) el.value = pingCount;
+        }
+      } else if (page === 'arp') {
+        const iface = params.get('interface');
+        if (iface) {
+          const el = document.getElementById('interfaceSelect');
+          if (el) el.value = iface;
+        }
+        const ipRange = params.get('ip_range');
+        if (ipRange) {
+          const el = document.getElementById('ipRangeInput');
+          if (el) el.value = ipRange;
+        }
+      } else if (page === 'nmap') {
+        const ip = params.get('ip');
+        if (ip) {
+          const el = document.getElementById('targetIPNmap');
+          if (el) el.value = ip;
+        }
+        const ports = params.get('ports');
+        if (ports) {
+          const el = document.getElementById('portsInput');
+          if (el) el.value = ports;
+        }
+        const nmapType = params.get('nmap_type');
+        if (nmapType) {
+          const dataType = nmapType === 'tcp_udp' ? 'tcp_scan' : (nmapType === 'os_detection' || nmapType === 'host_discovery' ? nmapType : 'tcp_scan');
+          const card = document.querySelector('.scan-type-card[data-type="' + dataType + '"]');
+          if (card) card.click();
+        }
+      } else if (page === 'tcp') {
+        const host = params.get('host');
+        if (host) {
+          const el = document.getElementById('targetHostTcp');
+          if (el) el.value = host;
+        }
+        const port = params.get('port');
+        if (port) {
+          const el = document.getElementById('targetPortTcp');
+          if (el) el.value = port;
+        }
+      }
+    }
+
     // Инициализация при загрузке страницы
     document.addEventListener('DOMContentLoaded', function() {
-      // Показываем главную страницу по умолчанию
-      showPage('home');
-      
-      // Инициализация карточек типов сканирования
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('page')) applyUrlPrefill();
+      else showPage('home');
       initializeScanTypeCards();
   });
 </script>
