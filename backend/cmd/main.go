@@ -1,6 +1,8 @@
 package main
 
 import (
+	"embed"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -11,6 +13,9 @@ import (
 	rest "backend/internal/presentation/http"
 	wb "backend/internal/presentation/websocket"
 )
+
+//go:embed public/*
+var publicEmbed embed.FS
 
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
@@ -76,8 +81,9 @@ func main() {
 	http.HandleFunc("/api/history/nmap/delete", historyHandler.DeleteNmapHistory)
 	http.HandleFunc("/api/history/tcp/delete", historyHandler.DeleteTCPHistory)
 
-	// Static files
-	http.Handle("/", http.FileServer(http.Dir("./cmd/public")))
+	// Static files — из встроенной в бинарник папки (работает при любом каталоге запуска)
+	publicFS, _ := fs.Sub(publicEmbed, "public")
+	http.Handle("/", http.FileServer(http.FS(publicFS)))
 
 	log.Println("Server starting on :8080")
 	err = http.ListenAndServe(":8080", nil)
