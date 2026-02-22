@@ -894,9 +894,11 @@ google.com
     // Обработчики кликов по меню
     document.querySelectorAll('.nav-link').forEach(link => {
       link.addEventListener('click', (e) => {
-        e.preventDefault();
         const pageId = link.getAttribute('data-page');
-        showPage(pageId);
+        if (pageId) {
+          e.preventDefault();
+          showPage(pageId);
+        }
       });
     });
 
