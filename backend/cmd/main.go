@@ -45,6 +45,7 @@ func main() {
 
 	wsHandler := wb.NewWSHandler(app)
 	historyHandler := rest.NewHistoryHandler(repo)
+	searchHandler := rest.NewSearchHandler(repo, app)
 
 	// WebSocket endpoint
 	http.HandleFunc("/ws", wsHandler.WsHandler)
@@ -54,6 +55,20 @@ func main() {
 	http.HandleFunc("/api/history/icmp", historyHandler.GetICMPHistory)
 	http.HandleFunc("/api/history/nmap", historyHandler.GetNmapHistory)
 	http.HandleFunc("/api/history/tcp", historyHandler.GetTCPHistory)
+
+	// History by ID (one record)
+	http.HandleFunc("/api/history/icmp/by-id", searchHandler.GetICMPHistoryByID)
+	http.HandleFunc("/api/history/nmap/tcp_udp/by-id", searchHandler.GetNmapTcpUdpHistoryByID)
+	http.HandleFunc("/api/history/nmap/os_detection/by-id", searchHandler.GetNmapOsDetectionHistoryByID)
+	http.HandleFunc("/api/history/nmap/host_discovery/by-id", searchHandler.GetNmapHostDiscoveryHistoryByID)
+	http.HandleFunc("/api/history/arp/by-id", searchHandler.GetARPHistoryByID)
+	http.HandleFunc("/api/history/tcp/by-id", searchHandler.GetTCPHistoryByID)
+
+	// Search: есть в БД — отдать с датой, нет — запустить скан
+	http.HandleFunc("/api/search/icmp", searchHandler.SearchICMP)
+	http.HandleFunc("/api/search/nmap", searchHandler.SearchNmap)
+	http.HandleFunc("/api/search/arp", searchHandler.SearchARP)
+	http.HandleFunc("/api/search/tcp", searchHandler.SearchTCP)
 
 	// DELETE endpoints for history
 	http.HandleFunc("/api/history/arp/delete", historyHandler.DeleteARPHistory)

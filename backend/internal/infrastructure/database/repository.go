@@ -8,6 +8,7 @@ import (
 	"backend/domain/models"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
@@ -57,6 +58,47 @@ func (r *Repository) GetARPHistory(limit int) ([]models.ARPHistoryRecord, error)
 	}
 
 	return records, nil
+}
+
+func (r *Repository) GetARPHistoryByIPRange(ipRange string, limit int) ([]models.ARPHistoryRecord, error) {
+	if ipRange == "" {
+		return r.GetARPHistory(limit)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	filter := bson.M{"ip_range": ipRange}
+	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}})
+	if limit > 0 {
+		opts.SetLimit(int64(limit))
+	}
+	cursor, err := r.db.ARPCollection().Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var records []models.ARPHistoryRecord
+	if err = cursor.All(ctx, &records); err != nil {
+		return nil, err
+	}
+	return records, nil
+}
+
+func (r *Repository) GetARPHistoryByID(id string) (*models.ARPHistoryRecord, error) {
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var rec models.ARPHistoryRecord
+	err = r.db.ARPCollection().FindOne(ctx, bson.M{"_id": objID}).Decode(&rec)
+	if err != nil {
+		return nil, err
+	}
+	return &rec, nil
 }
 
 func (r *Repository) DeleteARPHistory() error {
@@ -127,6 +169,49 @@ func (r *Repository) DeleteICMPHistory() error {
 	return nil
 }
 
+// GetICMPHistoryByTargets возвращает записи, в которых есть любой из указанных targets.
+func (r *Repository) GetICMPHistoryByTargets(targets []string, limit int) ([]models.ICMPHistoryRecord, error) {
+	if len(targets) == 0 {
+		return r.GetICMPHistory(limit)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	filter := bson.M{"targets": bson.M{"$in": targets}}
+	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}})
+	if limit > 0 {
+		opts.SetLimit(int64(limit))
+	}
+	cursor, err := r.db.ICMPCollection().Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var records []models.ICMPHistoryRecord
+	if err = cursor.All(ctx, &records); err != nil {
+		return nil, err
+	}
+	return records, nil
+}
+
+// GetICMPHistoryByID возвращает одну запись по ID.
+func (r *Repository) GetICMPHistoryByID(id string) (*models.ICMPHistoryRecord, error) {
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var rec models.ICMPHistoryRecord
+	err = r.db.ICMPCollection().FindOne(ctx, bson.M{"_id": objID}).Decode(&rec)
+	if err != nil {
+		return nil, err
+	}
+	return &rec, nil
+}
+
 // ==================== NMAP TCP/UDP REPOSITORY METHODS ====================
 
 func (r *Repository) SaveNmapTcpUdpHistory(record *models.NmapTcpUdpHistoryRecord) error {
@@ -179,6 +264,47 @@ func (r *Repository) DeleteNmapTcpUdpHistory() error {
 
 	log.Printf("Deleted %d Nmap TCP/UDP history records", result.DeletedCount)
 	return nil
+}
+
+func (r *Repository) GetNmapTcpUdpHistoryByIP(ip string, limit int) ([]models.NmapTcpUdpHistoryRecord, error) {
+	if ip == "" {
+		return r.GetNmapTcpUdpHistory(limit)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	filter := bson.M{"ip": ip}
+	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}})
+	if limit > 0 {
+		opts.SetLimit(int64(limit))
+	}
+	cursor, err := r.db.NmapTcpUdpCollection().Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var records []models.NmapTcpUdpHistoryRecord
+	if err = cursor.All(ctx, &records); err != nil {
+		return nil, err
+	}
+	return records, nil
+}
+
+func (r *Repository) GetNmapTcpUdpHistoryByID(id string) (*models.NmapTcpUdpHistoryRecord, error) {
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var rec models.NmapTcpUdpHistoryRecord
+	err = r.db.NmapTcpUdpCollection().FindOne(ctx, bson.M{"_id": objID}).Decode(&rec)
+	if err != nil {
+		return nil, err
+	}
+	return &rec, nil
 }
 
 // ==================== NMAP OS DETECTION REPOSITORY METHODS ====================
@@ -235,6 +361,47 @@ func (r *Repository) DeleteNmapOsDetectionHistory() error {
 	return nil
 }
 
+func (r *Repository) GetNmapOsDetectionHistoryByIP(ip string, limit int) ([]models.NmapOsDetectionHistoryRecord, error) {
+	if ip == "" {
+		return r.GetNmapOsDetectionHistory(limit)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	filter := bson.M{"ip": ip}
+	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}})
+	if limit > 0 {
+		opts.SetLimit(int64(limit))
+	}
+	cursor, err := r.db.NmapOsDetectionCollection().Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var records []models.NmapOsDetectionHistoryRecord
+	if err = cursor.All(ctx, &records); err != nil {
+		return nil, err
+	}
+	return records, nil
+}
+
+func (r *Repository) GetNmapOsDetectionHistoryByID(id string) (*models.NmapOsDetectionHistoryRecord, error) {
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var rec models.NmapOsDetectionHistoryRecord
+	err = r.db.NmapOsDetectionCollection().FindOne(ctx, bson.M{"_id": objID}).Decode(&rec)
+	if err != nil {
+		return nil, err
+	}
+	return &rec, nil
+}
+
 // ==================== NMAP HOST DISCOVERY REPOSITORY METHODS ====================
 
 func (r *Repository) SaveNmapHostDiscoveryHistory(record *models.NmapHostDiscoveryHistoryRecord) error {
@@ -289,6 +456,47 @@ func (r *Repository) DeleteNmapHostDiscoveryHistory() error {
 	return nil
 }
 
+func (r *Repository) GetNmapHostDiscoveryHistoryByIP(ip string, limit int) ([]models.NmapHostDiscoveryHistoryRecord, error) {
+	if ip == "" {
+		return r.GetNmapHostDiscoveryHistory(limit)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	filter := bson.M{"ip": ip}
+	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}})
+	if limit > 0 {
+		opts.SetLimit(int64(limit))
+	}
+	cursor, err := r.db.NmapHostDiscoveryCollection().Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var records []models.NmapHostDiscoveryHistoryRecord
+	if err = cursor.All(ctx, &records); err != nil {
+		return nil, err
+	}
+	return records, nil
+}
+
+func (r *Repository) GetNmapHostDiscoveryHistoryByID(id string) (*models.NmapHostDiscoveryHistoryRecord, error) {
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var rec models.NmapHostDiscoveryHistoryRecord
+	err = r.db.NmapHostDiscoveryCollection().FindOne(ctx, bson.M{"_id": objID}).Decode(&rec)
+	if err != nil {
+		return nil, err
+	}
+	return &rec, nil
+}
+
 // ==================== TCP REPOSITORY METHODS ====================
 
 func (r *Repository) SaveTCPHistory(record *models.TCPHistoryRecord) error {
@@ -327,6 +535,53 @@ func (r *Repository) GetTCPHistory(limit int) ([]models.TCPHistoryRecord, error)
 	}
 
 	return records, nil
+}
+
+func (r *Repository) GetTCPHistoryByHostPort(host, port string, limit int) ([]models.TCPHistoryRecord, error) {
+	if host == "" && port == "" {
+		return r.GetTCPHistory(limit)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	filter := bson.M{}
+	if host != "" {
+		filter["host"] = host
+	}
+	if port != "" {
+		filter["port"] = port
+	}
+	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}})
+	if limit > 0 {
+		opts.SetLimit(int64(limit))
+	}
+	cursor, err := r.db.TCPCollection().Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var records []models.TCPHistoryRecord
+	if err = cursor.All(ctx, &records); err != nil {
+		return nil, err
+	}
+	return records, nil
+}
+
+func (r *Repository) GetTCPHistoryByID(id string) (*models.TCPHistoryRecord, error) {
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var rec models.TCPHistoryRecord
+	err = r.db.TCPCollection().FindOne(ctx, bson.M{"_id": objID}).Decode(&rec)
+	if err != nil {
+		return nil, err
+	}
+	return &rec, nil
 }
 
 func (r *Repository) DeleteTCPHistory() error {

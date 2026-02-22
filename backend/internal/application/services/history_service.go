@@ -6,6 +6,29 @@ import (
 	"sync"
 )
 
+// SearchRepository расширяет репозиторий методами поиска по критериям и по ID
+type SearchRepository interface {
+	RepositoryInterface
+	// ICMP search
+	GetICMPHistoryByTargets(targets []string, limit int) ([]models.ICMPHistoryRecord, error)
+	GetICMPHistoryByID(id string) (*models.ICMPHistoryRecord, error)
+	// Nmap TCP/UDP search
+	GetNmapTcpUdpHistoryByIP(ip string, limit int) ([]models.NmapTcpUdpHistoryRecord, error)
+	GetNmapTcpUdpHistoryByID(id string) (*models.NmapTcpUdpHistoryRecord, error)
+	// Nmap OS Detection search
+	GetNmapOsDetectionHistoryByIP(ip string, limit int) ([]models.NmapOsDetectionHistoryRecord, error)
+	GetNmapOsDetectionHistoryByID(id string) (*models.NmapOsDetectionHistoryRecord, error)
+	// Nmap Host Discovery search
+	GetNmapHostDiscoveryHistoryByIP(ip string, limit int) ([]models.NmapHostDiscoveryHistoryRecord, error)
+	GetNmapHostDiscoveryHistoryByID(id string) (*models.NmapHostDiscoveryHistoryRecord, error)
+	// ARP search
+	GetARPHistoryByIPRange(ipRange string, limit int) ([]models.ARPHistoryRecord, error)
+	GetARPHistoryByID(id string) (*models.ARPHistoryRecord, error)
+	// TCP search
+	GetTCPHistoryByHostPort(host, port string, limit int) ([]models.TCPHistoryRecord, error)
+	GetTCPHistoryByID(id string) (*models.TCPHistoryRecord, error)
+}
+
 // RepositoryInterface определяет интерфейс для работы с данными
 type RepositoryInterface interface {
 	// ARP methods

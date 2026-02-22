@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Поиск по истории - Network Scanner</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container { max-width: 1000px; margin: 0 auto; }
+    .card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 15px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+    .card h2 {
+      color: #333;
+      font-size: 22px;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #e9ecef;
+    }
+    label { display: block; margin-bottom: 6px; color: #555; font-weight: 600; font-size: 14px; }
+    input[type="text"], input[type="number"], select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 2px solid #dee2e6;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 14px;
+    }
+    input:focus, select:focus { outline: none; border-color: #667eea; }
+    .form-row { display: flex; gap: 16px; flex-wrap: wrap; }
+    .form-row > div { flex: 1; min-width: 200px; }
+    .checkbox-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .checkbox-row input { width: auto; margin: 0; }
+    button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      background: #007bff;
+      color: white;
+    }
+    button:hover { background: #0056b3; }
+    button.secondary { background: #6c757d; }
+    button.secondary:hover { background: #5a6268; }
+    .result-box {
+      margin-top: 16px;
+      padding: 16px;
+      border-radius: 8px;
+      border-left: 4px solid #17a2b8;
+      background: #f8f9fa;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .result-box.from-cache { border-left-color: #28a745; }
+    .result-box.scan-started { border-left-color: #ffc107; }
+    .result-box.error { border-left-color: #dc3545; background: #f8d7da; }
+    .date-badge { font-size: 12px; color: #6c757d; margin-top: 4px; }
+    .history-item {
+      background: #fff;
+      border: 2px solid #e9ecef;
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .history-item:hover { border-color: #17a2b8; }
+    .view-link {
+      color: #007bff;
+      cursor: pointer;
+      text-decoration: underline;
+      font-size: 14px;
+    }
+    .view-link:hover { color: #0056b3; }
+    .back-link { display: inline-block; margin-bottom: 16px; color: #667eea; text-decoration: none; font-weight: 600; }
+    .back-link:hover { text-decoration: underline; }
+    .hidden { display: none !important; }
+    #detailContent { margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="index.html" class="back-link">← На главную</a>
+
+    <div class="card">
+      <h2>🔍 Поиск информации</h2>
+      <p style="color: #666; margin-bottom: 16px;">Есть в БД — покажем с датой. Нет — запустим скан. История хранится, можно пересканировать и смотреть несколько сканов за раз.</p>
+
+      <label>Тип скана</label>
+      <select id="scanType">
+        <option value="icmp">ICMP Ping</option>
+        <option value="nmap_tcp_udp">Nmap TCP/UDP</option>
+        <option value="nmap_os">Nmap OS Detection</option>
+        <option value="nmap_host">Nmap Host Discovery</option>
+        <option value="arp">ARP</option>
+        <option value="tcp">TCP</option>
+      </select>
+
+      <div id="formIcmp" class="form-block">
+        <label>Хосты (через запятую)</label>
+        <input type="text" id="icmpTargets" placeholder="8.8.8.8, 1.1.1.1">
+        <label>Количество ping</label>
+        <input type="number" id="icmpPingCount" value="4" min="1">
+      </div>
+
+      <div id="formNmap" class="form-block hidden">
+        <label>IP</label>
+        <input type="text" id="nmapIp" placeholder="192.168.1.1">
+        <div id="nmapPortsRow">
+          <label>Порты (для TCP/UDP)</label>
+          <input type="text" id="nmapPorts" placeholder="80,443">
+        </div>
+      </div>
+
+      <div id="formArp" class="form-block hidden">
+        <label>Интерфейс</label>
+        <input type="text" id="arpInterface" placeholder="eth0">
+        <label>Диапазон IP</label>
+        <input type="text" id="arpRange" placeholder="192.168.1.0/24">
+      </div>
+
+      <div id="formTcp" class="form-block hidden">
+        <label>Хост</label>
+        <input type="text" id="tcpHost" placeholder="192.168.1.1">
+        <label>Порт</label>
+        <input type="text" id="tcpPort" placeholder="80">
+      </div>
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="rescan">
+        <label for="rescan" style="margin:0;">Пересканировать (запустить новый скан даже если есть в БД)</label>
+      </div>
+
+      <button type="button" id="btnSearch">Искать</button>
+      <div id="searchResult" class="result-box hidden"></div>
+    </div>
+
+    <div class="card">
+      <h2>📋 История сканов</h2>
+      <p style="color: #666; margin-bottom: 12px;">Список сохранённых сканов по выбранному типу. Нажмите «Просмотр» для просмотра записи за выбранную дату.</p>
+      <div id="historyList">Выберите тип скана и нажмите «Загрузить историю» или выполните поиск.</div>
+      <button type="button" id="btnLoadHistory" class="secondary" style="margin-top: 12px;">Загрузить историю</button>
+    </div>
+
+    <div class="card hidden" id="detailCard">
+      <h2>📄 Запись по дате</h2>
+      <div id="detailContent"></div>
+    </div>
+  </div>
+
+  <script>
+    const scanType = document.getElementById('scanType');
+    const formIcmp = document.getElementById('formIcmp');
+    const formNmap = document.getElementById('formNmap');
+    const formArp = document.getElementById('formArp');
+    const formTcp = document.getElementById('formTcp');
+    const nmapPortsRow = document.getElementById('nmapPortsRow');
+    const searchResult = document.getElementById('searchResult');
+    const historyList = document.getElementById('historyList');
+    const detailCard = document.getElementById('detailCard');
+    const detailContent = document.getElementById('detailContent');
+
+    function showForms() {
+      const v = scanType.value;
+      formIcmp.classList.toggle('hidden', v !== 'icmp');
+      formNmap.classList.toggle('hidden', v !== 'nmap_tcp_udp' && v !== 'nmap_os' && v !== 'nmap_host');
+      nmapPortsRow.style.display = v === 'nmap_tcp_udp' ? 'block' : 'none';
+      formArp.classList.toggle('hidden', v !== 'arp');
+      formTcp.classList.toggle('hidden', v !== 'tcp');
+    }
+    scanType.addEventListener('change', showForms);
+    showForms();
+
+    function showSearchResult(html, className) {
+      searchResult.innerHTML = html;
+      searchResult.className = 'result-box ' + (className || '');
+      searchResult.classList.remove('hidden');
+    }
+
+    document.getElementById('btnSearch').addEventListener('click', function() {
+      const rescan = document.getElementById('rescan').checked;
+      const type = scanType.value;
+
+      if (type === 'icmp') {
+        const targetsStr = document.getElementById('icmpTargets').value.trim();
+        if (!targetsStr) { showSearchResult('Укажите хосты через запятую.', 'error'); return; }
+        const targets = targetsStr.split(',').map(s => s.trim()).filter(Boolean);
+        const pingCount = parseInt(document.getElementById('icmpPingCount').value, 10) || 4;
+
+        fetch('/api/search/icmp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ targets, ping_count: pingCount, rescan: rescan, limit: 20 })
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (!data.success) {
+              showSearchResult('Ошибка: ' + (data.error || 'unknown'), 'error');
+              return;
+            }
+            if (data.found && data.data) {
+              const list = Array.isArray(data.data) ? data.data : [data.data];
+              let html = 'Данные из БД (за даты):<br><br>';
+              list.forEach(rec => {
+                const date = rec.created_at ? new Date(rec.created_at).toLocaleString('ru-RU') : 'N/A';
+                html += '<div class="history-item">';
+                html += '<span>Task: ' + (rec.task_id || '') + ' <span class="date-badge">' + date + '</span></span>';
+                html += '<a class="view-link" data-id="' + rec.id + '" data-type="icmp">Просмотр</a>';
+                html += '</div>';
+              });
+              showSearchResult(html, 'from-cache');
+              bindViewLinks();
+            } else {
+              showSearchResult('Скан запущен. Task ID: ' + data.task_id + '\nРезультат появится в истории после завершения. Обновите историю или подождите.', 'scan-started');
+            }
+          })
+          .catch(e => showSearchResult('Ошибка запроса: ' + e.message, 'error'));
+        return;
+      }
+
+      if (type === 'nmap_tcp_udp' || type === 'nmap_os' || type === 'nmap_host') {
+        const ip = document.getElementById('nmapIp').value.trim();
+        if (!ip) { showSearchResult('Укажите IP.', 'error'); return; }
+        const ports = document.getElementById('nmapPorts').value.trim();
+        const scanMethod = type === 'nmap_tcp_udp' ? 'tcp_udp_scan' : type === 'nmap_os' ? 'os_detection' : 'host_discovery';
+
+        fetch('/api/search/nmap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            scan_method: scanMethod,
+            ip: ip,
+            ports: ports,
+            rescan: rescan,
+            limit: 20
+          })
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (!data.success) {
+              showSearchResult('Ошибка: ' + (data.error || 'unknown'), 'error');
+              return;
+            }
+            if (data.found && data.data) {
+              const list = Array.isArray(data.data) ? data.data : [data.data];
+              let html = 'Данные из БД (за даты):<br><br>';
+              const byIdType = type === 'nmap_tcp_udp' ? 'nmap_tcp_udp' : type === 'nmap_os' ? 'nmap_os_detection' : 'nmap_host_discovery';
+              list.forEach(rec => {
+                const date = rec.created_at ? new Date(rec.created_at).toLocaleString('ru-RU') : 'N/A';
+                html += '<div class="history-item">';
+                html += '<span>Task: ' + (rec.task_id || '') + ' <span class="date-badge">' + date + '</span></span>';
+                html += '<a class="view-link" data-id="' + rec.id + '" data-type="' + byIdType + '">Просмотр</a>';
+                html += '</div>';
+              });
+              showSearchResult(html, 'from-cache');
+              bindViewLinks();
+            } else {
+              showSearchResult('Скан запущен. Task ID: ' + data.task_id + '\nРезультат появится в истории после завершения.', 'scan-started');
+            }
+          })
+          .catch(e => showSearchResult('Ошибка запроса: ' + e.message, 'error'));
+        return;
+      }
+
+      if (type === 'arp') {
+        const iface = document.getElementById('arpInterface').value.trim();
+        const range = document.getElementById('arpRange').value.trim();
+        if (!iface || !range) { showSearchResult('Укажите интерфейс и диапазон IP.', 'error'); return; }
+
+        fetch('/api/search/arp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            interface_name: iface,
+            ip_range: range,
+            rescan: rescan,
+            limit: 20
+          })
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (!data.success) {
+              showSearchResult('Ошибка: ' + (data.error || 'unknown'), 'error');
+              return;
+            }
+            if (data.found && data.data) {
+              const list = Array.isArray(data.data) ? data.data : [data.data];
+              let html = 'Данные из БД (за даты):<br><br>';
+              list.forEach(rec => {
+                const date = rec.created_at ? new Date(rec.created_at).toLocaleString('ru-RU') : 'N/A';
+                html += '<div class="history-item">';
+                html += '<span>Task: ' + (rec.task_id || '') + ' <span class="date-badge">' + date + '</span></span>';
+                html += '<a class="view-link" data-id="' + rec.id + '" data-type="arp">Просмотр</a>';
+                html += '</div>';
+              });
+              showSearchResult(html, 'from-cache');
+              bindViewLinks();
+            } else {
+              showSearchResult('Скан запущен. Task ID: ' + data.task_id + '\nРезультат появится в истории после завершения.', 'scan-started');
+            }
+          })
+          .catch(e => showSearchResult('Ошибка запроса: ' + e.message, 'error'));
+        return;
+      }
+
+      if (type === 'tcp') {
+        const host = document.getElementById('tcpHost').value.trim();
+        const port = document.getElementById('tcpPort').value.trim();
+        if (!host || !port) { showSearchResult('Укажите хост и порт.', 'error'); return; }
+
+        fetch('/api/search/tcp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ host, port, rescan: rescan, limit: 20 })
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (!data.success) {
+              showSearchResult('Ошибка: ' + (data.error || 'unknown'), 'error');
+              return;
+            }
+            if (data.found && data.data) {
+              const list = Array.isArray(data.data) ? data.data : [data.data];
+              let html = 'Данные из БД (за даты):<br><br>';
+              list.forEach(rec => {
+                const date = rec.created_at ? new Date(rec.created_at).toLocaleString('ru-RU') : 'N/A';
+                html += '<div class="history-item">';
+                html += '<span>Task: ' + (rec.task_id || '') + ' <span class="date-badge">' + date + '</span></span>';
+                html += '<a class="view-link" data-id="' + rec.id + '" data-type="tcp">Просмотр</a>';
+                html += '</div>';
+              });
+              showSearchResult(html, 'from-cache');
+              bindViewLinks();
+            } else {
+              showSearchResult('Скан запущен. Task ID: ' + data.task_id + '\nРезультат появится в истории после завершения.', 'scan-started');
+            }
+          })
+          .catch(e => showSearchResult('Ошибка запроса: ' + e.message, 'error'));
+      }
+    });
+
+    function getHistoryUrl() {
+      const type = scanType.value;
+      if (type === 'icmp') return '/api/history/icmp?limit=20';
+      if (type === 'nmap_tcp_udp' || type === 'nmap_os' || type === 'nmap_host') return '/api/history/nmap?limit=20&type=' + (type === 'nmap_tcp_udp' ? 'tcp_udp' : type === 'nmap_os' ? 'os_detection' : 'host_discovery');
+      if (type === 'arp') return '/api/history/arp?limit=20';
+      if (type === 'tcp') return '/api/history/tcp?limit=20';
+      return null;
+    }
+
+    function getByIdUrl(type) {
+      const base = {
+        icmp: '/api/history/icmp/by-id',
+        nmap_tcp_udp: '/api/history/nmap/tcp_udp/by-id',
+        nmap_os_detection: '/api/history/nmap/os_detection/by-id',
+        nmap_host_discovery: '/api/history/nmap/host_discovery/by-id',
+        arp: '/api/history/arp/by-id',
+        tcp: '/api/history/tcp/by-id'
+      };
+      return base[type] || null;
+    }
+
+    function bindViewLinks() {
+      document.querySelectorAll('.view-link').forEach(a => {
+        a.onclick = function(e) {
+          e.preventDefault();
+          const id = this.getAttribute('data-id');
+          const type = this.getAttribute('data-type');
+          const url = getByIdUrl(type);
+          if (!url) return;
+          fetch(url + '?id=' + encodeURIComponent(id))
+            .then(r => r.json())
+            .then(data => {
+              if (!data.success) {
+                detailContent.innerHTML = '<p class="error">Не найдено.</p>';
+              } else {
+                detailContent.innerHTML = '<pre style="background:#f8f9fa;padding:16px;border-radius:8px;overflow:auto;">' + JSON.stringify(data.data, null, 2) + '</pre>';
+              }
+              detailCard.classList.remove('hidden');
+              detailCard.scrollIntoView({ behavior: 'smooth' });
+            })
+            .catch(() => { detailContent.innerHTML = '<p class="error">Ошибка загрузки.</p>'; detailCard.classList.remove('hidden'); });
+        };
+      });
+    }
+
+    document.getElementById('btnLoadHistory').addEventListener('click', function() {
+      const url = getHistoryUrl();
+      if (!url) { historyList.innerHTML = 'Не выбран тип.'; return; }
+      historyList.innerHTML = 'Загрузка...';
+
+      fetch(url)
+        .then(r => r.json())
+        .then(data => {
+          if (!data.success) {
+            historyList.innerHTML = 'Ошибка: ' + (data.error || 'unknown');
+            return;
+          }
+          let list = [];
+          const type = scanType.value;
+          if (type === 'icmp') list = data.data || [];
+          else if (type === 'arp') list = data.data || [];
+          else if (type === 'tcp') list = data.data || [];
+          else {
+            const key = type === 'nmap_tcp_udp' ? 'tcp_udp' : type === 'nmap_os' ? 'os_detection' : 'host_discovery';
+            list = (data.data && data.data[key]) || [];
+          }
+
+          const idType = type === 'nmap_tcp_udp' ? 'nmap_tcp_udp' : type === 'nmap_os' ? 'nmap_os_detection' : type === 'nmap_host' ? 'nmap_host_discovery' : type;
+          if (list.length === 0) {
+            historyList.innerHTML = 'Нет записей в истории.';
+            return;
+          }
+          let html = '';
+          list.forEach(rec => {
+            const date = rec.created_at ? new Date(rec.created_at).toLocaleString('ru-RU') : 'N/A';
+            html += '<div class="history-item">';
+            html += '<span>' + (rec.task_id || rec.id || '') + ' <span class="date-badge">' + date + '</span></span>';
+            html += '<a class="view-link" data-id="' + rec.id + '" data-type="' + idType + '">Просмотр</a>';
+            html += '</div>';
+          });
+          historyList.innerHTML = html;
+          bindViewLinks();
+        })
+        .catch(e => { historyList.innerHTML = 'Ошибка: ' + e.message; });
+    });
+  </script>
+</body>
+</html>
