@@ -1,0 +1,45 @@
+/* ==================== SHODAN-STYLE DARK THEME ==================== */
+:root {
+  /* Основные цвета фона */
+  --bg-primary: #111927;
+  --bg-secondary: #1a2332;
+  --bg-card: #1e2a3a;
+  --bg-input: #151d2b;
+  --bg-hover: #243044;
+  --bg-sidebar: #0f1923;
+
+  /* Акценты */
+  --accent-green: #00e676;
+  --accent-red: #ff4c4c;
+  --accent-blue: #2196f3;
+  --accent-yellow: #ffd740;
+  --accent-cyan: #00bcd4;
+  --accent-orange: #ff9800;
+
+  /* Текст */
+  --text-primary: #e0e6ed;
+  --text-secondary: #8899aa;
+  --text-muted: #556677;
+  --text-heading: #ffffff;
+
+  /* Границы */
+  --border: #2a3a4a;
+  --border-light: #1e2e3e;
+
+  /* Шрифты */
+  --font-main: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+
+  /* Скругления */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* Тени */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+
+  /* Переходы */
+  --transition: 0.2s ease;
+}
+

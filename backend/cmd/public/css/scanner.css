@@ -1,0 +1,414 @@
+/* ==================== SCANNER PAGE STYLES ==================== */
+
+/* Scanner container */
+.scanner-container { max-width: 1400px; margin: 0 auto; width: 100%; }
+
+.scanner-header {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  margin-bottom: 12px;
+}
+
+.scanner-header h1 {
+  font-size: 18px;
+  font-family: var(--font-mono);
+  color: var(--accent-green);
+  font-weight: 600;
+}
+
+.scanner-header p { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+
+.scanner-controls {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  margin-bottom: 12px;
+}
+
+/* Results container */
+.results-container {
+  display: flex;
+  gap: 12px;
+  flex-direction: column;
+  width: 100%;
+}
+
+.results-panel {
+  flex: 1;
+  min-width: 300px;
+  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.results-header {
+  padding: 10px 16px;
+  font-weight: 600;
+  font-size: 13px;
+  font-family: var(--font-mono);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+}
+
+.results-header.online { color: var(--accent-green); border-left: 3px solid var(--accent-green); }
+.results-header.offline { color: var(--accent-red); border-left: 3px solid var(--accent-red); }
+
+.results-content {
+  padding: 16px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.results-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 40px 0;
+  font-size: 13px;
+}
+
+/* Scan result card */
+.scan-result {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 10px;
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+.scan-result .scan-header {
+  background: var(--bg-primary);
+  padding: 8px 12px;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+}
+
+.scan-result .scan-body { padding: 12px; font-size: 13px; }
+.scan-result .scan-body div { margin-bottom: 4px; }
+.scan-result .scan-body strong { color: var(--text-secondary); font-weight: 600; }
+
+/* Nmap scan-panel */
+.scan-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 10px;
+  overflow: hidden;
+  background: var(--bg-secondary);
+}
+
+.scan-panel .scan-header {
+  background: var(--bg-primary);
+  padding: 8px 12px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.scan-panel .scan-body { padding: 12px; font-size: 13px; }
+.scan-panel .scan-body div { margin-bottom: 4px; }
+
+.scan-info { display: flex; justify-content: space-between; align-items: center; }
+
+.scan-time { font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); }
+
+.scan-type {
+  background: var(--accent-blue);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Device items */
+.device-list { max-height: 300px; overflow-y: auto; margin-top: 8px; }
+
+.device-item {
+  padding: 6px 10px;
+  margin: 3px 0;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  border-left: 3px solid;
+}
+
+.device-online {
+  background: rgba(0,230,118,0.06);
+  border-left-color: var(--accent-green);
+  color: var(--accent-green);
+}
+
+.device-offline {
+  background: rgba(255,76,76,0.06);
+  border-left-color: var(--accent-red);
+  color: var(--accent-red);
+}
+
+/* Stats badges */
+.stats { display: flex; gap: 8px; margin: 8px 0; flex-wrap: wrap; }
+
+.stat-item {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  background: var(--accent-blue);
+  color: #fff;
+}
+
+.stat-item.green { background: var(--accent-green); color: #000; }
+.stat-item.red { background: var(--accent-red); color: #fff; }
+
+/* Scan type cards (Nmap) */
+.scan-type-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px 12px;
+  cursor: pointer;
+  transition: all var(--transition);
+  text-align: center;
+}
+
+.scan-type-card:hover {
+  border-color: var(--accent-cyan);
+  background: var(--bg-hover);
+}
+
+.scan-type-card.active {
+  border-color: var(--accent-green);
+  background: rgba(0,230,118,0.08);
+}
+
+.scan-type-icon { font-size: 28px; margin-bottom: 6px; }
+.scan-type-title { font-weight: 600; color: var(--text-primary); font-size: 13px; margin-bottom: 4px; }
+.scan-type-description { font-size: 11px; color: var(--text-muted); }
+
+/* History page styles */
+.history-page-container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+.history-page-header {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  margin-bottom: 16px;
+}
+
+.history-page-header h1 {
+  font-size: 20px;
+  font-family: var(--font-mono);
+  color: var(--accent-green);
+}
+
+.history-page-header p { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+
+.history-card-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.history-card-header {
+  padding: 12px 20px;
+  font-weight: 600;
+  font-size: 14px;
+  font-family: var(--font-mono);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--accent-green);
+}
+
+.history-card-content {
+  padding: 20px;
+  max-height: calc(100vh - 300px);
+  overflow-y: auto;
+}
+
+.history-item {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  margin-bottom: 12px;
+  transition: border-color var(--transition);
+}
+
+.history-item:hover { border-color: var(--accent-green); }
+
+.history-item-header {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.task-id { font-size: 13px; font-weight: 700; color: var(--accent-cyan); font-family: var(--font-mono); }
+.task-date { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+.history-item-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.info-item { display: flex; flex-direction: column; gap: 2px; }
+.info-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; }
+.info-value { font-size: 13px; color: var(--text-primary); font-weight: 600; font-family: var(--font-mono); }
+
+.status-completed { color: var(--accent-green); }
+.status-error { color: var(--accent-red); }
+
+/* Devices in history */
+.devices-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.devices-list { margin-top: 8px; }
+.devices-list ul { list-style: none; padding-left: 0; }
+.devices-list li {
+  padding: 6px 10px;
+  margin: 4px 0;
+  background: var(--bg-primary);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.device-online-item { border-left-color: var(--accent-green); }
+.device-offline-item { border-left-color: var(--accent-red); }
+
+/* Port info */
+.port-info-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.port-info-list ul { list-style: none; padding-left: 0; }
+.port-info-list li {
+  padding: 6px 10px;
+  margin: 4px 0;
+  background: var(--bg-primary);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--accent-blue);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+/* Results in history (ICMP) */
+.results-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.results-list ul { list-style: none; padding-left: 0; }
+.results-list li {
+  padding: 8px 12px;
+  margin: 4px 0;
+  background: var(--bg-primary);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid;
+  font-size: 12px;
+}
+.result-success { border-left-color: var(--accent-green); }
+.result-failed { border-left-color: var(--accent-red); }
+
+/* Decoded text (TCP) */
+.decoded-text {
+  background: var(--bg-primary);
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  margin-top: 8px;
+  color: var(--accent-green);
+}
+
+/* Section titles (Nmap history) */
+.section-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 24px 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--accent-blue);
+  color: var(--accent-blue);
+  font-family: var(--font-mono);
+}
+
+.section-title.os { color: var(--accent-green); border-bottom-color: var(--accent-green); }
+.section-title.discovery { color: var(--accent-yellow); border-bottom-color: var(--accent-yellow); }
+
+/* Empty state */
+.empty-state { text-align: center; padding: 48px 20px; color: var(--text-muted); }
+.empty-state-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+
+/* Search page */
+.search-container { max-width: 900px; margin: 0 auto; padding: 24px; }
+
+.result-box {
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--accent-cyan);
+  background: var(--bg-secondary);
+  font-size: 13px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.result-box.from-cache { border-left-color: var(--accent-green); }
+.result-box.scan-started { border-left-color: var(--accent-yellow); }
+.result-box.error { border-left-color: var(--accent-red); background: rgba(255,76,76,0.05); }
+
+.search-history-item {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.search-history-item:hover { border-color: var(--accent-cyan); }
+
+.view-link {
+  color: var(--accent-blue);
+  cursor: pointer;
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+.view-link:hover { color: var(--accent-green); }
+
+.date-badge { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+
+.btn-goto-scanner {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 10px 18px;
+  background: var(--accent-green);
+  color: #000;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-size: 13px;
+}
+.btn-goto-scanner:hover { background: #00c964; text-decoration: none; color: #000; }
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 12px;
+  color: var(--accent-green);
+  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.hidden { display: none !important; }
+
