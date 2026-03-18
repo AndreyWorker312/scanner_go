@@ -69,11 +69,9 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: backend-app
-    ports:
-      - "8080:8080"
     environment:
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
-      - MONGODB_URI=mongodb://mongodb:27017
+      - RABBITMQ_URL=amqp://guest:guest@localhost:5673/
+      - MONGODB_URI=mongodb://localhost:27017
       - MONGODB_DATABASE=network_scanner
     depends_on:
       rabbitmq:
@@ -82,8 +80,7 @@ services:
         condition: service_started
     volumes:
       - ./public:/app/public
-    networks:
-      - scanner-network
+    network_mode: host
     restart: unless-stopped
 
   # Nmap сканер
@@ -176,6 +173,9 @@ services:
 networks:
   scanner-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
 
 volumes:
   rabbitmq_data:

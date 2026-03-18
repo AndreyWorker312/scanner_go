@@ -118,37 +118,52 @@ func (s *arpScanner) Scan(ctx context.Context, ipRange string) ([]DeviceInfo, er
 	// Ждем завершения всех запросов
 	wg.Wait()
 
-	// Преобразуем map в slice
-	var devices []DeviceInfo
-	resultsMu.Lock()
-	for _, device := range results {
-		devices = append(devices, device)
+	// Дополнительно читаем системную ARP таблицу для уже известных устройств,
+	// но ТОЛЬКО для IP из запрошенного диапазона
+	requestedIPs := make(map[string]bool, len(ips))
+	for _, ip := range ips {
+		requestedIPs[ip.String()] = true
 	}
-	resultsMu.Unlock()
 
-	// Дополнительно читаем системную ARP таблицу для уже известных устройств
 	systemDevices := readSystemARPTable(iface)
+	resultsMu.Lock()
 	for ip, mac := range systemDevices {
-		if _, exists := results[ip]; !exists {
-			resultsMu.Lock()
-			results[ip] = DeviceInfo{
-				IP:     ip,
-				MAC:    mac,
-				Status: "online",
+		if requestedIPs[ip] {
+			if _, exists := results[ip]; !exists {
+				results[ip] = DeviceInfo{
+					IP:     ip,
+					MAC:    mac,
+					Status: "online",
+				}
 			}
-			resultsMu.Unlock()
 		}
 	}
+	resultsMu.Unlock()
 
-	// Преобразуем map в slice еще раз после добавления системных устройств
-	devices = []DeviceInfo{}
+	// Формируем итоговый список: online + offline для всех IP в диапазоне
+	var devices []DeviceInfo
 	resultsMu.Lock()
-	for _, device := range results {
-		devices = append(devices, device)
+	for _, ip := range ips {
+		ipStr := ip.String()
+		if device, exists := results[ipStr]; exists {
+			devices = append(devices, device)
+		} else {
+			devices = append(devices, DeviceInfo{
+				IP:     ipStr,
+				MAC:    "",
+				Status: "offline",
+			})
+		}
 	}
 	resultsMu.Unlock()
 
-	log.Printf("Scan completed. Found %d active devices", len(devices))
+	onlineCount := 0
+	for _, d := range devices {
+		if d.Status == "online" {
+			onlineCount++
+		}
+	}
+	log.Printf("Scan completed. Found %d devices (%d online, %d offline)", len(devices), onlineCount, len(devices)-onlineCount)
 	return devices, nil
 }
 

@@ -28,7 +28,14 @@ var (
 
 func GetRPCconnection(amqpURI string) (*RPCScannerPublisher, error) {
 	rpcPublisherOnce.Do(func() {
-		rpcPublisherInstance, rpcPublisherErr = newRPCScannerPublisher(amqpURI)
+		for i := 1; i <= 10; i++ {
+			rpcPublisherInstance, rpcPublisherErr = newRPCScannerPublisher(amqpURI)
+			if rpcPublisherErr == nil {
+				return
+			}
+			log.Printf("RabbitMQ connection attempt %d/10 failed: %v", i, rpcPublisherErr)
+			time.Sleep(time.Duration(i) * 3 * time.Second)
+		}
 	})
 	return rpcPublisherInstance, rpcPublisherErr
 }
