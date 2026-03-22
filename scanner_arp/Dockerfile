@@ -1,19 +1,21 @@
 FROM golang:1.24-alpine AS builder
 
-WORKDIR /app
+WORKDIR /build
 
 COPY go.mod go.sum ./
-RUN go mod download
+RUN go mod download && go mod verify
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o /scanner ./cmd/scanner/main.go
 
-FROM alpine:3.18
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -ldflags='-s -w -extldflags "-static"' \
+    -o /scanner ./cmd/scanner/main.go
 
-WORKDIR /app
+FROM scratch
 
-COPY --from=builder /scanner /app/scanner
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-COPY .env /app/.env
+COPY --from=builder /scanner /scanner
 
-CMD ["/app/scanner"]
+ENTRYPOINT ["/scanner"]

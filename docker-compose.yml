@@ -1,15 +1,110 @@
+# ─────────────────────────────────────────────────────────────────────
+#  WebScanAPI — docker-compose.yml
+#
+#  Топология сети:
+#
+#    ┌──────────── bridge: scanner-net ─────────────┐
+#    │  mongodb ◄─► rabbitmq ◄─► minio ◄─► backend  │
+#    │              mongo-express                    │
+#    └──────┬──────────┬──────────┬─────────────────┘
+#      :27017       :5672     :9000/:9001     :8080
+#     (ports на хост для доступа сканеров через localhost)
+#
+#    ┌──────────── network_mode: host ─────────────┐
+#    │  scanner_nmap   scanner_arp                  │
+#    │  scanner_icmp   scanner_tcp                  │
+#    │  (L2/L3 доступ к сетевым интерфейсам хоста)  │
+#    └──────────────────────────────────────────────┘
+# ─────────────────────────────────────────────────────────────────────
+
+# ── YAML-якоря для переиспользования ─────────────────────────────────
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-scanner-defaults: &scanner-defaults
+  network_mode: host
+  restart: unless-stopped
+  privileged: true
+  cap_add:
+    - NET_RAW
+    - NET_ADMIN
+  logging: *default-logging
+
+# ── Services ─────────────────────────────────────────────────────────
+
 services:
-  # MongoDB сервис
+
+  # ┌──────────────────────────────────────────────────────────────────
+  # │  INFRASTRUCTURE
+  # └──────────────────────────────────────────────────────────────────
+
   mongodb:
     image: mongo:7.0
     container_name: mongodb
     ports:
-      - "27017:27017"
+      - "27017:27017"          # → host (для сканеров через localhost)
     volumes:
       - mongodb_data:/data/db
     networks:
-      - scanner-network
+      - scanner-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     restart: unless-stopped
+    logging: *default-logging
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"            # AMQP → host (для сканеров через localhost)
+      - "15672:15672"          # Management UI → host
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - scanner-net
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    logging: *default-logging
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"            # S3 API  → host (для tcp_scanner)
+      - "9001:9001"            # Console → host
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    networks:
+      - scanner-net
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    logging: *default-logging
+
   mongo-express:
     image: mongo-express
     container_name: mongo-express
@@ -17,167 +112,128 @@ services:
       - "8081:8081"
     environment:
       ME_CONFIG_MONGODB_SERVER: mongodb
-      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_MONGODB_PORT: "27017"
       ME_CONFIG_MONGODB_URL: mongodb://mongodb:27017/
       ME_CONFIG_BASICAUTH_USERNAME: admin
       ME_CONFIG_BASICAUTH_PASSWORD: pass
+    networks:
+      - scanner-net
     depends_on:
-      - mongodb
-    networks:
-      - scanner-network
-  # RabbitMQ сервис
-  rabbitmq:
-    image: rabbitmq:3-management
-    container_name: rabbitmq
-    ports:
-      - "5673:5672"
-      - "15673:15672"
-    environment:
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - scanner-network
+      mongodb:
+        condition: service_healthy
     restart: unless-stopped
+    logging: *default-logging
 
-  # MinIO S3 совместимое хранилище (для HEX сырых данных)
-  minio:
-    image: minio/minio:latest
-    container_name: minio
-    environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
-    command: server /data --console-address ":9001"
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - minio_data:/data
-    networks:
-      - scanner-network
-    restart: unless-stopped
+  # ┌──────────────────────────────────────────────────────────────────
+  # │  APPLICATION
+  # └──────────────────────────────────────────────────────────────────
 
-  # Backend сервис
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: backend-app
+    ports:
+      - "8080:8080"
     environment:
-      - RABBITMQ_URL=amqp://guest:guest@localhost:5673/
-      - MONGODB_URI=mongodb://localhost:27017
-      - MONGODB_DATABASE=network_scanner
+      RABBITMQ_URL:      amqp://guest:guest@rabbitmq:5672/
+      MONGODB_URI:       mongodb://mongodb:27017
+      MONGODB_DATABASE:  network_scanner
+    networks:
+      - scanner-net
     depends_on:
       rabbitmq:
         condition: service_healthy
       mongodb:
-        condition: service_started
-    volumes:
-      - ./public:/app/public
-    network_mode: host
+        condition: service_healthy
     restart: unless-stopped
+    logging: *default-logging
 
-  # Nmap сканер
+  # ┌──────────────────────────────────────────────────────────────────
+  # │  SCANNERS  (network_mode: host — L2/L3 доступ к хосту)
+  # │
+  # │  Подключаются к инфраструктуре через localhost:<exposed-port>
+  # └──────────────────────────────────────────────────────────────────
+
   scanner_nmap:
+    <<: *scanner-defaults
     build:
       context: ./scanner_nmap
       dockerfile: Dockerfile
     container_name: scanner-nmap
     environment:
-      - RABBITMQ_URL=amqp://guest:guest@localhost:5673/
-      - SCANNER_NAME=nmap_service
+      RABBITMQ_URL:  amqp://guest:guest@localhost:5672/
+      SCANNER_NAME:  nmap_service
     depends_on:
       rabbitmq:
         condition: service_healthy
-    network_mode: host
-    restart: unless-stopped
-    privileged: true
-    cap_add:
-      - NET_RAW
-      - NET_ADMIN
 
-  # ARP сканер
   scanner_arp:
+    <<: *scanner-defaults
     build:
       context: ./scanner_arp
       dockerfile: Dockerfile
     container_name: scanner-arp
     environment:
-      - RABBITMQ_URL=amqp://guest:guest@localhost:5673/
-      - SCANNER_NAME=arp_service
+      RABBITMQ_URL:  amqp://guest:guest@localhost:5672/
+      SCANNER_NAME:  arp_service
     depends_on:
       rabbitmq:
         condition: service_healthy
-    network_mode: host
-    restart: unless-stopped
-    privileged: true
-    cap_add:
-      - NET_RAW
-      - NET_ADMIN
 
-  # ICMP сканер
   scanner_icmp:
+    <<: *scanner-defaults
     build:
       context: ./scanner_icmp
       dockerfile: Dockerfile
     container_name: scanner-icmp
     environment:
-      - RABBITMQ_URL=amqp://guest:guest@localhost:5673/
-      - SCANNER_NAME=icmp_service
-      - PING_TIMEOUT=5s
+      RABBITMQ_URL:  amqp://guest:guest@localhost:5672/
+      SCANNER_NAME:  icmp_service
+      PING_TIMEOUT:  5s
     depends_on:
       rabbitmq:
         condition: service_healthy
-    network_mode: host
-    restart: unless-stopped
-    privileged: true
-    cap_add:
-      - NET_RAW
-      - NET_ADMIN
 
-  # TCP (banner) сканер (сохранение HEX в MinIO, decoded в MongoDB)
   scanner_tcp:
+    <<: *scanner-defaults
     build:
       context: ./tcp_scanner
       dockerfile: Dockerfile
     container_name: scanner-tcp
     environment:
-      - RABBITMQ_URL=amqp://guest:guest@localhost:5673/
-      - SCANNER_NAME=tcp_service
-      - MONGODB_URI=mongodb://localhost:27017
-      - MONGODB_DATABASE=network_scanner
-      - TCP_MONGO_COLLECTION=tcp_banners
-      - MINIO_ENDPOINT=localhost:9000
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
-      - MINIO_BUCKET=tcp-raw
-      - TCP_CONN_TIMEOUT=5s
-      - TCP_READ_TIMEOUT=10s
+      RABBITMQ_URL:           amqp://guest:guest@localhost:5672/
+      SCANNER_NAME:           tcp_service
+      MONGODB_URI:            mongodb://localhost:27017
+      MONGODB_DATABASE:       network_scanner
+      TCP_MONGO_COLLECTION:   tcp_banners
+      MINIO_ENDPOINT:         localhost:9000
+      MINIO_ACCESS_KEY:       minioadmin
+      MINIO_SECRET_KEY:       minioadmin
+      MINIO_BUCKET:           tcp-raw
+      TCP_CONN_TIMEOUT:       5s
+      TCP_READ_TIMEOUT:       10s
     depends_on:
       rabbitmq:
         condition: service_healthy
       mongodb:
-        condition: service_started
+        condition: service_healthy
       minio:
-        condition: service_started
-    network_mode: host
-    restart: unless-stopped
+        condition: service_healthy
 
+# ── Networks ─────────────────────────────────────────────────────────
 
 networks:
-  scanner-network:
+  scanner-net:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.28.0.0/16
+        - subnet: 172.30.0.0/24
+
+# ── Volumes (named — persist across restarts) ────────────────────────
 
 volumes:
-  rabbitmq_data:
   mongodb_data:
+  rabbitmq_data:
   minio_data:
+

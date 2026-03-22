@@ -1,12 +1,21 @@
-FROM golang:1.22-alpine AS builder
-WORKDIR /app
-COPY go.mod go.sum ./
-RUN go mod download
-COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o tcp_scanner ./cmd/scanner
+FROM golang:1.24-alpine AS builder
 
-FROM alpine:3.19
-RUN apk --no-cache add ca-certificates
-WORKDIR /root/
-COPY --from=builder /app/tcp_scanner .
-CMD ["./tcp_scanner"]
+WORKDIR /build
+
+COPY go.mod go.sum ./
+RUN go mod download && go mod verify
+
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -ldflags='-s -w -extldflags "-static"' \
+    -o /scanner ./cmd/scanner/main.go
+
+FROM scratch
+
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+COPY --from=builder /scanner /scanner
+
+ENTRYPOINT ["/scanner"]

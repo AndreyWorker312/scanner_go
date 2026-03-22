@@ -1,20 +1,25 @@
+# ============ СТАДИЯ 1: сборка ============
 FROM golang:1.24-alpine AS builder
 
-WORKDIR /app
+WORKDIR /build
 
 COPY go.mod go.sum ./
-RUN go mod download
+RUN go mod download && go mod verify
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o /scanner ./cmd/scanner/main.go
 
-FROM alpine:3.18
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -ldflags='-s -w -extldflags "-static"' \
+    -o /scanner ./cmd/scanner/main.go
 
-# Устанавливаем nmap
-RUN apk add --no-cache nmap
+# ============ СТАДИЯ 2: runtime с nmap ============
+# scratch невозможен — github.com/Ullaakut/nmap вызывает бинарник nmap
+FROM alpine:3.20
 
-WORKDIR /app
+RUN apk add --no-cache nmap nmap-scripts ca-certificates \
+    && rm -rf /var/cache/apk/*
 
-COPY --from=builder /scanner /app/scanner
+COPY --from=builder /scanner /scanner
 
-CMD ["/app/scanner"]
+ENTRYPOINT ["/scanner"]

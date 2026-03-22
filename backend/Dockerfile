@@ -1,24 +1,31 @@
+# ============ СТАДИЯ 1: сборка ============
 FROM golang:1.24-alpine AS builder
 
-WORKDIR /app
+WORKDIR /build
 
+# Кэшируем зависимости отдельным слоем
 COPY go.mod go.sum ./
-
-RUN go mod download
+RUN go mod download && go mod verify
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o app ./cmd/main.go
+# Статическая компиляция: -s -w убирают отладочную информацию,
+# -trimpath убирает локальные пути из бинарника
+# Статика (public/*) вшивается в бинарник через go:embed
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -ldflags='-s -w -extldflags "-static"' \
+    -o /server ./cmd/main.go
 
-FROM alpine:latest
+# ============ СТАДИЯ 2: минимальный runtime ============
+FROM scratch
 
-RUN apk --no-cache add ca-certificates
+# SSL-сертификаты — нужны для TLS-подключений к MongoDB / RabbitMQ
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-WORKDIR /app
-
-COPY --from=builder /app/app /app/app
-COPY --from=builder /app/cmd/public /app/cmd/public
+# Один статический бинарник (public/* уже внутри через embed.FS)
+COPY --from=builder /server /server
 
 EXPOSE 8080
 
-ENTRYPOINT ["/app/app"]
+ENTRYPOINT ["/server"]
