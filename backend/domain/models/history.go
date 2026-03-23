@@ -6,7 +6,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// ==================== ARP HISTORY MODELS ====================
 type ARPHistoryRecord struct {
 	ID             primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	TaskID         string      `bson:"task_id" json:"task_id"`
@@ -23,7 +22,6 @@ type ARPHistoryRecord struct {
 	CreatedAt      time.Time   `bson:"created_at" json:"created_at"`
 }
 
-// ==================== ICMP HISTORY MODELS ====================
 type ICMPHistoryRecord struct {
 	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	TaskID    string       `bson:"task_id" json:"task_id"`
@@ -35,9 +33,6 @@ type ICMPHistoryRecord struct {
 	CreatedAt time.Time    `bson:"created_at" json:"created_at"`
 }
 
-// ==================== NMAP HISTORY MODELS ====================
-
-// TCP/UDP Scan History
 type NmapTcpUdpHistoryRecord struct {
 	ID          primitive.ObjectID   `bson:"_id,omitempty" json:"id"`
 	TaskID      string               `bson:"task_id" json:"task_id"`
@@ -51,7 +46,6 @@ type NmapTcpUdpHistoryRecord struct {
 	CreatedAt   time.Time            `bson:"created_at" json:"created_at"`
 }
 
-// OS Detection History
 type NmapOsDetectionHistoryRecord struct {
 	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	TaskID    string    `bson:"task_id" json:"task_id"`
@@ -67,7 +61,6 @@ type NmapOsDetectionHistoryRecord struct {
 	CreatedAt time.Time `bson:"created_at" json:"created_at"`
 }
 
-// Host Discovery History
 type NmapHostDiscoveryHistoryRecord struct {
 	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	TaskID    string    `bson:"task_id" json:"task_id"`
@@ -82,7 +75,6 @@ type NmapHostDiscoveryHistoryRecord struct {
 	CreatedAt time.Time `bson:"created_at" json:"created_at"`
 }
 
-// ==================== TCP HISTORY MODELS ====================
 type TCPHistoryRecord struct {
 	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	TaskID       string    `bson:"task_id" json:"task_id"`
@@ -95,7 +87,6 @@ type TCPHistoryRecord struct {
 	CreatedAt    time.Time `bson:"created_at" json:"created_at"`
 }
 
-// ==================== API RESPONSE MODELS ====================
 type HistoryResponse struct {
 	Success bool        `json:"success"`
 	Data    interface{} `json:"data,omitempty"`

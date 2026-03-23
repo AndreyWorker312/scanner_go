@@ -23,7 +23,6 @@ func NewDatabase(uri, dbName string) (*Database, error) {
 		return nil, err
 	}
 
-	// Test connection
 	err = client.Ping(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -44,7 +43,6 @@ func (d *Database) Close() error {
 	return d.Client.Disconnect(ctx)
 }
 
-// Get collections
 func (d *Database) ARPCollection() *mongo.Collection {
 	return d.Database.Collection("arp_history")
 }

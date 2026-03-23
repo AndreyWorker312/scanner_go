@@ -6,13 +6,10 @@ import (
 	"time"
 )
 
-// --- USER CONFIG ---
 var (
-	host = "telehack.com" // любой TCP хост
-	port = "23"           // любой TCP порт
+	host = "telehack.com"
+	port = "23"
 )
-
-// -------------------
 
 func main() {
 	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), 5*time.Second)
@@ -49,7 +46,6 @@ func main() {
 	fmt.Println("========================================================")
 }
 
-// humanString – только печатные + \r, \n, \t
 func humanString(buf []byte) string {
 	out := make([]byte, 0, len(buf))
 	for _, b := range buf {

@@ -11,13 +11,11 @@ import (
 	"backend/internal/application/services"
 )
 
-// SearchHandler обрабатывает поиск: есть в БД — отдаём с датой, нет — запускаем скан.
 type SearchHandler struct {
 	repo services.SearchRepository
 	app  *api.App
 }
 
-// NewSearchHandler создаёт обработчик поиска.
 func NewSearchHandler(repo services.SearchRepository, app *api.App) *SearchHandler {
 	return &SearchHandler{repo: repo, app: app}
 }
@@ -29,18 +27,16 @@ func (h *SearchHandler) setCORS(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 }
 
-// SearchResponse — ответ поиска: либо данные из БД с датой, либо task_id при запуске скана.
 type SearchResponse struct {
 	Success   bool        `json:"success"`
-	Found     bool        `json:"found"`      // есть ли данные в БД
-	FromCache bool        `json:"from_cache"` // данные за дату из истории
+	Found     bool        `json:"found"`
+	FromCache bool        `json:"from_cache"`
 	TaskID    string      `json:"task_id,omitempty"`
 	Data      interface{} `json:"data,omitempty"`
 	Count     int         `json:"count,omitempty"`
 	Error     string      `json:"error,omitempty"`
 }
 
-// POST /api/search/icmp — только поиск в БД. Если не найдено — клиент может перейти на страницу сканера с автозаполнением.
 func (h *SearchHandler) SearchICMP(w http.ResponseWriter, r *http.Request) {
 	h.setCORS(w)
 	if r.Method == "OPTIONS" {
@@ -94,7 +90,6 @@ func (h *SearchHandler) SearchICMP(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// POST /api/search/nmap — только поиск в БД.
 func (h *SearchHandler) SearchNmap(w http.ResponseWriter, r *http.Request) {
 	h.setCORS(w)
 	if r.Method == "OPTIONS" {
@@ -185,7 +180,6 @@ func (h *SearchHandler) SearchNmap(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// POST /api/search/arp — только поиск в БД.
 func (h *SearchHandler) SearchARP(w http.ResponseWriter, r *http.Request) {
 	h.setCORS(w)
 	if r.Method == "OPTIONS" {
@@ -232,7 +226,6 @@ func (h *SearchHandler) SearchARP(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(SearchResponse{Success: true, Found: true, FromCache: true, Data: records, Count: len(records)})
 }
 
-// POST /api/search/tcp — только поиск в БД.
 func (h *SearchHandler) SearchTCP(w http.ResponseWriter, r *http.Request) {
 	h.setCORS(w)
 	if r.Method == "OPTIONS" {
@@ -279,8 +272,6 @@ func (h *SearchHandler) SearchTCP(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(SearchResponse{Success: true, Found: true, FromCache: true, Data: records, Count: len(records)})
 }
 
-// GetHistoryByID возвращает одну запись истории по ID.
-// GET /api/history/icmp/id?id=...
 func (h *SearchHandler) GetICMPHistoryByID(w http.ResponseWriter, r *http.Request) {
 	h.setCORS(w)
 	if r.Method == "OPTIONS" {

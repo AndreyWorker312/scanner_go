@@ -50,11 +50,11 @@ func NewRabbitMQ(config RabbitMQConfig) (*RabbitMQ, error) {
 
 	queue, err := channel.QueueDeclare(
 		config.ScannerQueue,
-		true,  // durable
-		false, // delete when unused
-		false, // exclusive
-		false, // no-wait
-		nil,   // arguments
+		true,
+		false,
+		false,
+		false,
+		nil,
 	)
 	if err != nil {
 		channel.Close()
@@ -104,10 +104,10 @@ func (r *RabbitMQ) ConsumeScanRequests(ctx context.Context) (<-chan Delivery, er
 	msgs, err := r.channel.Consume(
 		r.queue.Name,
 		"",
-		false, // auto-ack
-		false, // exclusive
-		false, // no-local
-		false, // no-wait
+		false,
+		false,
+		false,
+		false,
 		nil,
 	)
 	if err != nil {

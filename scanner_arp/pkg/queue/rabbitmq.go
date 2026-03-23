@@ -14,7 +14,7 @@ type RabbitMQConfig struct {
 
 type ARPRequest struct {
 	TaskID        string `json:"task_id"`
-	InterfaceName string `json:"interface_name"` // Теперь это обязательное поле
+	InterfaceName string `json:"interface_name"`
 	IPRange       string `json:"ip_range"`
 }
 
@@ -62,11 +62,11 @@ func NewRabbitMQ(config RabbitMQConfig) (*RabbitMQ, error) {
 
 	queue, err := channel.QueueDeclare(
 		config.ScannerQueue,
-		true,  // durable
-		false, // delete when unused
-		false, // exclusive
-		false, // no-wait
-		nil,   // arguments
+		true,
+		false,
+		false,
+		false,
+		nil,
 	)
 	if err != nil {
 		channel.Close()
@@ -116,10 +116,10 @@ func (r *RabbitMQ) ConsumeScanRequests(ctx context.Context) (<-chan Delivery, er
 	msgs, err := r.channel.Consume(
 		r.queue.Name,
 		"",
-		false, // auto-ack
-		false, // exclusive
-		false, // no-local
-		false, // no-wait
+		false,
+		false,
+		false,
+		false,
 		nil,
 	)
 	if err != nil {

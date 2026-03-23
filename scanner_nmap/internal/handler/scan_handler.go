@@ -16,7 +16,6 @@ func HandleMessage(ctx context.Context, msg queue.Delivery, rabbitMQ *queue.Rabb
 		return
 	}
 
-	// Пробуем определить тип запроса по наличию полей
 	var scanType struct {
 		ScanMethod  string `json:"scan_method"`
 		ScannerType string `json:"scanner_type"`
@@ -29,7 +28,6 @@ func HandleMessage(ctx context.Context, msg queue.Delivery, rabbitMQ *queue.Rabb
 
 	log.Infof("Scan method: %s, Scanner type: %s", scanType.ScanMethod, scanType.ScannerType)
 
-	// Определяем тип сканирования и обрабатываем
 	switch {
 	case scanType.ScanMethod == "tcp_udp_scan" || scanType.ScannerType == "tcp_scan" || scanType.ScannerType == "udp_scan":
 		var tcpUdpRequest domain.ScanTcpUdpRequest

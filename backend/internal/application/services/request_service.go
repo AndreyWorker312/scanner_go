@@ -6,15 +6,12 @@ import (
 	"log"
 )
 
-// RequestService обрабатывает входящие запросы
 type RequestService struct{}
 
-// NewRequestService создает новый сервис запросов
 func NewRequestService() *RequestService {
 	return &RequestService{}
 }
 
-// ProcessRequest обрабатывает входящие запросы
 func (rs *RequestService) ProcessRequest(req *models.Request) *models.Response {
 	switch req.ScannerService {
 	case "nmap_service":
@@ -33,7 +30,6 @@ func (rs *RequestService) ProcessRequest(req *models.Request) *models.Response {
 	}
 }
 
-// processNmapRequest обрабатывает Nmap запросы
 func (rs *RequestService) processNmapRequest(options any) *models.Response {
 	optionsJSON, err := json.Marshal(options)
 	if err != nil {
@@ -104,7 +100,6 @@ func (rs *RequestService) processNmapRequest(options any) *models.Response {
 	}
 }
 
-// processArpRequest обрабатывает ARP запросы
 func (rs *RequestService) processArpRequest(options any) *models.Response {
 	var arpReq models.ARPRequest
 	optionsJSON, err := json.Marshal(options)
@@ -127,7 +122,6 @@ func (rs *RequestService) processArpRequest(options any) *models.Response {
 	return &models.Response{TaskID: arpReq.TaskID, Result: arpReq}
 }
 
-// processIcmpRequest обрабатывает ICMP запросы
 func (rs *RequestService) processIcmpRequest(options any) *models.Response {
 	var icmpReq models.ICMPRequest
 	optionsJSON, err := json.Marshal(options)
@@ -150,7 +144,6 @@ func (rs *RequestService) processIcmpRequest(options any) *models.Response {
 	return &models.Response{TaskID: icmpReq.TaskID, Result: icmpReq}
 }
 
-// processTcpRequest обрабатывает TCP запросы
 func (rs *RequestService) processTcpRequest(options any) *models.Response {
 	var tcpReq models.TCPRequest
 	optionsJSON, err := json.Marshal(options)

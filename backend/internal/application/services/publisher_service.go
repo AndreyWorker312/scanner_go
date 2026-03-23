@@ -6,19 +6,16 @@ import (
 	"log"
 )
 
-// PublisherService управляет публикацией сообщений
 type PublisherService struct {
 	publisher *rabbitmq.RPCScannerPublisher
 }
 
-// NewPublisherService создает новый сервис публикации
 func NewPublisherService(publisher *rabbitmq.RPCScannerPublisher) *PublisherService {
 	return &PublisherService{
 		publisher: publisher,
 	}
 }
 
-// PublishNmapRequest публикует Nmap запрос
 func (ps *PublisherService) PublishNmapRequest(req interface{}) *models.Response {
 	log.Printf("Publishing Nmap request: %+v", req)
 
@@ -46,7 +43,6 @@ func (ps *PublisherService) PublishNmapRequest(req interface{}) *models.Response
 	return resp
 }
 
-// PublishARPRequest публикует ARP запрос
 func (ps *PublisherService) PublishARPRequest(req models.ARPRequest) *models.Response {
 	log.Printf("Publishing ARP request: %+v", req)
 
@@ -61,7 +57,6 @@ func (ps *PublisherService) PublishARPRequest(req models.ARPRequest) *models.Res
 	return resp
 }
 
-// PublishICMPRequest публикует ICMP запрос
 func (ps *PublisherService) PublishICMPRequest(req models.ICMPRequest) *models.Response {
 	log.Printf("Publishing ICMP request: %+v", req)
 
@@ -76,7 +71,6 @@ func (ps *PublisherService) PublishICMPRequest(req models.ICMPRequest) *models.R
 	return resp
 }
 
-// PublishTCPRequest публикует TCP запрос
 func (ps *PublisherService) PublishTCPRequest(req models.TCPRequest) *models.Response {
 	log.Printf("Publishing TCP request: %+v", req)
 
@@ -91,7 +85,6 @@ func (ps *PublisherService) PublishTCPRequest(req models.TCPRequest) *models.Res
 	return resp
 }
 
-// SetResponseCallback устанавливает callback для ответов
 func (ps *PublisherService) SetResponseCallback(callback func(*models.Response)) {
 	ps.publisher.SetResponseCallback(callback)
 }

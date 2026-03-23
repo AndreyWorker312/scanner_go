@@ -27,7 +27,6 @@ type Service struct {
 }
 
 func Run(ctx context.Context, cfg *config.Config, log logger.Logger) error {
-	// RabbitMQ
 	mq, err := queue.New(cfg.RabbitMQURL, cfg.ScannerName)
 	if err != nil {
 		return fmt.Errorf("rabbitmq connect: %w", err)
@@ -35,7 +34,6 @@ func Run(ctx context.Context, cfg *config.Config, log logger.Logger) error {
 	defer mq.Close()
 	log.Infof("Connected RabbitMQ, queue=%s", cfg.ScannerName)
 
-	// MongoDB
 	mongoCli, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoURI))
 	if err != nil {
 		return fmt.Errorf("mongo connect: %w", err)
@@ -44,7 +42,6 @@ func Run(ctx context.Context, cfg *config.Config, log logger.Logger) error {
 	mdb := mongoCli.Database(cfg.MongoDB)
 	log.Infof("Connected MongoDB db=%s", cfg.MongoDB)
 
-	// MinIO
 	mio, err := minio.New(cfg.MinIOEndpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.MinIOAccess, cfg.MinIOSecret, ""),
 		Secure: false,
@@ -52,7 +49,6 @@ func Run(ctx context.Context, cfg *config.Config, log logger.Logger) error {
 	if err != nil {
 		return fmt.Errorf("minio connect: %w", err)
 	}
-	// Ensure bucket
 	exists, err := mio.BucketExists(ctx, cfg.MinIOBucket)
 	if err != nil {
 		return fmt.Errorf("minio bucket check: %w", err)
@@ -79,7 +75,6 @@ func Run(ctx context.Context, cfg *config.Config, log logger.Logger) error {
 			if !ok {
 				return fmt.Errorf("rabbit channel closed")
 			}
-			// Handle message
 			s.handle(ctx, d)
 		}
 	}
@@ -97,14 +92,12 @@ func (s *Service) handle(ctx context.Context, d queue.Delivery) {
 	hexData, decoded, readErr := s.readTCP(ctx, req.Host, req.Port)
 	var objKey string
 	if readErr == nil {
-		// store hex to MinIO
 		objKey = fmt.Sprintf("%s_%d.hex", req.TaskID, time.Now().UnixNano())
 		reader := strings.NewReader(bytesToHexLine(hexData))
 		_, err := s.mio.PutObject(ctx, s.cfg.MinIOBucket, objKey, reader, int64(reader.Len()), minio.PutObjectOptions{ContentType: "text/plain"})
 		if err != nil {
 			s.log.Errorf("minio put: %v", err)
 		}
-		// store decoded to MongoDB
 		coll := s.mdb.Collection(s.cfg.MongoColl)
 		status := "completed"
 		errorMsg := ""
@@ -127,7 +120,6 @@ func (s *Service) handle(ctx context.Context, d queue.Delivery) {
 		}
 	}
 
-	// reply if RPC
 	if d.ReplyTo != "" {
 		resp := queue.TCPResponse{TaskID: req.TaskID, Host: req.Host, Port: req.Port, HexObjectKey: objKey, DecodedText: decoded, Status: "completed"}
 		if readErr != nil {

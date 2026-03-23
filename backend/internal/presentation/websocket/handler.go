@@ -75,7 +75,6 @@ func (c *Client) readPump() {
 		log.Printf("Received message type=%s, scanner_service=%s", msg.Type, scannerService)
 
 		if msg.Req != nil {
-			// Обрабатываем запрос и преобразуем options в нужную структуру
 			response := c.processRequest(msg.Req)
 
 			c.send <- Message{
@@ -125,7 +124,6 @@ func (c *Client) processARPRequest(options any, taskID string) *models.Response 
 		}
 	}
 
-	// Валидация
 	if arpOpts.InterfaceName == "" {
 		return &models.Response{
 			TaskID: taskID,
@@ -139,14 +137,12 @@ func (c *Client) processARPRequest(options any, taskID string) *models.Response 
 		}
 	}
 
-	// Создаем ARPRequest с TaskID
 	arpRequest := models.ARPRequest{
 		TaskID:        taskID,
 		InterfaceName: arpOpts.InterfaceName,
 		IPRange:       arpOpts.IPRange,
 	}
 
-	// Отправляем в application слой
 	return c.app.ProcessRequest(&models.Request{
 		ScannerService: "arp_service",
 		Options:        arpRequest,
@@ -166,7 +162,6 @@ func (c *Client) processICMPRequest(options any, taskID string) *models.Response
 		}
 	}
 
-	// Валидация
 	if len(icmpOpts.Targets) == 0 {
 		return &models.Response{
 			TaskID: taskID,
@@ -174,17 +169,15 @@ func (c *Client) processICMPRequest(options any, taskID string) *models.Response
 		}
 	}
 	if icmpOpts.PingCount <= 0 {
-		icmpOpts.PingCount = 4 // значение по умолчанию
+		icmpOpts.PingCount = 4
 	}
 
-	// Создаем ICMPRequest с TaskID
 	icmpRequest := models.ICMPRequest{
 		TaskID:    taskID,
 		Targets:   icmpOpts.Targets,
 		PingCount: icmpOpts.PingCount,
 	}
 
-	// Отправляем в application слой
 	return c.app.ProcessRequest(&models.Request{
 		ScannerService: "icmp_service",
 		Options:        icmpRequest,
@@ -212,7 +205,6 @@ func (c *Client) processNmapRequest(options any, taskID string) *models.Response
 	log.Printf("Parsed Nmap options: ScanMethod=%s, IP=%s, Ports=%s, ScannerType=%s",
 		nmapOpts.ScanMethod, nmapOpts.IP, nmapOpts.Ports, nmapOpts.ScannerType)
 
-	// В зависимости от типа сканирования создаем соответствующую структуру
 	switch nmapOpts.ScanMethod {
 	case "tcp_udp_scan":
 		if nmapOpts.IP == "" {
@@ -287,7 +279,6 @@ func (c *Client) processTCPRequest(options any, taskID string) *models.Response 
 		}
 	}
 
-	// Валидация
 	if tcpOpts.Host == "" {
 		return &models.Response{
 			TaskID: taskID,
@@ -301,21 +292,18 @@ func (c *Client) processTCPRequest(options any, taskID string) *models.Response 
 		}
 	}
 
-	// Создаем TCPRequest с TaskID
 	tcpRequest := models.TCPRequest{
 		TaskID: taskID,
 		Host:   tcpOpts.Host,
 		Port:   tcpOpts.Port,
 	}
 
-	// Отправляем в application слой
 	return c.app.ProcessRequest(&models.Request{
 		ScannerService: "tcp_service",
 		Options:        tcpRequest,
 	})
 }
 
-// Вспомогательные функции
 func generateTaskID() string {
 	return uuid.New().String()
 }

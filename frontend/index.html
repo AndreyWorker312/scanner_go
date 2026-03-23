@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <title>WebScanAPI — Network Scanner</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/scanner.css">
+</head>
+<body>
+
+  <div id="connectionStatus" class="connection-status disconnected">● Отключено</div>
+
+  <nav class="sidebar">
+    <div class="sidebar-header">
+      <h1>⟩_ WebScanAPI</h1>
+      <p>Network Intelligence Tool</p>
+    </div>
+    <ul class="nav-menu">
+      <li class="nav-item"><a href="#" class="nav-link active" data-page="home"><span class="nav-icon">⌂</span> Главная</a></li>
+      <li class="nav-item"><a href="#" class="nav-link" data-page="arp"><span class="nav-icon">⎔</span> ARP Сканер</a></li>
+      <li class="nav-item"><a href="#" class="nav-link" data-page="icmp"><span class="nav-icon">⇆</span> ICMP Ping</a></li>
+      <li class="nav-item"><a href="#" class="nav-link" data-page="nmap"><span class="nav-icon">⚡</span> Nmap</a></li>
+      <li class="nav-item"><a href="#" class="nav-link" data-page="tcp"><span class="nav-icon">⇌</span> TCP Grabber</a></li>
+      <li class="nav-item"><a href="search.html" class="nav-link"><span class="nav-icon">⌕</span> Поиск</a></li>
+    </ul>
+  </nav>
+
+  <main class="main-content">
+
+    
+    <div id="home" class="page active">
+      <div class="welcome-card">
+        <h2>⟩_ WebScanAPI</h2>
+        <p>Платформа сетевой разведки. Сканирование хостов, портов, обнаружение устройств и сервисов.</p>
+        <div class="feature-grid">
+          <div class="feature-card" onclick="showPage('arp')">
+            <div class="feature-icon">⎔</div>
+            <div class="feature-title">ARP Scan</div>
+            <div class="feature-description">Обнаружение устройств по MAC</div>
+          </div>
+          <div class="feature-card" onclick="showPage('icmp')">
+            <div class="feature-icon">⇆</div>
+            <div class="feature-title">ICMP Ping</div>
+            <div class="feature-description">Доступность хостов</div>
+          </div>
+          <div class="feature-card" onclick="showPage('nmap')">
+            <div class="feature-icon">⚡</div>
+            <div class="feature-title">Nmap</div>
+            <div class="feature-description">Порты, ОС, сервисы</div>
+          </div>
+          <div class="feature-card" onclick="showPage('tcp')">
+            <div class="feature-icon">⇌</div>
+            <div class="feature-title">TCP Grab</div>
+            <div class="feature-description">Баннеры сервисов</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    
+    <div id="arp" class="page">
+      <div class="scanner-container">
+        <div class="scanner-header"><h1>⎔ ARP Scanner</h1><p>Обнаружение устройств в локальной сети</p></div>
+        <div class="scanner-controls">
+          <div class="button-group">
+            <button onclick="arpConnect()" class="btn-success">Подключить</button>
+            <button onclick="arpDisconnect()" id="arpDisconnectBtn" class="btn-danger" disabled>Отключить</button>
+            <button onclick="location.href='arp-history.html'" class="btn-info">История</button>
+            <button onclick="arpClearHistory()" class="btn-secondary">Очистить</button>
+          </div>
+          <div id="arpStatus" class="status disconnected">Отключено</div>
+          <div style="display:flex;gap:12px">
+            <div class="form-group" style="flex:1"><label for="arpInterface">Интерфейс</label><input type="text" id="arpInterface" value="wlo1" placeholder="wlo1, eth0"></div>
+            <div class="form-group" style="flex:1"><label for="arpRange">Диапазон IP</label><input type="text" id="arpRange" value="10.20.5.0/28" placeholder="192.168.1.0/24"></div>
+            <div class="form-group" style="flex:0 0 auto;display:flex;align-items:end"><button onclick="arpStartScan()" id="arpScanBtn" class="btn-primary" disabled>Сканировать</button></div>
+          </div>
+        </div>
+        <div class="results-container">
+          <div class="results-panel"><div class="results-header online">● Онлайн</div><div class="results-content" id="arpOnline"><p class="results-empty">Нет данных</p></div></div>
+          <div class="results-panel"><div class="results-header offline">● Оффлайн</div><div class="results-content" id="arpOffline"><p class="results-empty">Нет данных</p></div></div>
+        </div>
+      </div>
+    </div>
+
+    
+    <div id="icmp" class="page">
+      <div class="scanner-container">
+        <div class="scanner-header"><h1>⇆ ICMP Ping</h1><p>Проверка доступности хостов</p></div>
+        <div class="scanner-controls">
+          <div class="button-group">
+            <button onclick="icmpConnect()" class="btn-success">Подключить</button>
+            <button onclick="icmpDisconnect()" id="icmpDisconnectBtn" class="btn-danger" disabled>Отключить</button>
+            <button onclick="location.href='icmp-history.html'" class="btn-info">История</button>
+            <button onclick="icmpClearHistory()" class="btn-secondary">Очистить</button>
+          </div>
+          <div id="icmpStatus" class="status disconnected">Отключено</div>
+          <div style="display:flex;gap:12px">
+            <div class="form-group" style="flex:2"><label for="icmpTargets">Хосты (по строкам)</label><textarea id="icmpTargets" rows="3" placeholder="8.8.8.8&#10;google.com">8.8.8.8
+google.com
+192.168.1.1</textarea></div>
+            <div class="form-group" style="flex:1"><label for="icmpCount">Пакетов</label><select id="icmpCount"><option value="1">1</option><option value="4" selected>4</option><option value="10">10</option><option value="20">20</option></select></div>
+            <div class="form-group" style="flex:0 0 auto;display:flex;align-items:end"><button onclick="icmpStartScan()" id="icmpScanBtn" class="btn-primary" disabled>Ping</button></div>
+          </div>
+          <div class="button-group" style="margin-top:8px">
+            <button onclick="icmpAddTarget('8.8.8.8')" class="btn-sm btn-secondary">Google DNS</button>
+            <button onclick="icmpAddTarget('1.1.1.1')" class="btn-sm btn-secondary">Cloudflare</button>
+            <button onclick="icmpAddTarget('google.com')" class="btn-sm btn-secondary">Google</button>
+            <button onclick="icmpAddTarget('127.0.0.1')" class="btn-sm btn-secondary">Localhost</button>
+          </div>
+        </div>
+        <div class="results-container"><div class="results-panel"><div class="results-header online">● Результаты Ping</div><div class="results-content" id="icmpResults"><p class="results-empty">Нет данных</p></div></div></div>
+      </div>
+    </div>
+
+    
+    <div id="nmap" class="page">
+      <div class="scanner-container">
+        <div class="scanner-header"><h1>⚡ Nmap Scanner</h1><p>Сканирование портов и определение ОС</p></div>
+        <div class="scanner-controls">
+          <div class="button-group">
+            <button onclick="nmapConnect()" class="btn-success">Подключить</button>
+            <button onclick="nmapDisconnect()" id="nmapDisconnectBtn" class="btn-danger" disabled>Отключить</button>
+            <button onclick="location.href='nmap-history.html'" class="btn-info">История</button>
+            <button onclick="nmapClearHistory()" class="btn-secondary">Очистить</button>
+          </div>
+          <div id="nmapStatus" class="status disconnected">Отключено</div>
+          <div style="display:flex;gap:12px;margin-bottom:12px">
+            <div class="form-group" style="flex:1"><label for="nmapTarget">IP / Хост</label><input type="text" id="nmapTarget" value="192.168.1.1" placeholder="192.168.1.1"></div>
+            <div class="form-group" style="flex:0 0 auto;display:flex;align-items:end"><button onclick="nmapStartScan()" id="nmapScanBtn" class="btn-primary" disabled>Сканировать</button></div>
+          </div>
+          <div class="form-group">
+            <label>Тип сканирования</label>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:6px">
+              <div class="scan-type-card" data-type="tcp_scan"><div class="scan-type-icon">🔌</div><div class="scan-type-title">TCP Scan</div><div class="scan-type-description">TCP порты</div></div>
+              <div class="scan-type-card" data-type="udp_scan"><div class="scan-type-icon">📡</div><div class="scan-type-title">UDP Scan</div><div class="scan-type-description">UDP порты</div></div>
+              <div class="scan-type-card" data-type="os_detection"><div class="scan-type-icon">💻</div><div class="scan-type-title">OS Detect</div><div class="scan-type-description">Определение ОС</div></div>
+              <div class="scan-type-card" data-type="host_discovery"><div class="scan-type-icon">🔍</div><div class="scan-type-title">Host Discovery</div><div class="scan-type-description">Доступность хоста</div></div>
+            </div>
+          </div>
+          <div id="nmapPortsSettings" class="form-group hidden">
+            <label for="nmapPorts">Порты</label>
+            <input type="text" id="nmapPorts" value="80,443,22,21" placeholder="80,443,22">
+            <div class="button-group" style="margin-top:6px">
+              <button onclick="nmapSetPorts('common')" class="btn-sm btn-secondary">Основные</button>
+              <button onclick="nmapSetPorts('web')" class="btn-sm btn-secondary">Веб</button>
+              <button onclick="nmapSetPorts('all')" class="btn-sm btn-secondary">Все</button>
+            </div>
+          </div>
+        </div>
+        <div class="results-container"><div class="results-panel"><div class="results-header online">⚡ Результаты Nmap</div><div class="results-content" id="nmapResults"><p class="results-empty">Нет данных</p></div></div></div>
+      </div>
+    </div>
+
+    
+    <div id="tcp" class="page">
+      <div class="scanner-container">
+        <div class="scanner-header"><h1>⇌ TCP Banner Grabber</h1><p>Получение баннеров сервисов</p></div>
+        <div class="scanner-controls">
+          <div class="button-group">
+            <button onclick="tcpConnect()" class="btn-success">Подключить</button>
+            <button onclick="tcpDisconnect()" id="tcpDisconnectBtn" class="btn-danger" disabled>Отключить</button>
+            <button onclick="location.href='tcp-history.html'" class="btn-info">История</button>
+            <button onclick="tcpClearHistory()" class="btn-secondary">Очистить</button>
+          </div>
+          <div id="tcpStatus" class="status disconnected">Отключено</div>
+          <div style="display:flex;gap:12px">
+            <div class="form-group" style="flex:1"><label for="tcpHost">Хост</label><input type="text" id="tcpHost" value="telehack.com" placeholder="telehack.com"></div>
+            <div class="form-group" style="flex:1"><label for="tcpPort">Порт</label><input type="text" id="tcpPort" value="23" placeholder="23"></div>
+            <div class="form-group" style="flex:0 0 auto;display:flex;align-items:end"><button onclick="tcpStartScan()" id="tcpScanBtn" class="btn-primary" disabled>Сканировать</button></div>
+          </div>
+          <div class="button-group" style="margin-top:8px">
+            <button onclick="tcpQuick('telehack.com','23')" class="btn-sm btn-secondary">Telehack</button>
+            <button onclick="tcpQuick('google.com','80')" class="btn-sm btn-secondary">Google:80</button>
+            <button onclick="tcpQuick('google.com','443')" class="btn-sm btn-secondary">Google:443</button>
+          </div>
+        </div>
+        <div class="results-container"><div class="results-panel"><div class="results-header online">⇌ Результаты TCP</div><div class="results-content" id="tcpResults"><p class="results-empty">Нет данных</p></div></div></div>
+      </div>
+    </div>
+
+  </main>
+
+<script src="js/common.js"></script>
+<script>
+var arpSocket=null,icmpSocket=null,nmapSocket=null,tcpSocket=null;
+var arpHistory=[],icmpHist=[],nmapHist=[],tcpHist=[];
+var nmapSelectedType=null;
+
+function showPage(id){$$('.page').forEach(function(p){p.classList.remove('active');p.style.display='none'});var el=document.getElementById(id);if(el){el.classList.add('active');el.style.display='flex'}$$('.nav-link').forEach(function(l){l.classList.remove('active')});var lk=$('[data-page="'+id+'"]');if(lk)lk.classList.add('active');if(id==='arp'&&!arpSocket)setTimeout(arpConnect,300);if(id==='icmp'&&!icmpSocket)setTimeout(icmpConnect,300);if(id==='nmap'&&!nmapSocket)setTimeout(nmapConnect,300);if(id==='tcp'&&!tcpSocket)setTimeout(tcpConnect,300);updateGlobal()}
+$$('.nav-link').forEach(function(l){l.addEventListener('click',function(e){var p=this.getAttribute('data-page');if(p){e.preventDefault();showPage(p)}})});
+function updateGlobal(){var el=$('#connectionStatus');var on=(arpSocket&&arpSocket.readyState===1)||(icmpSocket&&icmpSocket.readyState===1)||(nmapSocket&&nmapSocket.readyState===1)||(tcpSocket&&tcpSocket.readyState===1);el.textContent=on?'● Подключено':'● Отключено';el.className='connection-status '+(on?'connected':'disconnected')}
+
+/* ARP */
+function arpUS(on){$('#arpStatus').textContent=on?'● Подключено':'● Отключено';$('#arpStatus').className='status '+(on?'connected':'disconnected');$('#arpDisconnectBtn').disabled=!on;$('#arpScanBtn').disabled=!on;updateGlobal()}
+function arpConnect(){if(arpSocket&&arpSocket.readyState===1)return;arpSocket=new WebSocket(getWsUrl());arpSocket.onopen=function(){arpUS(true)};arpSocket.onclose=function(){arpUS(false);arpSocket=null};arpSocket.onerror=function(){};arpSocket.onmessage=function(e){try{var d=JSON.parse(e.data);if(d.type==='response'&&d.response&&d.response.result){arpAdd(d.response.result);$('#arpScanBtn').textContent='Сканировать';$('#arpScanBtn').disabled=false}}catch(x){}}}
+function arpDisconnect(){if(arpSocket){arpSocket.close();arpSocket=null}}
+function arpStartScan(){if(!arpSocket||arpSocket.readyState!==1)return;var i=$('#arpInterface').value.trim(),r=$('#arpRange').value.trim();if(!i||!r){alert('Заполните интерфейс и диапазон');return}$('#arpScanBtn').textContent='Сканирование...';$('#arpScanBtn').disabled=true;arpSocket.send(JSON.stringify({type:'request',request:{scanner_service:'arp_service',options:{interface_name:i,ip_range:r}}}));setTimeout(function(){var b=$('#arpScanBtn');if(b.disabled){b.textContent='Сканировать';b.disabled=false}},30000)}
+function arpAdd(d){arpHistory.unshift({ts:new Date().toLocaleTimeString(),iface:d.interface_name||$('#arpInterface').value,range:d.ip_range||$('#arpRange').value,total:d.total_count||0,onCnt:d.online_count||0,offCnt:d.offline_count||0,online:d.online_devices||[],offline:d.offline_devices||[]});if(arpHistory.length>10)arpHistory.pop();arpRender()}
+function arpRender(){var on=$('#arpOnline'),off=$('#arpOffline');on.innerHTML='';off.innerHTML='';if(!arpHistory.length){on.innerHTML=off.innerHTML='<p class="results-empty">Нет данных</p>';return}arpHistory.forEach(function(s){if(s.onCnt>0)on.appendChild(arpPanel(s,'online'));if(s.offCnt>0)off.appendChild(arpPanel(s,'offline'))});if(!on.children.length)on.innerHTML='<p class="results-empty">Онлайн устройств нет</p>';if(!off.children.length)off.innerHTML='<p class="results-empty">Оффлайн устройств нет</p>'}
+function arpPanel(s,type){var p=document.createElement('div');p.className='scan-result';var devs=type==='online'?s.online:s.offline;var list='';devs.forEach(function(d){var c=d.status==='online'?'device-online':'device-offline';list+='<div class="device-item '+c+'"><strong>'+escapeHtml(d.ip)+'</strong> MAC: '+escapeHtml(d.mac||'—')+'</div>'});p.innerHTML='<div class="scan-header">'+escapeHtml(s.ts)+' — '+escapeHtml(s.iface)+' '+escapeHtml(s.range)+'</div><div class="scan-body"><div class="stats"><span class="stat-item">Всего: '+s.total+'</span><span class="stat-item green">Online: '+s.onCnt+'</span><span class="stat-item red">Offline: '+s.offCnt+'</span></div><div class="device-list">'+list+'</div></div>';return p}
+function arpClearHistory(){if(!confirm('Очистить историю ARP?'))return;fetch('/api/history/arp/delete',{method:'DELETE'}).then(function(r){return r.json()}).then(function(){arpHistory=[];arpRender()}).catch(function(){arpHistory=[];arpRender()})}
+
+/* ICMP */
+function icmpUS(on){$('#icmpStatus').textContent=on?'● Подключено':'● Отключено';$('#icmpStatus').className='status '+(on?'connected':'disconnected');$('#icmpDisconnectBtn').disabled=!on;$('#icmpScanBtn').disabled=!on;updateGlobal()}
+function icmpConnect(){if(icmpSocket&&icmpSocket.readyState===1)return;icmpSocket=new WebSocket(getWsUrl());icmpSocket.onopen=function(){icmpUS(true)};icmpSocket.onclose=function(){icmpUS(false);icmpSocket=null};icmpSocket.onerror=function(){};icmpSocket.onmessage=function(e){try{var d=JSON.parse(e.data);if(d.type==='response'&&d.response&&d.response.result){icmpAdd(d.response.result);$('#icmpScanBtn').textContent='Ping';$('#icmpScanBtn').disabled=false}}catch(x){}}}
+function icmpDisconnect(){if(icmpSocket){icmpSocket.close();icmpSocket=null}}
+function icmpStartScan(){if(!icmpSocket||icmpSocket.readyState!==1)return;var t=$('#icmpTargets').value.trim().split('\n').map(function(s){return s.trim()}).filter(Boolean);if(!t.length){alert('Введите хосты');return}$('#icmpScanBtn').textContent='Пингуем...';$('#icmpScanBtn').disabled=true;icmpSocket.send(JSON.stringify({type:'request',request:{scanner_service:'icmp_service',options:{targets:t,ping_count:parseInt($('#icmpCount').value)||4}}}));setTimeout(function(){var b=$('#icmpScanBtn');if(b.disabled){b.textContent='Ping';b.disabled=false}},30000)}
+function icmpAddTarget(t){var el=$('#icmpTargets');el.value=el.value.trim()?el.value.trim()+'\n'+t:t}
+function icmpAdd(d){icmpHist.unshift({ts:new Date().toLocaleTimeString(),results:d.results||[],total:(d.results||[]).length});if(icmpHist.length>10)icmpHist.pop();icmpRender()}
+function icmpRender(){var el=$('#icmpResults');el.innerHTML='';if(!icmpHist.length){el.innerHTML='<p class="results-empty">Нет данных</p>';return}icmpHist.forEach(function(ping){var p=document.createElement('div');p.className='scan-result';var list='';ping.results.forEach(function(r){var ok=r.packets_received>0;var loss=(r.packet_loss_percent||0).toFixed(1);list+='<div class="device-item '+(ok?'device-online':'device-offline')+'"><strong>'+escapeHtml(r.target)+'</strong> ('+escapeHtml(r.address)+') — '+(r.packets_received||0)+'/'+(r.packets_sent||0)+', потери: '+loss+'%'+(r.error?' <span style="color:var(--accent-red)">'+escapeHtml(r.error)+'</span>':'')+'</div>'});p.innerHTML='<div class="scan-header">'+escapeHtml(ping.ts)+' — '+ping.total+' целей</div><div class="scan-body"><div class="device-list">'+list+'</div></div>';el.appendChild(p)})}
+function icmpClearHistory(){if(!confirm('Очистить историю ICMP?'))return;fetch('/api/history/icmp/delete',{method:'DELETE'}).then(function(r){return r.json()}).then(function(){icmpHist=[];icmpRender()}).catch(function(){icmpHist=[];icmpRender()})}
+
+/* NMAP */
+function nmapUS(on){$('#nmapStatus').textContent=on?'● Подключено':'● Отключено';$('#nmapStatus').className='status '+(on?'connected':'disconnected');$('#nmapDisconnectBtn').disabled=!on;$('#nmapScanBtn').disabled=!on;updateGlobal()}
+function nmapConnect(){if(nmapSocket&&nmapSocket.readyState===1)return;nmapSocket=new WebSocket(getWsUrl());nmapSocket.onopen=function(){nmapUS(true)};nmapSocket.onclose=function(){nmapUS(false);nmapSocket=null};nmapSocket.onerror=function(){};nmapSocket.onmessage=function(e){try{var d=JSON.parse(e.data);if(d.type==='response'&&d.response&&d.response.result)nmapAdd(d.response.result);$('#nmapScanBtn').textContent='Сканировать';$('#nmapScanBtn').disabled=false}catch(x){$('#nmapScanBtn').textContent='Сканировать';$('#nmapScanBtn').disabled=false}}}
+function nmapDisconnect(){if(nmapSocket){nmapSocket.close();nmapSocket=null}}
+function nmapInitCards(){$$('.scan-type-card').forEach(function(c){c.addEventListener('click',function(){$$('.scan-type-card').forEach(function(x){x.classList.remove('active')});this.classList.add('active');nmapSelectedType=this.dataset.type;$('#nmapPortsSettings').classList.toggle('hidden',nmapSelectedType!=='tcp_scan'&&nmapSelectedType!=='udp_scan')})})}
+function nmapStartScan(){if(!nmapSocket||nmapSocket.readyState!==1)return;if(!nmapSelectedType){alert('Выберите тип');return}var ip=$('#nmapTarget').value.trim();if(!ip){alert('Введите IP');return}$('#nmapScanBtn').textContent='Сканирование...';$('#nmapScanBtn').disabled=true;var req;if(nmapSelectedType==='tcp_scan'||nmapSelectedType==='udp_scan')req={scan_method:'tcp_udp_scan',ip:ip,ports:$('#nmapPorts').value.trim()||'80,443',scanner_type:nmapSelectedType};else if(nmapSelectedType==='os_detection')req={scan_method:'os_detection',ip:ip};else req={scan_method:'host_discovery',ip:ip};nmapSocket.send(JSON.stringify({type:'request',request:{scanner_service:'nmap_service',options:req}}));setTimeout(function(){var b=$('#nmapScanBtn');if(b.disabled){b.textContent='Сканировать';b.disabled=false}},30000)}
+function nmapSetPorts(t){var v={common:'22,23,25,53,80,110,143,443,993,995',web:'80,443,8080,8443,3000',all:'1-65535'};$('#nmapPorts').value=v[t]||''}
+function nmapAdd(d){nmapHist.unshift({ts:new Date().toLocaleTimeString(),scanType:nmapSelectedType,result:d});if(nmapHist.length>10)nmapHist.pop();nmapRender()}
+function nmapRender(){var el=$('#nmapResults');el.innerHTML='';if(!nmapHist.length){el.innerHTML='<p class="results-empty">Нет данных</p>';return}nmapHist.forEach(function(scan){var p=document.createElement('div');p.className='scan-panel';var hdr='<div class="scan-info"><span class="scan-time">'+escapeHtml(scan.ts)+'</span><span class="scan-type">'+escapeHtml((scan.scanType||'').replace('_',' ').toUpperCase())+'</span></div>';var body='',r=scan.result;if(scan.scanType==='tcp_scan'||scan.scanType==='udp_scan'){if(r.port_info&&r.port_info.length>0){var pi=r.port_info[0],ports=pi.all_ports||pi.AllPorts||[],protos=pi.protocols||pi.Protocols||[],states=pi.state||pi.State||[],svcs=pi.service_name||pi.ServiceName||[];var det='';for(var i=0;i<ports.length;i++)det+='<div class="device-item device-online"><strong>'+escapeHtml(ports[i]+'/'+(protos[i]||'tcp'))+'</strong> '+escapeHtml(states[i]||'')+' ('+escapeHtml(svcs[i]||'')+')</div>';body='<div><strong>Хост:</strong> '+escapeHtml(r.host||'')+'</div><div><strong>Портов:</strong> '+ports.length+'</div><div class="device-list">'+det+'</div>'}else body='<div>Порты не найдены</div>'}else if(scan.scanType==='os_detection'){body='<div><strong>Хост:</strong> '+escapeHtml(r.host||'')+'</div><div><strong>ОС:</strong> '+escapeHtml(r.name||'—')+'</div><div><strong>Вендор:</strong> '+escapeHtml(r.vendor||'—')+'</div><div><strong>Точность:</strong> '+(r.accuracy||0)+'%</div>'}else{body='<div><strong>Хост:</strong> '+escapeHtml(r.host||r.Host||'')+'</div><div><strong>Статус:</strong> '+escapeHtml(r.status||r.Status||'')+'</div><div><strong>Up/Total:</strong> '+(r.host_up||r.HostUP||0)+'/'+(r.host_total||r.HostTotal||0)+'</div>';var dns=r.dns||r.DNS||'',reason=r.reason||r.Reason||'';if(dns&&dns!=='unknown')body+='<div><strong>DNS:</strong> '+escapeHtml(dns)+'</div>';if(reason&&reason!=='unknown')body+='<div><strong>Причина:</strong> '+escapeHtml(reason)+'</div>'}p.innerHTML='<div class="scan-header">'+hdr+'</div><div class="scan-body">'+body+'</div>';el.appendChild(p)})}
+function nmapClearHistory(){if(!confirm('Очистить историю Nmap?'))return;fetch('/api/history/nmap/delete',{method:'DELETE'}).then(function(r){return r.json()}).then(function(){nmapHist=[];nmapRender()}).catch(function(){nmapHist=[];nmapRender()})}
+
+/* TCP */
+function tcpUS(on){$('#tcpStatus').textContent=on?'● Подключено':'● Отключено';$('#tcpStatus').className='status '+(on?'connected':'disconnected');$('#tcpDisconnectBtn').disabled=!on;$('#tcpScanBtn').disabled=!on;updateGlobal()}
+function tcpConnect(){if(tcpSocket&&tcpSocket.readyState===1)return;tcpSocket=new WebSocket(getWsUrl());tcpSocket.onopen=function(){tcpUS(true)};tcpSocket.onclose=function(){tcpUS(false);tcpSocket=null};tcpSocket.onerror=function(){};tcpSocket.onmessage=function(e){try{var d=JSON.parse(e.data);if(d.type==='response'&&d.response&&d.response.result){tcpAdd(d.response.result);$('#tcpScanBtn').textContent='Сканировать';$('#tcpScanBtn').disabled=false}}catch(x){$('#tcpScanBtn').textContent='Сканировать';$('#tcpScanBtn').disabled=false}}}
+function tcpDisconnect(){if(tcpSocket){tcpSocket.close();tcpSocket=null}}
+function tcpStartScan(){if(!tcpSocket||tcpSocket.readyState!==1)return;var h=$('#tcpHost').value.trim(),p=$('#tcpPort').value.trim();if(!h||!p){alert('Заполните хост и порт');return}$('#tcpScanBtn').textContent='Сканирование...';$('#tcpScanBtn').disabled=true;tcpSocket.send(JSON.stringify({type:'request',request:{scanner_service:'tcp_service',options:{host:h,port:p}}}));setTimeout(function(){var b=$('#tcpScanBtn');if(b.disabled){b.textContent='Сканировать';b.disabled=false}},30000)}
+function tcpQuick(h,p){$('#tcpHost').value=h;$('#tcpPort').value=p}
+function tcpAdd(d){tcpHist.unshift({ts:new Date().toLocaleTimeString(),result:d});if(tcpHist.length>10)tcpHist.pop();tcpRender()}
+function tcpRender(){var el=$('#tcpResults');el.innerHTML='';if(!tcpHist.length){el.innerHTML='<p class="results-empty">Нет данных</p>';return}tcpHist.forEach(function(scan){var p=document.createElement('div');p.className='scan-result';var r=scan.result,st=r.status||'',host=r.host||r.Host||'',port=r.port||r.Port||'',text=r.decoded_text||r.DecodedText||'',hex=r.hex_object_key||r.HexObjectKey||'',err=r.error||r.Error||'';var body='<div><strong>Хост:</strong> '+escapeHtml(host)+':'+escapeHtml(port)+'</div><div><strong>Статус:</strong> <span style="color:'+(st==='completed'?'var(--accent-green)':'var(--accent-red)')+'">'+escapeHtml(st)+'</span></div>';if(hex)body+='<div><strong>Hex Key:</strong> <code class="mono">'+escapeHtml(hex)+'</code></div>';if(text)body+='<div style="margin-top:8px"><strong>Decoded:</strong></div><div class="decoded-text">'+escapeHtml(text)+'</div>';if(err)body+='<div class="error-message" style="margin-top:8px">'+escapeHtml(err)+'</div>';p.innerHTML='<div class="scan-header">'+escapeHtml(scan.ts)+'</div><div class="scan-body">'+body+'</div>';el.appendChild(p)})}
+function tcpClearHistory(){if(!confirm('Очистить историю TCP?'))return;fetch('/api/history/tcp/delete',{method:'DELETE'}).then(function(r){return r.json()}).then(function(){tcpHist=[];tcpRender()}).catch(function(){tcpHist=[];tcpRender()})}
+
+/* HOTKEYS & INIT */
+document.addEventListener('keydown',function(e){if(e.ctrlKey&&e.key==='Enter'){var a=$('.page.active');if(!a)return;if(a.id==='arp')arpStartScan();else if(a.id==='icmp')icmpStartScan();else if(a.id==='nmap')nmapStartScan();else if(a.id==='tcp')tcpStartScan()}});
+function applyUrlPrefill(){var p=new URLSearchParams(location.search),pg=p.get('page');if(!pg)return;showPage(pg);if(pg==='icmp'){var t=p.get('targets');if(t)$('#icmpTargets').value=t.split(',').map(function(s){return s.trim()}).filter(Boolean).join('\n');var pc=p.get('ping_count');if(pc)$('#icmpCount').value=pc}if(pg==='arp'){var i=p.get('interface');if(i)$('#arpInterface').value=i;var r=p.get('ip_range');if(r)$('#arpRange').value=r}if(pg==='nmap'){var ip=p.get('ip');if(ip)$('#nmapTarget').value=ip;var po=p.get('ports');if(po)$('#nmapPorts').value=po;var nt=p.get('nmap_type');if(nt){var dt=nt==='tcp_udp'?'tcp_scan':(nt==='os_detection'||nt==='host_discovery'?nt:'tcp_scan');var c=$('.scan-type-card[data-type="'+dt+'"]');if(c)c.click()}}if(pg==='tcp'){var h=p.get('host');if(h)$('#tcpHost').value=h;var pt=p.get('port');if(pt)$('#tcpPort').value=pt}}
+document.addEventListener('DOMContentLoaded',function(){nmapInitCards();if(new URLSearchParams(location.search).get('page'))applyUrlPrefill();else showPage('home')});
+</script>
+</body>
+</html>

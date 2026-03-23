@@ -10,7 +10,6 @@ type Response struct {
 	Result any    `json:"result"`
 }
 
-// ==================== ARP SCANNER MODELS ====================
 type ARPRequest struct {
 	TaskID        string `json:"task_id"`
 	InterfaceName string `json:"interface_name"`
@@ -36,7 +35,6 @@ type ARPDevice struct {
 	Status string `json:"status"`
 }
 
-// ==================== ICMP SCANNER MODELS ====================
 type ICMPRequest struct {
 	TaskID    string   `json:"task_id"`
 	Targets   []string `json:"targets"`
@@ -58,8 +56,6 @@ type ICMPResult struct {
 	PacketLossPercent float64 `json:"packet_loss_percent"`
 	Error             string  `json:"error,omitempty"`
 }
-
-// ==================== NMAP SCANNER MODELS ====================
 
 type NmapRequest struct {
 	ScanMethod string `json:"scan_method"`
@@ -88,7 +84,6 @@ type NmapPortTcpUdpInfo struct {
 	ServiceName []string `json:"service_name"`
 }
 
-// OS Detection сканирование
 type NmapOsDetectionRequest struct {
 	TaskID     string `json:"task_id"`
 	IP         string `json:"ip"`
@@ -107,7 +102,6 @@ type NmapOsDetectionResponse struct {
 	Error    string `json:"error,omitempty"`
 }
 
-// Host Discovery сканирование
 type NmapHostDiscoveryRequest struct {
 	TaskID     string `json:"task_id"`
 	IP         string `json:"ip"`
@@ -125,7 +119,6 @@ type NmapHostDiscoveryResponse struct {
 	Error     string `json:"error,omitempty"`
 }
 
-// ==================== TCP SCANNER MODELS ====================
 type TCPRequest struct {
 	TaskID string `json:"task_id"`
 	Host   string `json:"host"`

@@ -5,19 +5,16 @@ import (
 	"log"
 )
 
-// ResponseService обрабатывает ответы от сканеров
 type ResponseService struct {
 	historyService *HistoryService
 }
 
-// NewResponseService создает новый сервис ответов
 func NewResponseService(historyService *HistoryService) *ResponseService {
 	return &ResponseService{
 		historyService: historyService,
 	}
 }
 
-// ProcessResponse обрабатывает ответы от сканеров
 func (rs *ResponseService) ProcessResponse(response *models.Response) {
 	if response == nil {
 		log.Printf("ProcessResponse: response is nil")

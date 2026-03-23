@@ -17,7 +17,7 @@ type RPCScannerPublisher struct {
 	channel    *amqp.Channel
 	replies    map[string]chan *models.Response
 	mu         sync.Mutex
-	onResponse func(*models.Response) // Callback для обработки ответов
+	onResponse func(*models.Response)
 }
 
 var (
@@ -148,7 +148,6 @@ func (p *RPCScannerPublisher) startReplyConsumer() error {
 			p.mu.Unlock()
 
 			if exists {
-				// Пробуем определить тип ответа и преобразовать в универсальный Response
 				response, err := p.parseResponse(msg.Body)
 				if err != nil {
 					log.Printf("Failed to parse response: %v", err)
@@ -163,16 +162,13 @@ func (p *RPCScannerPublisher) startReplyConsumer() error {
 	return nil
 }
 
-// SetResponseCallback устанавливает callback для обработки ответов
 func (p *RPCScannerPublisher) SetResponseCallback(callback func(*models.Response)) {
 	p.onResponse = callback
 }
 
-// parseResponse пытается определить тип ответа и преобразовать его в универсальный Response
 func (p *RPCScannerPublisher) parseResponse(body []byte) (*models.Response, error) {
 	log.Printf("Raw response body: %s", string(body))
 
-	// Сначала пробуем как ICMPResponse (проверяем наличие results)
 	var icmpResp models.ICMPResponse
 	if err := json.Unmarshal(body, &icmpResp); err == nil && icmpResp.TaskID != "" && len(icmpResp.Results) > 0 {
 		log.Printf("Received ICMP response for task %s with %d results", icmpResp.TaskID, len(icmpResp.Results))
@@ -181,7 +177,6 @@ func (p *RPCScannerPublisher) parseResponse(body []byte) (*models.Response, erro
 			Result: icmpResp,
 		}
 
-		// Вызываем callback если он установлен
 		if p.onResponse != nil {
 			p.onResponse(response)
 		}
@@ -189,7 +184,6 @@ func (p *RPCScannerPublisher) parseResponse(body []byte) (*models.Response, erro
 		return response, nil
 	}
 
-	// Потом пробуем как ARPResponse (проверяем наличие online_devices/offline_devices)
 	var arpResp models.ARPResponse
 	if err := json.Unmarshal(body, &arpResp); err == nil && arpResp.TaskID != "" && (len(arpResp.OnlineDevices) > 0 || len(arpResp.OfflineDevices) > 0) {
 		log.Printf("Received ARP response for task %s: Total=%d, Online=%d, Offline=%d",
@@ -200,7 +194,6 @@ func (p *RPCScannerPublisher) parseResponse(body []byte) (*models.Response, erro
 			Result: arpResp,
 		}
 
-		// Вызываем callback если он установлен
 		if p.onResponse != nil {
 			p.onResponse(response)
 		}
@@ -208,7 +201,6 @@ func (p *RPCScannerPublisher) parseResponse(body []byte) (*models.Response, erro
 		return response, nil
 	}
 
-	// Пробуем как NmapTcpUdpResponse (проверяем наличие PortInfo) - ПЕРВЫМ!
 	var nmapTcpUdpResp models.NmapTcpUdpResponse
 	if err := json.Unmarshal(body, &nmapTcpUdpResp); err == nil && nmapTcpUdpResp.TaskID != "" && len(nmapTcpUdpResp.PortInfo) > 0 {
 		log.Printf("Received Nmap TCP/UDP response for task %s", nmapTcpUdpResp.TaskID)
@@ -217,7 +209,6 @@ func (p *RPCScannerPublisher) parseResponse(body []byte) (*models.Response, erro
 			Result: nmapTcpUdpResp,
 		}
 
-		// Вызываем callback если он установлен
 		if p.onResponse != nil {
 			p.onResponse(response)
 		}
@@ -225,7 +216,6 @@ func (p *RPCScannerPublisher) parseResponse(body []byte) (*models.Response, erro
 		return response, nil
 	}
 
-	// Пробуем как NmapOsDetectionResponse (проверяем наличие специфичных полей)
 	var nmapOsResp models.NmapOsDetectionResponse
 	if err := json.Unmarshal(body, &nmapOsResp); err == nil && nmapOsResp.TaskID != "" && (nmapOsResp.Name != "" || nmapOsResp.Vendor != "" || nmapOsResp.Family != "") {
 		log.Printf("Received Nmap OS detection response for task %s", nmapOsResp.TaskID)
@@ -234,7 +224,6 @@ func (p *RPCScannerPublisher) parseResponse(body []byte) (*models.Response, erro
 			Result: nmapOsResp,
 		}
 
-		// Вызываем callback если он установлен
 		if p.onResponse != nil {
 			p.onResponse(response)
 		}
@@ -242,7 +231,6 @@ func (p *RPCScannerPublisher) parseResponse(body []byte) (*models.Response, erro
 		return response, nil
 	}
 
-	// Пробуем как NmapHostDiscoveryResponse (проверяем наличие специфичных полей)
 	var nmapHostResp models.NmapHostDiscoveryResponse
 	if err := json.Unmarshal(body, &nmapHostResp); err == nil && nmapHostResp.TaskID != "" && (nmapHostResp.Status != "" || nmapHostResp.DNS != "" || nmapHostResp.Reason != "") {
 		log.Printf("Received Nmap host discovery response for task %s", nmapHostResp.TaskID)
@@ -251,7 +239,6 @@ func (p *RPCScannerPublisher) parseResponse(body []byte) (*models.Response, erro
 			Result: nmapHostResp,
 		}
 
-		// Вызываем callback если он установлен
 		if p.onResponse != nil {
 			p.onResponse(response)
 		}
@@ -259,12 +246,10 @@ func (p *RPCScannerPublisher) parseResponse(body []byte) (*models.Response, erro
 		return response, nil
 	}
 
-	// Потом пробуем как обычный Response
 	var response models.Response
 	if err := json.Unmarshal(body, &response); err == nil && response.TaskID != "" {
 		log.Printf("Received generic response for task %s", response.TaskID)
 
-		// Вызываем callback если он установлен
 		if p.onResponse != nil {
 			p.onResponse(&response)
 		}

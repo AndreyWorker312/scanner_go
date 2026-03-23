@@ -37,7 +37,6 @@ func (s *pingScanner) Ping(ctx context.Context, target string) PingResult {
 	var res PingResult
 	res.Target = target
 
-	// Разрешаем IP, если это домен
 	ip := net.ParseIP(target)
 	if ip == nil {
 		ips, err := net.LookupIP(target)

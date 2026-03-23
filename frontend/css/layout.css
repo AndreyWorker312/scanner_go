@@ -1,0 +1,103 @@
+.sidebar {
+  width: 220px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  position: fixed;
+  height: 100vh;
+  overflow-y: auto;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header {
+  padding: 20px 16px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar-header h1 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent-green);
+  font-family: var(--font-mono);
+  letter-spacing: -0.5px;
+}
+
+.sidebar-header p {
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+.nav-menu { list-style: none; flex: 1; padding: 8px 0; }
+
+.nav-item { margin: 1px 0; }
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: all var(--transition);
+  border-left: 2px solid transparent;
+  font-size: 13px;
+}
+
+.nav-link:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-left-color: var(--accent-green);
+  text-decoration: none;
+}
+
+.nav-link.active {
+  background: var(--bg-hover);
+  color: var(--accent-green);
+  border-left-color: var(--accent-green);
+  font-weight: 600;
+}
+
+.nav-icon { width: 18px; margin-right: 10px; font-size: 14px; }
+
+.main-content {
+  flex: 1;
+  margin-left: 220px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.page { display: none; flex: 1; padding: 24px; }
+.page.active { display: flex; flex-direction: column; }
+
+.connection-status {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  z-index: 1001;
+  border: 1px solid;
+}
+
+.connection-status.connected {
+  background: rgba(0, 230, 118, 0.1);
+  color: var(--accent-green);
+  border-color: rgba(0, 230, 118, 0.3);
+}
+
+.connection-status.disconnected {
+  background: rgba(255, 76, 76, 0.1);
+  color: var(--accent-red);
+  border-color: rgba(255, 76, 76, 0.3);
+}
+
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); transition: transform 0.3s ease; }
+  .sidebar.open { transform: translateX(0); }
+  .main-content { margin-left: 0; }
+}

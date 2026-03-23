@@ -68,12 +68,10 @@ func (s *arpScanner) Scan(ctx context.Context, ipRange string) ([]DeviceInfo, er
 		resultsMu sync.Mutex
 	)
 
-	// Оптимизированное сканирование как в arp-scan: быстрая отправка + параллельное чтение
 	var wg sync.WaitGroup
-	const maxConcurrency = 200 // Увеличиваем параллелизм
+	const maxConcurrency = 200
 	semaphore := make(chan struct{}, maxConcurrency)
 
-	// Таймаут для быстрого сканирования (увеличиваем для надежности)
 	requestTimeout := 200 * time.Millisecond
 
 	for _, ip := range ips {
@@ -88,14 +86,12 @@ func (s *arpScanner) Scan(ctx context.Context, ipRange string) ([]DeviceInfo, er
 				defer wg.Done()
 				defer func() { <-semaphore }()
 
-				// Создаем клиент для запроса
 				client, err := arp.Dial(iface)
 				if err != nil {
 					return
 				}
 				defer client.Close()
 
-				// Быстрый запрос с коротким таймаутом
 				client.SetReadDeadline(time.Now().Add(requestTimeout))
 				mac, err := client.Resolve(targetIP)
 
@@ -115,11 +111,8 @@ func (s *arpScanner) Scan(ctx context.Context, ipRange string) ([]DeviceInfo, er
 		}
 	}
 
-	// Ждем завершения всех запросов
 	wg.Wait()
 
-	// Дополнительно читаем системную ARP таблицу для уже известных устройств,
-	// но ТОЛЬКО для IP из запрошенного диапазона
 	requestedIPs := make(map[string]bool, len(ips))
 	for _, ip := range ips {
 		requestedIPs[ip.String()] = true
@@ -140,7 +133,6 @@ func (s *arpScanner) Scan(ctx context.Context, ipRange string) ([]DeviceInfo, er
 	}
 	resultsMu.Unlock()
 
-	// Формируем итоговый список: online + offline для всех IP в диапазоне
 	var devices []DeviceInfo
 	resultsMu.Lock()
 	for _, ip := range ips {
@@ -167,11 +159,9 @@ func (s *arpScanner) Scan(ctx context.Context, ipRange string) ([]DeviceInfo, er
 	return devices, nil
 }
 
-// readSystemARPTable читает системную ARP таблицу для получения уже известных устройств
 func readSystemARPTable(iface *net.Interface) map[string]string {
 	devices := make(map[string]string)
 
-	// Читаем /proc/net/arp для Linux
 	file, err := os.Open("/proc/net/arp")
 	if err != nil {
 		return devices
@@ -179,7 +169,6 @@ func readSystemARPTable(iface *net.Interface) map[string]string {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
-	// Пропускаем заголовок
 	if scanner.Scan() {
 		scanner.Text()
 	}
@@ -192,7 +181,6 @@ func readSystemARPTable(iface *net.Interface) map[string]string {
 			mac := fields[3]
 			device := fields[5]
 
-			// Проверяем, что это наш интерфейс и MAC валидный
 			if device == iface.Name && mac != "00:00:00:00:00:00" && strings.Contains(mac, ":") {
 				devices[ip] = mac
 			}

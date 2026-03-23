@@ -6,70 +6,54 @@ import (
 	"sync"
 )
 
-// SearchRepository расширяет репозиторий методами поиска по критериям и по ID
 type SearchRepository interface {
 	RepositoryInterface
-	// ICMP search
 	GetICMPHistoryByTargets(targets []string, limit int) ([]models.ICMPHistoryRecord, error)
 	GetICMPHistoryByID(id string) (*models.ICMPHistoryRecord, error)
-	// Nmap TCP/UDP search
 	GetNmapTcpUdpHistoryByIP(ip string, limit int) ([]models.NmapTcpUdpHistoryRecord, error)
 	GetNmapTcpUdpHistoryByID(id string) (*models.NmapTcpUdpHistoryRecord, error)
-	// Nmap OS Detection search
 	GetNmapOsDetectionHistoryByIP(ip string, limit int) ([]models.NmapOsDetectionHistoryRecord, error)
 	GetNmapOsDetectionHistoryByID(id string) (*models.NmapOsDetectionHistoryRecord, error)
-	// Nmap Host Discovery search
 	GetNmapHostDiscoveryHistoryByIP(ip string, limit int) ([]models.NmapHostDiscoveryHistoryRecord, error)
 	GetNmapHostDiscoveryHistoryByID(id string) (*models.NmapHostDiscoveryHistoryRecord, error)
-	// ARP search
 	GetARPHistoryByIPRange(ipRange string, limit int) ([]models.ARPHistoryRecord, error)
 	GetARPHistoryByID(id string) (*models.ARPHistoryRecord, error)
-	// TCP search
 	GetTCPHistoryByHostPort(host, port string, limit int) ([]models.TCPHistoryRecord, error)
 	GetTCPHistoryByID(id string) (*models.TCPHistoryRecord, error)
 }
 
-// RepositoryInterface определяет интерфейс для работы с данными
 type RepositoryInterface interface {
-	// ARP methods
 	SaveARPHistory(record *models.ARPHistoryRecord) error
 	GetARPHistory(limit int) ([]models.ARPHistoryRecord, error)
 	DeleteARPHistory() error
 
-	// ICMP methods
 	SaveICMPHistory(record *models.ICMPHistoryRecord) error
 	GetICMPHistory(limit int) ([]models.ICMPHistoryRecord, error)
 	DeleteICMPHistory() error
 
-	// Nmap TCP/UDP methods
 	SaveNmapTcpUdpHistory(record *models.NmapTcpUdpHistoryRecord) error
 	GetNmapTcpUdpHistory(limit int) ([]models.NmapTcpUdpHistoryRecord, error)
 	DeleteNmapTcpUdpHistory() error
 
-	// Nmap OS Detection methods
 	SaveNmapOsDetectionHistory(record *models.NmapOsDetectionHistoryRecord) error
 	GetNmapOsDetectionHistory(limit int) ([]models.NmapOsDetectionHistoryRecord, error)
 	DeleteNmapOsDetectionHistory() error
 
-	// Nmap Host Discovery methods
 	SaveNmapHostDiscoveryHistory(record *models.NmapHostDiscoveryHistoryRecord) error
 	GetNmapHostDiscoveryHistory(limit int) ([]models.NmapHostDiscoveryHistoryRecord, error)
 	DeleteNmapHostDiscoveryHistory() error
 
-	// TCP methods
 	SaveTCPHistory(record *models.TCPHistoryRecord) error
 	GetTCPHistory(limit int) ([]models.TCPHistoryRecord, error)
 	DeleteTCPHistory() error
 }
 
-// HistoryService управляет историей сканирования
 type HistoryService struct {
 	repo         RepositoryInterface
 	requestCache map[string]interface{}
 	mu           sync.RWMutex
 }
 
-// NewHistoryService создает новый сервис истории
 func NewHistoryService(repo RepositoryInterface) *HistoryService {
 	return &HistoryService{
 		repo:         repo,
@@ -77,33 +61,28 @@ func NewHistoryService(repo RepositoryInterface) *HistoryService {
 	}
 }
 
-// CacheRequest кэширует запрос
 func (hs *HistoryService) CacheRequest(taskID string, request interface{}) {
 	hs.mu.Lock()
 	defer hs.mu.Unlock()
 	hs.requestCache[taskID] = request
 }
 
-// GetCachedRequest получает кэшированный запрос
 func (hs *HistoryService) GetCachedRequest(taskID string) interface{} {
 	hs.mu.RLock()
 	defer hs.mu.RUnlock()
 	return hs.requestCache[taskID]
 }
 
-// RemoveCachedRequest удаляет из кэша
 func (hs *HistoryService) RemoveCachedRequest(taskID string) {
 	hs.mu.Lock()
 	defer hs.mu.Unlock()
 	delete(hs.requestCache, taskID)
 }
 
-// GetRepo возвращает репозиторий
 func (hs *HistoryService) GetRepo() RepositoryInterface {
 	return hs.repo
 }
 
-// SaveARPResponse сохраняет ARP ответ
 func (hs *HistoryService) SaveARPResponse(result models.ARPResponse) {
 	if hs.repo == nil {
 		return
@@ -148,7 +127,6 @@ func (hs *HistoryService) SaveARPResponse(result models.ARPResponse) {
 	}
 }
 
-// SaveICMPResponse сохраняет ICMP ответ
 func (hs *HistoryService) SaveICMPResponse(result models.ICMPResponse) {
 	if hs.repo == nil {
 		return
@@ -180,7 +158,6 @@ func (hs *HistoryService) SaveICMPResponse(result models.ICMPResponse) {
 	}
 }
 
-// SaveNmapTcpUdpResponse сохраняет Nmap TCP/UDP ответ
 func (hs *HistoryService) SaveNmapTcpUdpResponse(result models.NmapTcpUdpResponse) {
 	if hs.repo == nil {
 		return
@@ -195,7 +172,6 @@ func (hs *HistoryService) SaveNmapTcpUdpResponse(result models.NmapTcpUdpRespons
 		}
 	}
 
-	// Если IP не из кэша, используем Host из ответа
 	if ip == "" && result.Host != "" {
 		ip = result.Host
 	}
@@ -219,7 +195,6 @@ func (hs *HistoryService) SaveNmapTcpUdpResponse(result models.NmapTcpUdpRespons
 	}
 }
 
-// SaveNmapOsDetectionResponse сохраняет Nmap OS Detection ответ
 func (hs *HistoryService) SaveNmapOsDetectionResponse(result models.NmapOsDetectionResponse) {
 	if hs.repo == nil {
 		return
@@ -253,7 +228,6 @@ func (hs *HistoryService) SaveNmapOsDetectionResponse(result models.NmapOsDetect
 	}
 }
 
-// SaveNmapHostDiscoveryResponse сохраняет Nmap Host Discovery ответ
 func (hs *HistoryService) SaveNmapHostDiscoveryResponse(result models.NmapHostDiscoveryResponse) {
 	if hs.repo == nil {
 		return
@@ -266,11 +240,9 @@ func (hs *HistoryService) SaveNmapHostDiscoveryResponse(result models.NmapHostDi
 		}
 	}
 
-	// Если IP не из кэша, используем Host из ответа
 	if ip == "" && result.Host != "" {
 		ip = result.Host
 	}
-	// Если Host пустой, используем IP
 	host := result.Host
 	if host == "" {
 		host = ip
@@ -296,7 +268,6 @@ func (hs *HistoryService) SaveNmapHostDiscoveryResponse(result models.NmapHostDi
 	}
 }
 
-// SaveTCPResponse сохраняет TCP ответ
 func (hs *HistoryService) SaveTCPResponse(result models.TCPResponse) {
 	if hs.repo == nil {
 		return

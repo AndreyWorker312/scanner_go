@@ -39,7 +39,6 @@ func HandleMessage(ctx context.Context, msg queue.Delivery, rabbitMQ *queue.Rabb
 }
 
 func sendResponse(rabbitMQ *queue.RabbitMQ, msg queue.Delivery, req queue.ARPRequest, devices []scanner.DeviceInfo, err error, log logger.Logger) {
-	// Преобразуем scanner.DeviceInfo в queue.ARPDevice
 	arpDevices := make([]queue.ARPDevice, len(devices))
 	var onlineDevices []queue.ARPDevice
 	var offlineDevices []queue.ARPDevice
@@ -53,7 +52,6 @@ func sendResponse(rabbitMQ *queue.RabbitMQ, msg queue.Delivery, req queue.ARPReq
 		}
 		arpDevices[i] = arpDevice
 
-		// Разделяем на онлайн и офлайн
 		if device.Status == "online" {
 			onlineDevices = append(onlineDevices, arpDevice)
 		} else {

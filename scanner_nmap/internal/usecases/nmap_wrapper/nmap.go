@@ -18,6 +18,7 @@ func UDPScan(ctx context.Context, target string, ports string) (*nmap.Run, error
 		nmap.WithTargets(target),
 		nmap.WithPorts(ports),
 		nmap.WithUDPScan(),
+		nmap.WithPrivileged(),
 		nmap.WithSkipHostDiscovery(),
 		nmap.WithTimingTemplate(3),
 	)
@@ -75,6 +76,7 @@ func OSDetectionScan(ctx context.Context, target string) (*nmap.Run, error) {
 		scanCtx,
 		nmap.WithTargets(target),
 		nmap.WithOSDetection(),
+		nmap.WithPrivileged(),
 		nmap.WithTimingTemplate(5),
 		nmap.WithSkipHostDiscovery(),
 		nmap.WithMaxRetries(0),
@@ -98,18 +100,18 @@ func OSDetectionScan(ctx context.Context, target string) (*nmap.Run, error) {
 }
 
 func HostDiscovery(ctx context.Context, target string) (*nmap.Run, error) {
-	scanCtx, cancel := context.WithTimeout(ctx, 120*time.Second) // Короткий таймаут
+	scanCtx, cancel := context.WithTimeout(ctx, 120*time.Second)
 	defer cancel()
 
 	scanner, err := nmap.NewScanner(
 		scanCtx,
 		nmap.WithTargets(target),
-		nmap.WithPorts("22,80,443"),          // Сканируем популярные порты
-		nmap.WithConnectScan(),               // TCP Connect scan
-		nmap.WithSkipHostDiscovery(),         // Пропускаем ping
-		nmap.WithTimingTemplate(4),           // Быстрое сканирование
-		nmap.WithMaxRetries(1),               // Минимум попыток
-		nmap.WithHostTimeout(10*time.Second), // Таймаут на хост
+		nmap.WithPorts("22,80,443"),
+		nmap.WithConnectScan(),
+		nmap.WithSkipHostDiscovery(),
+		nmap.WithTimingTemplate(4),
+		nmap.WithMaxRetries(1),
+		nmap.WithHostTimeout(10*time.Second),
 	)
 
 	if err != nil {

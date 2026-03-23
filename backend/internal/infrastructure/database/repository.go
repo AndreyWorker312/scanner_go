@@ -20,8 +20,6 @@ func NewRepository(db *Database) *Repository {
 	return &Repository{db: db}
 }
 
-// ==================== ARP REPOSITORY METHODS ====================
-
 func (r *Repository) SaveARPHistory(record *models.ARPHistoryRecord) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -115,8 +113,6 @@ func (r *Repository) DeleteARPHistory() error {
 	return nil
 }
 
-// ==================== ICMP REPOSITORY METHODS ====================
-
 func (r *Repository) SaveICMPHistory(record *models.ICMPHistoryRecord) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -169,7 +165,6 @@ func (r *Repository) DeleteICMPHistory() error {
 	return nil
 }
 
-// GetICMPHistoryByTargets возвращает записи, в которых есть любой из указанных targets.
 func (r *Repository) GetICMPHistoryByTargets(targets []string, limit int) ([]models.ICMPHistoryRecord, error) {
 	if len(targets) == 0 {
 		return r.GetICMPHistory(limit)
@@ -195,7 +190,6 @@ func (r *Repository) GetICMPHistoryByTargets(targets []string, limit int) ([]mod
 	return records, nil
 }
 
-// GetICMPHistoryByID возвращает одну запись по ID.
 func (r *Repository) GetICMPHistoryByID(id string) (*models.ICMPHistoryRecord, error) {
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
@@ -211,8 +205,6 @@ func (r *Repository) GetICMPHistoryByID(id string) (*models.ICMPHistoryRecord, e
 	}
 	return &rec, nil
 }
-
-// ==================== NMAP TCP/UDP REPOSITORY METHODS ====================
 
 func (r *Repository) SaveNmapTcpUdpHistory(record *models.NmapTcpUdpHistoryRecord) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -307,8 +299,6 @@ func (r *Repository) GetNmapTcpUdpHistoryByID(id string) (*models.NmapTcpUdpHist
 	return &rec, nil
 }
 
-// ==================== NMAP OS DETECTION REPOSITORY METHODS ====================
-
 func (r *Repository) SaveNmapOsDetectionHistory(record *models.NmapOsDetectionHistoryRecord) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -402,8 +392,6 @@ func (r *Repository) GetNmapOsDetectionHistoryByID(id string) (*models.NmapOsDet
 	return &rec, nil
 }
 
-// ==================== NMAP HOST DISCOVERY REPOSITORY METHODS ====================
-
 func (r *Repository) SaveNmapHostDiscoveryHistory(record *models.NmapHostDiscoveryHistoryRecord) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -496,8 +484,6 @@ func (r *Repository) GetNmapHostDiscoveryHistoryByID(id string) (*models.NmapHos
 	}
 	return &rec, nil
 }
-
-// ==================== TCP REPOSITORY METHODS ====================
 
 func (r *Repository) SaveTCPHistory(record *models.TCPHistoryRecord) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

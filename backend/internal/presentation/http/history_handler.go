@@ -14,32 +14,26 @@ type HistoryHandler struct {
 }
 
 type RepositoryInterface interface {
-	// ARP methods
 	SaveARPHistory(record *models.ARPHistoryRecord) error
 	GetARPHistory(limit int) ([]models.ARPHistoryRecord, error)
 	DeleteARPHistory() error
 
-	// ICMP methods
 	SaveICMPHistory(record *models.ICMPHistoryRecord) error
 	GetICMPHistory(limit int) ([]models.ICMPHistoryRecord, error)
 	DeleteICMPHistory() error
 
-	// Nmap TCP/UDP methods
 	SaveNmapTcpUdpHistory(record *models.NmapTcpUdpHistoryRecord) error
 	GetNmapTcpUdpHistory(limit int) ([]models.NmapTcpUdpHistoryRecord, error)
 	DeleteNmapTcpUdpHistory() error
 
-	// Nmap OS Detection methods
 	SaveNmapOsDetectionHistory(record *models.NmapOsDetectionHistoryRecord) error
 	GetNmapOsDetectionHistory(limit int) ([]models.NmapOsDetectionHistoryRecord, error)
 	DeleteNmapOsDetectionHistory() error
 
-	// Nmap Host Discovery methods
 	SaveNmapHostDiscoveryHistory(record *models.NmapHostDiscoveryHistoryRecord) error
 	GetNmapHostDiscoveryHistory(limit int) ([]models.NmapHostDiscoveryHistoryRecord, error)
 	DeleteNmapHostDiscoveryHistory() error
 
-	// TCP methods
 	SaveTCPHistory(record *models.TCPHistoryRecord) error
 	GetTCPHistory(limit int) ([]models.TCPHistoryRecord, error)
 	DeleteTCPHistory() error
@@ -48,8 +42,6 @@ type RepositoryInterface interface {
 func NewHistoryHandler(repo RepositoryInterface) *HistoryHandler {
 	return &HistoryHandler{repo: repo}
 }
-
-// ==================== ARP HISTORY ENDPOINTS ====================
 
 func (h *HistoryHandler) GetARPHistory(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -67,7 +59,6 @@ func (h *HistoryHandler) GetARPHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse limit parameter
 	limitStr := r.URL.Query().Get("limit")
 	limit := 0
 	if limitStr != "" {
@@ -134,8 +125,6 @@ func (h *HistoryHandler) DeleteARPHistory(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
-
-// ==================== ICMP HISTORY ENDPOINTS ====================
 
 func (h *HistoryHandler) GetICMPHistory(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -219,8 +208,6 @@ func (h *HistoryHandler) DeleteICMPHistory(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
-
-// ==================== NMAP HISTORY ENDPOINTS ====================
 
 func (h *HistoryHandler) GetNmapHistory(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -347,8 +334,6 @@ func (h *HistoryHandler) DeleteNmapHistory(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
-
-// ==================== TCP HISTORY ENDPOINTS ====================
 
 func (h *HistoryHandler) GetTCPHistory(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")

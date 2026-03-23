@@ -12,7 +12,6 @@ import (
 func UdpTcpScanner(ctx context.Context, request domain.ScanTcpUdpRequest) (response domain.ScanTcpUdpResponse, err error) {
 	var scanResult *nmap.Run
 
-	// Проверяем разные варианты UDP сканирования
 	if request.ScannerType == "UDP" || request.ScannerType == "udp_scan" {
 		scanResult, err = nmap_wrapper.UDPScan(ctx, request.IP, request.Ports)
 	} else {
@@ -71,7 +70,6 @@ func OSDetectionScanner(ctx context.Context, request domain.OsDetectionRequest) 
 		return domain.OsDetectionResponse{}, err
 	}
 
-	// Находим первый хост с адресом
 	var hostResult string
 	for _, hostItem := range scanResult.Hosts {
 		if len(hostItem.Addresses) > 0 {
@@ -80,7 +78,6 @@ func OSDetectionScanner(ctx context.Context, request domain.OsDetectionRequest) 
 		}
 	}
 
-	// Создаем ответ по умолчанию
 	responseResult := domain.OsDetectionResponse{
 		TaskID:   request.TaskID,
 		Host:     hostResult,
@@ -91,7 +88,6 @@ func OSDetectionScanner(ctx context.Context, request domain.OsDetectionRequest) 
 		Type:     "unknown",
 	}
 
-	// Заполняем информацию об ОС из результатов сканирования
 	for _, hostItem := range scanResult.Hosts {
 		if len(hostItem.Addresses) == 0 {
 			continue
@@ -134,7 +130,6 @@ func HostDiscoveryScanner(ctx context.Context, request domain.HostDiscoveryReque
 		}
 	}
 
-	// Если не нашли хост в результатах, используем исходный IP из запроса
 	if hostResult == "" {
 		hostResult = request.IP
 	}
