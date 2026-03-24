@@ -126,12 +126,31 @@ services:
     container_name: nginx-proxy
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - ./frontend/scanner-vniitf.ru+1.pem:/etc/nginx/certs/cert.pem:ro
+      - ./frontend/scanner-vniitf.ru+1-key.pem:/etc/nginx/certs/key.pem:ro
     extra_hosts:
       - "backend-app:host-gateway"
     networks:
       - scanner-net
     depends_on:
       - backend
+    restart: unless-stopped
+    logging: *default-logging
+
+  coredns:
+    image: coredns/coredns:1.11.3
+    container_name: coredns
+    command: -conf /etc/coredns/Corefile
+    # network_mode: host — CoreDNS напрямую садится на порт 53 хоста,
+    # минуя docker-proxy (у которого баг с UDP форвардингом в bridge сети).
+    # ports: и networks: несовместимы с host-режимом.
+    network_mode: host
+    environment:
+      HOST_IP: ${HOST_IP:-10.20.5.50}
+    volumes:
+      - ./coredns/Corefile:/etc/coredns/Corefile:ro
     restart: unless-stopped
     logging: *default-logging
 
