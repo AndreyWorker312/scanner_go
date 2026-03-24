@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"sync"
 	"time"
 
@@ -28,16 +29,78 @@ var (
 
 func GetRPCconnection(amqpURI string) (*RPCScannerPublisher, error) {
 	rpcPublisherOnce.Do(func() {
+		log.Printf("[RabbitMQ] Starting connection loop to %s", amqpURI)
 		for i := 1; i <= 10; i++ {
+			start := time.Now()
+			log.Printf("[RabbitMQ] Attempt %d/10 at %s", i, start.Format(time.RFC3339))
+
+			// ── DNS diagnostics ──────────────────────────────────────────
+			host, port, parseErr := net.SplitHostPort(extractHostPort(amqpURI))
+			if parseErr == nil {
+				log.Printf("[RabbitMQ] Resolving host=%q port=%q", host, port)
+				addrs, dnsErr := net.LookupHost(host)
+				if dnsErr != nil {
+					log.Printf("[RabbitMQ] DNS lookup FAILED for %q: %v", host, dnsErr)
+				} else {
+					log.Printf("[RabbitMQ] DNS resolved %q → %v", host, addrs)
+
+					// ── TCP reachability check ───────────────────────────────
+					addr := net.JoinHostPort(addrs[0], port)
+					log.Printf("[RabbitMQ] TCP probe %s ...", addr)
+					conn, tcpErr := net.DialTimeout("tcp", addr, 5*time.Second)
+					if tcpErr != nil {
+						log.Printf("[RabbitMQ] TCP probe FAILED: %v (elapsed %s)", tcpErr, time.Since(start))
+					} else {
+						conn.Close()
+						log.Printf("[RabbitMQ] TCP probe OK in %s — port is reachable", time.Since(start))
+					}
+				}
+			}
+
+			// ── actual AMQP dial ─────────────────────────────────────────
 			rpcPublisherInstance, rpcPublisherErr = newRPCScannerPublisher(amqpURI)
+			elapsed := time.Since(start)
 			if rpcPublisherErr == nil {
+				log.Printf("[RabbitMQ] Connected successfully on attempt %d (took %s)", i, elapsed)
 				return
 			}
-			log.Printf("RabbitMQ connection attempt %d/10 failed: %v", i, rpcPublisherErr)
-			time.Sleep(time.Duration(i) * 3 * time.Second)
+			log.Printf("[RabbitMQ] Attempt %d/10 FAILED after %s: %v", i, elapsed, rpcPublisherErr)
+
+			delay := time.Duration(i) * 3 * time.Second
+			log.Printf("[RabbitMQ] Waiting %s before next attempt...", delay)
+			time.Sleep(delay)
 		}
+		log.Printf("[RabbitMQ] All 10 attempts exhausted — giving up")
 	})
 	return rpcPublisherInstance, rpcPublisherErr
+}
+
+// extractHostPort parses "amqp://user:pass@host:port/vhost" → "host:port"
+func extractHostPort(uri string) string {
+	// simple extraction without full URL parsing dependency
+	const prefix = "://"
+	s := uri
+	if idx := indexOf(s, prefix); idx >= 0 {
+		s = s[idx+len(prefix):]
+	}
+	// strip user:pass@
+	if idx := indexOf(s, "@"); idx >= 0 {
+		s = s[idx+1:]
+	}
+	// strip /vhost
+	if idx := indexOf(s, "/"); idx >= 0 {
+		s = s[:idx]
+	}
+	return s // "host:port"
+}
+
+func indexOf(s, sub string) int {
+	for i := 0; i+len(sub) <= len(s); i++ {
+		if s[i:i+len(sub)] == sub {
+			return i
+		}
+	}
+	return -1
 }
 
 func newRPCScannerPublisher(amqpURI string) (*RPCScannerPublisher, error) {

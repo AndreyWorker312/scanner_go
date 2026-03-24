@@ -12,20 +12,22 @@ const METHODS = [
   { id: 'host_discovery', label: 'Host Discovery'   },
 ]
 
-const SCANNER_TYPES = ['SYN', 'TCP', 'UDP', 'ACK', 'Window', 'Maimon']
+const SCANNER_TYPES = ['TCP', 'UDP']
 
 export default function NmapScanner() {
   const [method,      setMethod]      = useState('tcp_udp_scan')
   const [ip,          setIp]          = useState('')
   const [ports,       setPorts]       = useState('1-1024')
-  const [scannerType, setScannerType] = useState('SYN')
+  const [scannerType, setScannerType] = useState('TCP')
   const [copied,      setCopied]      = useState(false)
 
   const send         = useSend()
   const activeScan   = useStore((s) => s.activeScan)
   const latestResult = useStore((s) => s.latestResult)
+  const wsStatus     = useStore((s) => s.wsStatus)
 
-  const isScanning = activeScan?.scanner_service === SERVICE
+  const isScanning  = activeScan?.scanner_service === SERVICE
+  const isConnected = wsStatus === 'connected'
   const result     = latestResult?.scanner_service === SERVICE ? latestResult : null
   const scanResult = result?.result
   const usedMethod = result?.options?.scan_method
@@ -88,10 +90,10 @@ export default function NmapScanner() {
           </div>
 
           <div style={{ marginTop: 16, display: 'flex', gap: 10, alignItems: 'center' }}>
-            <Button variant="primary" size="lg" loading={isScanning} onClick={handleScan} disabled={!ip}>
+            <Button variant="primary" size="lg" loading={isScanning} onClick={handleScan} disabled={!ip || !isConnected}>
               {isScanning ? 'Scanning…' : `Run ${METHODS.find(m => m.id === method)?.label}`}
             </Button>
-            <span className="text-muted text-sm">Ctrl + Enter</span>
+            <span className="text-muted text-sm">{isConnected ? 'Ctrl + Enter' : 'Waiting for backend…'}</span>
           </div>
         </Card>
 

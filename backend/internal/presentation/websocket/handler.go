@@ -219,6 +219,7 @@ func (c *Client) processNmapRequest(options any, taskID string) *models.Response
 			IP:          nmapOpts.IP,
 			ScannerType: nmapOpts.ScannerType,
 			Ports:       nmapOpts.Ports,
+			ScanMethod:  "tcp_udp_scan",
 		}
 
 		log.Printf("Created NmapTcpUdpRequest: %+v", nmapRequest)

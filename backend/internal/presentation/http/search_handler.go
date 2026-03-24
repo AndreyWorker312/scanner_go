@@ -20,6 +20,11 @@ func NewSearchHandler(repo services.SearchRepository, app *api.App) *SearchHandl
 	return &SearchHandler{repo: repo, app: app}
 }
 
+// SetApp позволяет установить app после старта HTTP-сервера (когда RabbitMQ наконец подключился).
+func (h *SearchHandler) SetApp(app *api.App) {
+	h.app = app
+}
+
 func (h *SearchHandler) setCORS(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")

@@ -2,6 +2,7 @@ package rabbitmq
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -15,21 +16,49 @@ type Database struct {
 }
 
 func NewDatabase(uri, dbName string) (*Database, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	log.Printf("[MongoDB] Connecting to %s, database=%s", uri, dbName)
 
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
-	if err != nil {
-		return nil, err
+	var (
+		client  *mongo.Client
+		lastErr error
+	)
+
+	for attempt := 1; attempt <= 5; attempt++ {
+		log.Printf("[MongoDB] Attempt %d/5...", attempt)
+
+		connectCtx, connectCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		c, err := mongo.Connect(connectCtx, options.Client().ApplyURI(uri))
+		connectCancel()
+		if err != nil {
+			lastErr = fmt.Errorf("connect: %w", err)
+			log.Printf("[MongoDB] Attempt %d/5 connect error: %v", attempt, err)
+			time.Sleep(time.Duration(attempt) * 2 * time.Second)
+			continue
+		}
+
+		pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		err = c.Ping(pingCtx, nil)
+		pingCancel()
+		if err != nil {
+			lastErr = fmt.Errorf("ping: %w", err)
+			log.Printf("[MongoDB] Attempt %d/5 ping error: %v", attempt, err)
+			_ = c.Disconnect(context.Background())
+			time.Sleep(time.Duration(attempt) * 2 * time.Second)
+			continue
+		}
+
+		client = c
+		lastErr = nil
+		log.Printf("[MongoDB] Connected successfully on attempt %d", attempt)
+		break
 	}
 
-	err = client.Ping(ctx, nil)
-	if err != nil {
-		return nil, err
+	if lastErr != nil {
+		return nil, fmt.Errorf("failed to connect to MongoDB after 5 attempts: %w", lastErr)
 	}
 
 	db := client.Database(dbName)
-	log.Printf("Connected to MongoDB database: %s", dbName)
+	log.Printf("[MongoDB] Using database: %s", dbName)
 
 	return &Database{
 		Client:   client,

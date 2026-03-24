@@ -30,8 +30,15 @@ export function useSend() {
   const startScan = useStore((s) => s.startScan)
 
   return useCallback((scanner_service, options) => {
-    wsClient.send({ type: 'scan', request: { scanner_service, options } })
-    startScan(scanner_service, options)
+    if (!wsClient.connected) {
+      toast.error('Not connected to backend — please wait…', { id: 'ws-send' })
+      return
+    }
+    try {
+      wsClient.send({ type: 'scan', request: { scanner_service, options } })
+      startScan(scanner_service, options)
+    } catch (err) {
+      toast.error('Failed to send request: ' + (err?.message ?? err), { id: 'ws-send' })
+    }
   }, [startScan])
 }
-

@@ -66,6 +66,7 @@ type NmapTcpUdpRequest struct {
 	IP          string `json:"ip"`
 	ScannerType string `json:"scanner_type"`
 	Ports       string `json:"ports"`
+	ScanMethod  string `json:"scan_method"`
 }
 
 type NmapTcpUdpResponse struct {

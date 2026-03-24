@@ -14,8 +14,10 @@ export default function ICMPScanner() {
   const send         = useSend()
   const activeScan   = useStore((s) => s.activeScan)
   const latestResult = useStore((s) => s.latestResult)
+  const wsStatus     = useStore((s) => s.wsStatus)
 
-  const isScanning = activeScan?.scanner_service === SERVICE
+  const isScanning  = activeScan?.scanner_service === SERVICE
+  const isConnected = wsStatus === 'connected'
   const result     = latestResult?.scanner_service === SERVICE ? latestResult : null
   const scanResult = result?.result
 
@@ -88,11 +90,11 @@ export default function ICMPScanner() {
               variant="primary" size="lg"
               loading={isScanning}
               onClick={handleScan}
-              disabled={!parsedTargets.length}
+              disabled={!parsedTargets.length || !isConnected}
             >
               {isScanning ? 'Pinging…' : `Ping ${parsedTargets.length} Host${parsedTargets.length !== 1 ? 's' : ''}`}
             </Button>
-            <span className="text-muted text-sm">Ctrl + Enter</span>
+            <span className="text-muted text-sm">{isConnected ? 'Ctrl + Enter' : 'Waiting for backend…'}</span>
           </div>
         </Card>
 
