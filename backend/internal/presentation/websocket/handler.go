@@ -23,9 +23,10 @@ func NewWSHandler(app *api.App) *WSHandler {
 }
 
 type Message struct {
-	Type string           `json:"type"`
-	Req  *models.Request  `json:"request,omitempty"`
-	Resp *models.Response `json:"response,omitempty"`
+	Type   string               `json:"type"`
+	Req    *models.Request      `json:"request,omitempty"`
+	Resp   *models.Response     `json:"response,omitempty"`
+	Change *models.ChangeEvent  `json:"change,omitempty"`
 }
 
 type Client struct {
@@ -51,12 +52,16 @@ func (h *WSHandler) WsHandler(w http.ResponseWriter, r *http.Request) {
 		app:  h.app,
 	}
 
+	globalHub.Register(client)
 	go client.writePump()
 	go client.readPump()
 }
 
 func (c *Client) readPump() {
-	defer c.conn.Close()
+	defer func() {
+		globalHub.Unregister(c)
+		c.conn.Close()
+	}()
 
 	for {
 		var msg Message

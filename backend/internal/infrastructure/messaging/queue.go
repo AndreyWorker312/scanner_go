@@ -328,3 +328,43 @@ func generateCorrelationID() string {
 	rand.Read(b)
 	return fmt.Sprintf("%x", b)
 }
+
+// ConsumeChangeEvents opens a dedicated AMQP channel, declares the durable
+// `change_events` queue and returns a delivery channel.
+// The caller is responsible for Ack-ing each delivery.
+func (p *RPCScannerPublisher) ConsumeChangeEvents(queueName string) (<-chan amqp.Delivery, error) {
+	ch, err := p.conn.Channel()
+	if err != nil {
+		return nil, fmt.Errorf("ConsumeChangeEvents: open channel: %w", err)
+	}
+
+	_, err = ch.QueueDeclare(
+		queueName,
+		true,  // durable
+		false, // auto-delete
+		false, // exclusive
+		false, // no-wait
+		nil,
+	)
+	if err != nil {
+		ch.Close()
+		return nil, fmt.Errorf("ConsumeChangeEvents: declare queue %q: %w", queueName, err)
+	}
+
+	msgs, err := ch.Consume(
+		queueName,
+		"",    // auto-generated consumer tag
+		false, // manual ack
+		false, // exclusive
+		false, // no-local
+		false, // no-wait
+		nil,
+	)
+	if err != nil {
+		ch.Close()
+		return nil, fmt.Errorf("ConsumeChangeEvents: consume %q: %w", queueName, err)
+	}
+
+	return msgs, nil
+}
+

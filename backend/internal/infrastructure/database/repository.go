@@ -583,3 +583,70 @@ func (r *Repository) DeleteTCPHistory() error {
 	log.Printf("Deleted %d TCP history records", result.DeletedCount)
 	return nil
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Change Events
+// ──────────────────────────────────────────────────────────────────────────────
+
+// GetChangeEvents returns the most recent change events, optionally filtered by severity.
+func (r *Repository) GetChangeEvents(limit int, severity string) ([]models.ChangeEvent, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	filter := bson.D{}
+	if severity != "" && severity != "ALL" {
+		filter = bson.D{{Key: "severity", Value: severity}}
+	}
+
+	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}})
+	if limit > 0 {
+		opts.SetLimit(int64(limit))
+	}
+
+	cursor, err := r.db.ChangesCollection().Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var records []models.ChangeEvent
+	if err = cursor.All(ctx, &records); err != nil {
+		return nil, err
+	}
+	return records, nil
+}
+
+// GetChangeEventsSince returns events created strictly after `since`, ordered ascending.
+func (r *Repository) GetChangeEventsSince(since time.Time) ([]models.ChangeEvent, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	filter := bson.M{"created_at": bson.M{"$gt": since}}
+	opts   := options.Find().SetSort(bson.D{{Key: "created_at", Value: 1}})
+
+	cursor, err := r.db.ChangesCollection().Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var records []models.ChangeEvent
+	if err = cursor.All(ctx, &records); err != nil {
+		return nil, err
+	}
+	return records, nil
+}
+
+// DeleteChangeEvents removes all change events from the collection.
+func (r *Repository) DeleteChangeEvents() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	result, err := r.db.ChangesCollection().DeleteMany(ctx, bson.D{})
+	if err != nil {
+		log.Printf("Error deleting change events: %v", err)
+		return err
+	}
+	log.Printf("Deleted %d change event records", result.DeletedCount)
+	return nil
+}

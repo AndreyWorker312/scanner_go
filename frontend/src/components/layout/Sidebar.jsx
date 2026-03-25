@@ -1,10 +1,10 @@
 import { NavLink } from 'react-router-dom'
 import {
   Wifi, LayoutDashboard, Network, Radio,
-  Shield, Terminal, Clock, Search,
+  Shield, Terminal, Clock, Search, Bell,
 } from 'lucide-react'
-import { useStore }    from '@/store'
-import { StatusDot }   from '@/components/ui'
+import { useStore }  from '@/store'
+import { StatusDot } from '@/components/ui'
 
 const SCANNERS = [
   { to: '/arp',  label: 'ARP Scanner',  Icon: Network,   color: 'var(--green)'  },
@@ -21,8 +21,10 @@ const TOOLS = [
 const WS_LABEL = { connected: 'Connected', disconnected: 'Disconnected', error: 'Error' }
 
 export default function Sidebar() {
-  const wsStatus    = useStore((s) => s.wsStatus)
-  const activeScan  = useStore((s) => s.activeScan)
+  const wsStatus         = useStore((s) => s.wsStatus)
+  const activeScan       = useStore((s) => s.activeScan)
+  const newChangesCount  = useStore((s) => s.newChangesCount)
+  const clearNewChanges  = useStore((s) => s.clearNewChangesCount)
 
   return (
     <nav className="sidebar">
@@ -60,6 +62,19 @@ export default function Sidebar() {
             {label}
           </NavLink>
         ))}
+
+        <div className="nav-section-label">Security</div>
+        <NavLink
+          to="/changes"
+          className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+          onClick={clearNewChanges}
+        >
+          <Bell size={16} className="nav-item-icon" />
+          Changes
+          {newChangesCount > 0 && (
+            <span className="nav-alert-badge">{newChangesCount > 99 ? '99+' : newChangesCount}</span>
+          )}
+        </NavLink>
       </div>
 
       <div className="sidebar-footer">
@@ -71,4 +86,3 @@ export default function Sidebar() {
     </nav>
   )
 }
-

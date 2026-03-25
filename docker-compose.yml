@@ -108,9 +108,9 @@ services:
     container_name: backend-app
     network_mode: host
     environment:
-      RABBITMQ_URL:      amqp://guest:guest@localhost:5672/
-      MONGODB_URI:       mongodb://localhost:27017
-      MONGODB_DATABASE:  network_scanner
+      RABBITMQ_URL:     amqp://guest:guest@localhost:5672/
+      MONGODB_URI:      mongodb://localhost:27017
+      MONGODB_DATABASE: network_scanner
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -139,20 +139,6 @@ services:
     restart: unless-stopped
     logging: *default-logging
 
-  coredns:
-    image: coredns/coredns:1.11.3
-    container_name: coredns
-    command: -conf /etc/coredns/Corefile
-    # network_mode: host — CoreDNS напрямую садится на порт 53 хоста,
-    # минуя docker-proxy (у которого баг с UDP форвардингом в bridge сети).
-    # ports: и networks: несовместимы с host-режимом.
-    network_mode: host
-    environment:
-      HOST_IP: ${HOST_IP:-10.20.5.50}
-    volumes:
-      - ./coredns/Corefile:/etc/coredns/Corefile:ro
-    restart: unless-stopped
-    logging: *default-logging
 
   scanner_nmap:
     <<: *scanner-defaults
@@ -161,8 +147,8 @@ services:
       dockerfile: Dockerfile
     container_name: scanner-nmap
     environment:
-      RABBITMQ_URL:  amqp://guest:guest@localhost:5672/
-      SCANNER_NAME:  nmap_service
+      RABBITMQ_URL: amqp://guest:guest@localhost:5672/
+      SCANNER_NAME: nmap_service
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -174,8 +160,8 @@ services:
       dockerfile: Dockerfile
     container_name: scanner-arp
     environment:
-      RABBITMQ_URL:  amqp://guest:guest@localhost:5672/
-      SCANNER_NAME:  arp_service
+      RABBITMQ_URL: amqp://guest:guest@localhost:5672/
+      SCANNER_NAME: arp_service
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -187,9 +173,9 @@ services:
       dockerfile: Dockerfile
     container_name: scanner-icmp
     environment:
-      RABBITMQ_URL:  amqp://guest:guest@localhost:5672/
-      SCANNER_NAME:  icmp_service
-      PING_TIMEOUT:  5s
+      RABBITMQ_URL: amqp://guest:guest@localhost:5672/
+      SCANNER_NAME: icmp_service
+      PING_TIMEOUT: 5s
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -219,6 +205,25 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+
+  change_detector:
+    build:
+      context: ./change_detector
+      dockerfile: Dockerfile
+    container_name: change-detector
+    network_mode: host
+    environment:
+      MONGODB_URI:        mongodb://localhost:27017
+      MONGODB_DATABASE:   network_scanner
+      RABBITMQ_URL:       amqp://guest:guest@localhost:5672/
+      DETECTION_INTERVAL: "30"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
 
 networks:
   scanner-net:

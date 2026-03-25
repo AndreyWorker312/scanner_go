@@ -21,4 +21,11 @@ export const api = {
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify(body),
   }),
+
+  // ── Change Detection ──────────────────────────────────────────────────────
+  getChanges:    (params = {}) => {
+    const q = new URLSearchParams(params).toString()
+    return request(`/changes${q ? '?' + q : ''}`)
+  },
+  deleteChanges: () => request('/changes/delete', { method: 'DELETE' }),
 }

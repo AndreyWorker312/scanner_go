@@ -9,6 +9,7 @@ import (
 	"time"
 	"unsafe"
 
+	"backend/domain/models"
 	"backend/internal/application"
 	database "backend/internal/infrastructure/database"
 	rabbitmq "backend/internal/infrastructure/messaging"
@@ -57,6 +58,12 @@ func main() {
 	// ── HTTP routes that do NOT need RabbitMQ ────────────────────────────────
 	historyHandler := rest.NewHistoryHandler(repo)
 	searchHandler  := rest.NewSearchHandler(repo, nil) // app set later
+	changesHandler := rest.NewChangesHandler(repo)
+
+	// Change Detection endpoints
+	http.HandleFunc("/api/changes",        changesHandler.GetChanges)
+	http.HandleFunc("/api/changes/delete", changesHandler.DeleteChanges)
+	http.HandleFunc("/api/changes/stream", changesHandler.StreamChanges)
 
 	http.HandleFunc("/api/history/arp",    historyHandler.GetARPHistory)
 	http.HandleFunc("/api/history/icmp",   historyHandler.GetICMPHistory)
@@ -131,6 +138,38 @@ func main() {
 	// also update searchHandler's app reference
 	searchHandler.SetApp(app)
 	log.Println("[Main] RabbitMQ connected — WebSocket scan endpoint is now active")
+
+	// ── Change Events consumer ────────────────────────────────────────────────
+	// Consumes from the `change_events` queue (published by the Python
+	// change_detector service), saves each event to MongoDB and broadcasts
+	// to all connected WebSocket clients via the Hub.
+	go func() {
+		deliveries, err := publisher.ConsumeChangeEvents("change_events")
+		if err != nil {
+			log.Printf("[ChangeEvents] Failed to start consumer: %v", err)
+			return
+		}
+		log.Println("[ChangeEvents] Consumer started — waiting for change events…")
+
+		for msg := range deliveries {
+			var event models.ChangeEvent
+			if err := json.Unmarshal(msg.Body, &event); err != nil {
+				log.Printf("[ChangeEvents] Cannot parse event: %v — body: %s", err, string(msg.Body))
+				msg.Nack(false, false) // dead-letter
+				continue
+			}
+
+			// Broadcast to all connected WebSocket clients
+			wb.GetHub().Broadcast(wb.Message{
+				Type:   "change_event",
+				Change: &event,
+			})
+
+			log.Printf("[ChangeEvents] Broadcasted [%s] %s — %s", event.Severity, event.EventType, event.Title)
+			msg.Ack(false)
+		}
+		log.Println("[ChangeEvents] Delivery channel closed")
+	}()
 
 	// Keep main goroutine alive
 	select {}

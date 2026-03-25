@@ -6,6 +6,10 @@ export const useStore = create((set, get) => ({
   latestResult:  null,
   recentResults: [],
 
+  // ── Change Detection (populated by WS change_event messages) ─────────────
+  changeEvents:     [],
+  newChangesCount:  0,
+
   setWsStatus: (wsStatus) => set({ wsStatus }),
 
   startScan: (scanner_service, options) =>
@@ -27,5 +31,15 @@ export const useStore = create((set, get) => ({
   },
 
   clearRecent: () => set({ recentResults: [] }),
-}))
 
+  // ── Change event actions ──────────────────────────────────────────────────
+  addChangeEvent: (event) =>
+    set((s) => ({
+      changeEvents:    [event, ...s.changeEvents].slice(0, 500),
+      newChangesCount: s.newChangesCount + 1,
+    })),
+
+  clearNewChangesCount: () => set({ newChangesCount: 0 }),
+
+  clearAllChangeEvents: () => set({ changeEvents: [], newChangesCount: 0 }),
+}))

@@ -7,6 +7,7 @@ import NmapScanner  from './components/scanners/NmapScanner'
 import TCPScanner   from './components/scanners/TCPScanner'
 import HistoryPage  from './components/pages/HistoryPage'
 import SearchPage   from './components/pages/SearchPage'
+import ChangesPage  from './components/pages/ChangesPage'
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="/tcp"     element={<TCPScanner />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/search"  element={<SearchPage />} />
+        <Route path="/changes" element={<ChangesPage />} />
         <Route path="*"        element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>
