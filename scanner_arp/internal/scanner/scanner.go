@@ -103,6 +103,7 @@ func (s *arpScanner) Scan(ctx context.Context, ipRange string) ([]DeviceInfo, er
 					results[ipStr] = DeviceInfo{
 						IP:     ipStr,
 						MAC:    macStr,
+						Vendor: LookupVendor(macStr),
 						Status: "online",
 					}
 					resultsMu.Unlock()
@@ -126,6 +127,7 @@ func (s *arpScanner) Scan(ctx context.Context, ipRange string) ([]DeviceInfo, er
 				results[ip] = DeviceInfo{
 					IP:     ip,
 					MAC:    mac,
+					Vendor: LookupVendor(mac),
 					Status: "online",
 				}
 			}

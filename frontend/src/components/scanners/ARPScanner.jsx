@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { Network, Copy, Check } from 'lucide-react'
+import { Network, Copy, Check, Wifi, WifiOff } from 'lucide-react'
 import { useStore }         from '@/store'
 import { useSend }          from '@/hooks/useWebSocket'
 import { Button, Badge, Card, EmptyState, ScanAnimation } from '@/components/ui'
@@ -35,6 +35,9 @@ export default function ARPScanner() {
     setCopied(true)
     setTimeout(() => setCopied(false), 1500)
   }
+
+  const onlineDevices  = scanResult?.online_devices  ?? []
+  const offlineDevices = scanResult?.offline_devices ?? []
 
   return (
     <div onKeyDown={handleKey}>
@@ -87,6 +90,7 @@ export default function ARPScanner() {
               <div className="result-error">Error: {scanResult.error}</div>
             ) : (
               <>
+                {/* ── Summary stats ───────────────────────────────────── */}
                 <div className="result-stats">
                   <div className="result-stat">
                     <div className="result-stat-value">{scanResult.total_count ?? 0}</div>
@@ -106,30 +110,91 @@ export default function ARPScanner() {
                   </div>
                 </div>
 
-                {scanResult.devices?.length > 0 ? (
-                  <div className="table-wrap">
-                    <table>
-                      <thead><tr>
-                        <th>IP Address</th>
-                        <th>MAC Address</th>
-                        <th>Vendor</th>
-                        <th>Status</th>
-                      </tr></thead>
-                      <tbody>
-                        {scanResult.devices.map((d, i) => (
-                          <tr key={i}>
-                            <td className="td-mono">{d.ip}</td>
-                            <td className="td-mono">{d.mac || '—'}</td>
-                            <td className="td-muted">{d.vendor || '—'}</td>
-                            <td><Badge>{d.status}</Badge></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                {/* ── Online devices ──────────────────────────────────── */}
+                <div style={{ marginTop: 24 }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    marginBottom: 10, paddingBottom: 8,
+                    borderBottom: '1px solid var(--border)',
+                  }}>
+                    <Wifi size={15} color="var(--green)" />
+                    <span style={{ fontWeight: 600, color: 'var(--green)', fontSize: 13 }}>
+                      Devices Online
+                    </span>
+                    <span style={{
+                      marginLeft: 'auto',
+                      background: 'var(--green-dim)',
+                      color: 'var(--green)',
+                      borderRadius: 20, padding: '1px 10px', fontSize: 12,
+                    }}>
+                      {onlineDevices.length}
+                    </span>
                   </div>
-                ) : (
-                  <EmptyState title="No devices found" description="No devices responded to ARP requests" />
-                )}
+
+                  {onlineDevices.length > 0 ? (
+                    <div className="table-wrap">
+                      <table>
+                        <thead><tr>
+                          <th>IP Address</th>
+                          <th>MAC Address</th>
+                          <th>Vendor</th>
+                        </tr></thead>
+                        <tbody>
+                          {onlineDevices.map((d, i) => (
+                            <tr key={i}>
+                              <td className="td-mono">{d.ip}</td>
+                              <td className="td-mono">{d.mac || '—'}</td>
+                              <td className="td-muted">{d.vendor || '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <EmptyState title="No online devices" description="No devices responded to ARP requests" />
+                  )}
+                </div>
+
+                {/* ── Offline devices ─────────────────────────────────── */}
+                <div style={{ marginTop: 28 }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    marginBottom: 10, paddingBottom: 8,
+                    borderBottom: '1px solid var(--border)',
+                  }}>
+                    <WifiOff size={15} color="var(--red)" />
+                    <span style={{ fontWeight: 600, color: 'var(--red)', fontSize: 13 }}>
+                      Devices Offline
+                    </span>
+                    <span style={{
+                      marginLeft: 'auto',
+                      background: 'var(--red-dim)',
+                      color: 'var(--red)',
+                      borderRadius: 20, padding: '1px 10px', fontSize: 12,
+                    }}>
+                      {offlineDevices.length}
+                    </span>
+                  </div>
+
+                  {offlineDevices.length > 0 ? (
+                    <div className="table-wrap">
+                      <table>
+                        <thead><tr>
+                          <th>IP Address</th>
+                        </tr></thead>
+                        <tbody>
+                          {offlineDevices.map((d, i) => (
+                            <tr key={i}>
+                              <td className="td-mono" style={{ color: 'var(--text-secondary)' }}>{d.ip}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <EmptyState title="No offline devices" description="All scanned addresses are online" />
+                  )}
+                </div>
               </>
             )}
           </div>
@@ -138,4 +203,3 @@ export default function ARPScanner() {
     </div>
   )
 }
-
