@@ -294,6 +294,24 @@ func (p *RPCScannerPublisher) parseResponse(body []byte) (*models.Response, erro
 		return response, nil
 	}
 
+	// TCP response check MUST come before NmapHostDiscovery because both
+	// share task_id + status fields.  NmapHostDiscoveryResponse has no "port"
+	// field, so tcpResp.Port will be non-empty only for real TCP responses.
+	var tcpResp models.TCPResponse
+	if err := json.Unmarshal(body, &tcpResp); err == nil && tcpResp.TaskID != "" && tcpResp.Port != "" {
+		log.Printf("Received TCP banner response for task %s (host=%s port=%s)", tcpResp.TaskID, tcpResp.Host, tcpResp.Port)
+		response := &models.Response{
+			TaskID: tcpResp.TaskID,
+			Result: tcpResp,
+		}
+
+		if p.onResponse != nil {
+			p.onResponse(response)
+		}
+
+		return response, nil
+	}
+
 	var nmapHostResp models.NmapHostDiscoveryResponse
 	if err := json.Unmarshal(body, &nmapHostResp); err == nil && nmapHostResp.TaskID != "" && (nmapHostResp.Status != "" || nmapHostResp.DNS != "" || nmapHostResp.Reason != "") {
 		log.Printf("Received Nmap host discovery response for task %s", nmapHostResp.TaskID)

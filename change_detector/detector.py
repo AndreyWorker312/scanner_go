@@ -57,11 +57,11 @@ class ChangeDetector:
 
     def _detect_arp_changes(self) -> list:
         events = []
-        ip_ranges = self.db.arp_history.distinct("ip_range")
+        ip_ranges = self.db.l2_devices.distinct("ip_range")
 
         for ip_range in ip_ranges:
             scans = list(
-                self.db.arp_history.find(
+                self.db.l2_devices.find(
                     {"ip_range": ip_range},
                     sort=[("created_at", DESCENDING)],
                     limit=2,
@@ -121,12 +121,12 @@ class ChangeDetector:
 
     def _detect_nmap_changes(self) -> list:
         events = []
-        ips = self.db.nmap_tcp_udp_history.distinct("ip")
+        ips = self.db.l3_devices.distinct("ip", {"scan_type": "nmap_tcp_udp"})
 
         for ip in ips:
             scans = list(
-                self.db.nmap_tcp_udp_history.find(
-                    {"ip": ip},
+                self.db.l3_devices.find(
+                    {"scan_type": "nmap_tcp_udp", "ip": ip},
                     sort=[("created_at", DESCENDING)],
                     limit=2,
                 )
@@ -233,25 +233,28 @@ class ChangeDetector:
         return ports
 
     def _save_event_if_new(self, event: dict) -> bool:
-        """Insert event into change_events collection; skip if event_id already exists."""
-        if self.db.change_events.find_one({"event_id": event["event_id"]}, {"_id": 1}):
+        """Insert event into l3_devices collection; skip if event_id already exists."""
+        if self.db.l3_devices.find_one({"event_id": event["event_id"]}, {"_id": 1}):
             return False
+        event["scan_type"]  = "change_event"
         event["created_at"] = datetime.now(timezone.utc)
         try:
-            self.db.change_events.insert_one(event)
+            self.db.l3_devices.insert_one(event)
             logger.info("[%s] %s — %s", event["severity"], event["event_type"], event["title"])
             return True
         except Exception as exc:
-            # Duplicate key race-condition is fine — just skip
             logger.debug("Skipping duplicate event %s: %s", event["event_id"], exc)
             return False
 
     def ensure_indexes(self):
-        self.db.change_events.create_index("event_id",   unique=True)
-        self.db.change_events.create_index("created_at")
-        self.db.change_events.create_index("severity")
-        self.db.change_events.create_index("event_type")
-        logger.info("MongoDB indexes ensured on change_events.")
+        # l2_devices — ARP history
+        self.db.l2_devices.create_index([("ip_range", ASCENDING), ("created_at", DESCENDING)])
+        # l3_devices — all L3 scan types share this collection
+        self.db.l3_devices.create_index([("scan_type", ASCENDING), ("created_at", DESCENDING)])
+        self.db.l3_devices.create_index([("scan_type", ASCENDING), ("ip", ASCENDING)])
+        # unique event_id for change events (sparse — other scan types don't have event_id)
+        self.db.l3_devices.create_index("event_id", unique=True, sparse=True)
+        logger.info("MongoDB indexes ensured (l2_devices + l3_devices).")
 
     def close(self):
         self.client.close()

@@ -48,6 +48,9 @@ type RepositoryInterface interface {
 	DeleteTCPHistory() error
 }
 
+// DeviceRepository — removed: L2/L3 inventory is now handled by the
+// l2_devices / l3_devices collection structure, not a separate interface.
+
 type HistoryService struct {
 	repo         RepositoryInterface
 	requestCache map[string]interface{}

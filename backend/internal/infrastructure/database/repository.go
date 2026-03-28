@@ -25,7 +25,12 @@ func (r *Repository) SaveARPHistory(record *models.ARPHistoryRecord) error {
 	defer cancel()
 
 	record.CreatedAt = time.Now()
-	_, err := r.db.ARPCollection().InsertOne(ctx, record)
+	_, err := r.db.ARPCollection().UpdateOne(
+		ctx,
+		bson.M{"task_id": record.TaskID},
+		bson.M{"$setOnInsert": record},
+		options.Update().SetUpsert(true),
+	)
 	if err != nil {
 		log.Printf("Error saving ARP history: %v", err)
 		return err
@@ -117,8 +122,14 @@ func (r *Repository) SaveICMPHistory(record *models.ICMPHistoryRecord) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	record.ScanType = "icmp"
 	record.CreatedAt = time.Now()
-	_, err := r.db.ICMPCollection().InsertOne(ctx, record)
+	_, err := r.db.ICMPCollection().UpdateOne(
+		ctx,
+		bson.M{"task_id": record.TaskID, "scan_type": "icmp"},
+		bson.M{"$setOnInsert": record},
+		options.Update().SetUpsert(true),
+	)
 	if err != nil {
 		log.Printf("Error saving ICMP history: %v", err)
 		return err
@@ -137,7 +148,7 @@ func (r *Repository) GetICMPHistory(limit int) ([]models.ICMPHistoryRecord, erro
 		opts.SetLimit(int64(limit))
 	}
 
-	cursor, err := r.db.ICMPCollection().Find(ctx, bson.D{}, opts)
+	cursor, err := r.db.ICMPCollection().Find(ctx, bson.M{"scan_type": "icmp"}, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +166,7 @@ func (r *Repository) DeleteICMPHistory() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	result, err := r.db.ICMPCollection().DeleteMany(ctx, bson.D{})
+	result, err := r.db.ICMPCollection().DeleteMany(ctx, bson.M{"scan_type": "icmp"})
 	if err != nil {
 		log.Printf("Error deleting ICMP history: %v", err)
 		return err
@@ -172,7 +183,7 @@ func (r *Repository) GetICMPHistoryByTargets(targets []string, limit int) ([]mod
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	filter := bson.M{"targets": bson.M{"$in": targets}}
+	filter := bson.M{"scan_type": "icmp", "targets": bson.M{"$in": targets}}
 	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}})
 	if limit > 0 {
 		opts.SetLimit(int64(limit))
@@ -199,7 +210,7 @@ func (r *Repository) GetICMPHistoryByID(id string) (*models.ICMPHistoryRecord, e
 	defer cancel()
 
 	var rec models.ICMPHistoryRecord
-	err = r.db.ICMPCollection().FindOne(ctx, bson.M{"_id": objID}).Decode(&rec)
+	err = r.db.ICMPCollection().FindOne(ctx, bson.M{"_id": objID, "scan_type": "icmp"}).Decode(&rec)
 	if err != nil {
 		return nil, err
 	}
@@ -210,8 +221,14 @@ func (r *Repository) SaveNmapTcpUdpHistory(record *models.NmapTcpUdpHistoryRecor
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	record.ScanType = "nmap_tcp_udp"
 	record.CreatedAt = time.Now()
-	_, err := r.db.NmapTcpUdpCollection().InsertOne(ctx, record)
+	_, err := r.db.NmapTcpUdpCollection().UpdateOne(
+		ctx,
+		bson.M{"task_id": record.TaskID, "scan_type": "nmap_tcp_udp"},
+		bson.M{"$setOnInsert": record},
+		options.Update().SetUpsert(true),
+	)
 	if err != nil {
 		log.Printf("Error saving Nmap TCP/UDP history: %v", err)
 		return err
@@ -230,7 +247,7 @@ func (r *Repository) GetNmapTcpUdpHistory(limit int) ([]models.NmapTcpUdpHistory
 		opts.SetLimit(int64(limit))
 	}
 
-	cursor, err := r.db.NmapTcpUdpCollection().Find(ctx, bson.D{}, opts)
+	cursor, err := r.db.NmapTcpUdpCollection().Find(ctx, bson.M{"scan_type": "nmap_tcp_udp"}, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +265,7 @@ func (r *Repository) DeleteNmapTcpUdpHistory() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	result, err := r.db.NmapTcpUdpCollection().DeleteMany(ctx, bson.D{})
+	result, err := r.db.NmapTcpUdpCollection().DeleteMany(ctx, bson.M{"scan_type": "nmap_tcp_udp"})
 	if err != nil {
 		log.Printf("Error deleting Nmap TCP/UDP history: %v", err)
 		return err
@@ -265,7 +282,7 @@ func (r *Repository) GetNmapTcpUdpHistoryByIP(ip string, limit int) ([]models.Nm
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	filter := bson.M{"ip": ip}
+	filter := bson.M{"scan_type": "nmap_tcp_udp", "ip": ip}
 	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}})
 	if limit > 0 {
 		opts.SetLimit(int64(limit))
@@ -292,7 +309,7 @@ func (r *Repository) GetNmapTcpUdpHistoryByID(id string) (*models.NmapTcpUdpHist
 	defer cancel()
 
 	var rec models.NmapTcpUdpHistoryRecord
-	err = r.db.NmapTcpUdpCollection().FindOne(ctx, bson.M{"_id": objID}).Decode(&rec)
+	err = r.db.NmapTcpUdpCollection().FindOne(ctx, bson.M{"_id": objID, "scan_type": "nmap_tcp_udp"}).Decode(&rec)
 	if err != nil {
 		return nil, err
 	}
@@ -303,8 +320,14 @@ func (r *Repository) SaveNmapOsDetectionHistory(record *models.NmapOsDetectionHi
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	record.ScanType = "nmap_os_detection"
 	record.CreatedAt = time.Now()
-	_, err := r.db.NmapOsDetectionCollection().InsertOne(ctx, record)
+	_, err := r.db.NmapOsDetectionCollection().UpdateOne(
+		ctx,
+		bson.M{"task_id": record.TaskID, "scan_type": "nmap_os_detection"},
+		bson.M{"$setOnInsert": record},
+		options.Update().SetUpsert(true),
+	)
 	if err != nil {
 		log.Printf("Error saving Nmap OS Detection history: %v", err)
 		return err
@@ -323,7 +346,7 @@ func (r *Repository) GetNmapOsDetectionHistory(limit int) ([]models.NmapOsDetect
 		opts.SetLimit(int64(limit))
 	}
 
-	cursor, err := r.db.NmapOsDetectionCollection().Find(ctx, bson.D{}, opts)
+	cursor, err := r.db.NmapOsDetectionCollection().Find(ctx, bson.M{"scan_type": "nmap_os_detection"}, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -341,7 +364,7 @@ func (r *Repository) DeleteNmapOsDetectionHistory() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	result, err := r.db.NmapOsDetectionCollection().DeleteMany(ctx, bson.D{})
+	result, err := r.db.NmapOsDetectionCollection().DeleteMany(ctx, bson.M{"scan_type": "nmap_os_detection"})
 	if err != nil {
 		log.Printf("Error deleting Nmap OS Detection history: %v", err)
 		return err
@@ -358,7 +381,7 @@ func (r *Repository) GetNmapOsDetectionHistoryByIP(ip string, limit int) ([]mode
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	filter := bson.M{"ip": ip}
+	filter := bson.M{"scan_type": "nmap_os_detection", "ip": ip}
 	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}})
 	if limit > 0 {
 		opts.SetLimit(int64(limit))
@@ -385,7 +408,7 @@ func (r *Repository) GetNmapOsDetectionHistoryByID(id string) (*models.NmapOsDet
 	defer cancel()
 
 	var rec models.NmapOsDetectionHistoryRecord
-	err = r.db.NmapOsDetectionCollection().FindOne(ctx, bson.M{"_id": objID}).Decode(&rec)
+	err = r.db.NmapOsDetectionCollection().FindOne(ctx, bson.M{"_id": objID, "scan_type": "nmap_os_detection"}).Decode(&rec)
 	if err != nil {
 		return nil, err
 	}
@@ -396,8 +419,14 @@ func (r *Repository) SaveNmapHostDiscoveryHistory(record *models.NmapHostDiscove
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	record.ScanType = "nmap_host_discovery"
 	record.CreatedAt = time.Now()
-	_, err := r.db.NmapHostDiscoveryCollection().InsertOne(ctx, record)
+	_, err := r.db.NmapHostDiscoveryCollection().UpdateOne(
+		ctx,
+		bson.M{"task_id": record.TaskID, "scan_type": "nmap_host_discovery"},
+		bson.M{"$setOnInsert": record},
+		options.Update().SetUpsert(true),
+	)
 	if err != nil {
 		log.Printf("Error saving Nmap Host Discovery history: %v", err)
 		return err
@@ -416,7 +445,7 @@ func (r *Repository) GetNmapHostDiscoveryHistory(limit int) ([]models.NmapHostDi
 		opts.SetLimit(int64(limit))
 	}
 
-	cursor, err := r.db.NmapHostDiscoveryCollection().Find(ctx, bson.D{}, opts)
+	cursor, err := r.db.NmapHostDiscoveryCollection().Find(ctx, bson.M{"scan_type": "nmap_host_discovery"}, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -434,7 +463,7 @@ func (r *Repository) DeleteNmapHostDiscoveryHistory() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	result, err := r.db.NmapHostDiscoveryCollection().DeleteMany(ctx, bson.D{})
+	result, err := r.db.NmapHostDiscoveryCollection().DeleteMany(ctx, bson.M{"scan_type": "nmap_host_discovery"})
 	if err != nil {
 		log.Printf("Error deleting Nmap Host Discovery history: %v", err)
 		return err
@@ -451,7 +480,7 @@ func (r *Repository) GetNmapHostDiscoveryHistoryByIP(ip string, limit int) ([]mo
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	filter := bson.M{"ip": ip}
+	filter := bson.M{"scan_type": "nmap_host_discovery", "ip": ip}
 	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}})
 	if limit > 0 {
 		opts.SetLimit(int64(limit))
@@ -478,7 +507,7 @@ func (r *Repository) GetNmapHostDiscoveryHistoryByID(id string) (*models.NmapHos
 	defer cancel()
 
 	var rec models.NmapHostDiscoveryHistoryRecord
-	err = r.db.NmapHostDiscoveryCollection().FindOne(ctx, bson.M{"_id": objID}).Decode(&rec)
+	err = r.db.NmapHostDiscoveryCollection().FindOne(ctx, bson.M{"_id": objID, "scan_type": "nmap_host_discovery"}).Decode(&rec)
 	if err != nil {
 		return nil, err
 	}
@@ -489,8 +518,14 @@ func (r *Repository) SaveTCPHistory(record *models.TCPHistoryRecord) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	record.ScanType = "tcp"
 	record.CreatedAt = time.Now()
-	_, err := r.db.TCPCollection().InsertOne(ctx, record)
+	_, err := r.db.TCPCollection().UpdateOne(
+		ctx,
+		bson.M{"task_id": record.TaskID, "scan_type": "tcp"},
+		bson.M{"$setOnInsert": record},
+		options.Update().SetUpsert(true),
+	)
 	if err != nil {
 		log.Printf("Error saving TCP history: %v", err)
 		return err
@@ -509,7 +544,7 @@ func (r *Repository) GetTCPHistory(limit int) ([]models.TCPHistoryRecord, error)
 		opts.SetLimit(int64(limit))
 	}
 
-	cursor, err := r.db.TCPCollection().Find(ctx, bson.D{}, opts)
+	cursor, err := r.db.TCPCollection().Find(ctx, bson.M{"scan_type": "tcp"}, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -530,7 +565,7 @@ func (r *Repository) GetTCPHistoryByHostPort(host, port string, limit int) ([]mo
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	filter := bson.M{}
+	filter := bson.M{"scan_type": "tcp"}
 	if host != "" {
 		filter["host"] = host
 	}
@@ -563,7 +598,7 @@ func (r *Repository) GetTCPHistoryByID(id string) (*models.TCPHistoryRecord, err
 	defer cancel()
 
 	var rec models.TCPHistoryRecord
-	err = r.db.TCPCollection().FindOne(ctx, bson.M{"_id": objID}).Decode(&rec)
+	err = r.db.TCPCollection().FindOne(ctx, bson.M{"_id": objID, "scan_type": "tcp"}).Decode(&rec)
 	if err != nil {
 		return nil, err
 	}
@@ -574,7 +609,7 @@ func (r *Repository) DeleteTCPHistory() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	result, err := r.db.TCPCollection().DeleteMany(ctx, bson.D{})
+	result, err := r.db.TCPCollection().DeleteMany(ctx, bson.M{"scan_type": "tcp"})
 	if err != nil {
 		log.Printf("Error deleting TCP history: %v", err)
 		return err
@@ -585,7 +620,7 @@ func (r *Repository) DeleteTCPHistory() error {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Change Events
+// Change Events  (scan_type = "change_event" inside l3_devices)
 // ──────────────────────────────────────────────────────────────────────────────
 
 // GetChangeEvents returns the most recent change events, optionally filtered by severity.
@@ -593,9 +628,9 @@ func (r *Repository) GetChangeEvents(limit int, severity string) ([]models.Chang
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	filter := bson.D{}
+	filter := bson.M{"scan_type": "change_event"}
 	if severity != "" && severity != "ALL" {
-		filter = bson.D{{Key: "severity", Value: severity}}
+		filter["severity"] = severity
 	}
 
 	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}})
@@ -621,7 +656,7 @@ func (r *Repository) GetChangeEventsSince(since time.Time) ([]models.ChangeEvent
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	filter := bson.M{"created_at": bson.M{"$gt": since}}
+	filter := bson.M{"scan_type": "change_event", "created_at": bson.M{"$gt": since}}
 	opts   := options.Find().SetSort(bson.D{{Key: "created_at", Value: 1}})
 
 	cursor, err := r.db.ChangesCollection().Find(ctx, filter, opts)
@@ -642,7 +677,7 @@ func (r *Repository) DeleteChangeEvents() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	result, err := r.db.ChangesCollection().DeleteMany(ctx, bson.D{})
+	result, err := r.db.ChangesCollection().DeleteMany(ctx, bson.M{"scan_type": "change_event"})
 	if err != nil {
 		log.Printf("Error deleting change events: %v", err)
 		return err
@@ -650,3 +685,4 @@ func (r *Repository) DeleteChangeEvents() error {
 	log.Printf("Deleted %d change event records", result.DeletedCount)
 	return nil
 }
+

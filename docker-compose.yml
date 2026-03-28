@@ -85,16 +85,17 @@ services:
   mongo-express:
     image: mongo-express
     container_name: mongo-express
-    ports:
-      - "8081:8081"
+    # Use host networking so mongo-express reaches MongoDB via localhost:27017.
+    # This avoids the iptables FORWARD DROP issue on the scanner-net bridge.
+    network_mode: host
     environment:
-      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_MONGODB_SERVER: localhost
       ME_CONFIG_MONGODB_PORT: "27017"
-      ME_CONFIG_MONGODB_URL: mongodb://mongodb:27017/
+      ME_CONFIG_MONGODB_URL: mongodb://localhost:27017/
       ME_CONFIG_BASICAUTH_USERNAME: admin
       ME_CONFIG_BASICAUTH_PASSWORD: pass
-    networks:
-      - scanner-net
+      # Default port is 8081 — no ports: mapping needed with host networking
+      ME_CONFIG_SITE_PORT: "8081"
     depends_on:
       mongodb:
         condition: service_healthy
@@ -191,7 +192,7 @@ services:
       SCANNER_NAME:           tcp_service
       MONGODB_URI:            mongodb://localhost:27017
       MONGODB_DATABASE:       network_scanner
-      TCP_MONGO_COLLECTION:   tcp_banners
+      TCP_MONGO_COLLECTION:   l4_raw_tcp
       MINIO_ENDPOINT:         localhost:9000
       MINIO_ACCESS_KEY:       minioadmin
       MINIO_SECRET_KEY:       minioadmin

@@ -9,6 +9,7 @@ import (
 // ChangeEvent represents a single detected network change stored in MongoDB.
 type ChangeEvent struct {
 	ID          primitive.ObjectID     `bson:"_id,omitempty"       json:"id"`
+	ScanType    string                 `bson:"scan_type"           json:"-"`
 	EventID     string                 `bson:"event_id"            json:"event_id"`
 	EventType   string                 `bson:"event_type"          json:"event_type"`
 	Severity    string                 `bson:"severity"            json:"severity"`

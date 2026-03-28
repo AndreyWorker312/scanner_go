@@ -72,30 +72,39 @@ func (d *Database) Close() error {
 	return d.Client.Disconnect(ctx)
 }
 
+// ── L2 (MAC / ARP layer) ──────────────────────────────────────────────────────
+
+// ARPCollection — ARP scan history, keyed by MAC address layer.
 func (d *Database) ARPCollection() *mongo.Collection {
-	return d.Database.Collection("arp_history")
+	return d.Database.Collection("l2_devices")
 }
 
+// ── L3 (IP / Network layer) ───────────────────────────────────────────────────
+// All IP-based scan types share one collection.
+// Each document carries a "scan_type" discriminator field.
+
 func (d *Database) ICMPCollection() *mongo.Collection {
-	return d.Database.Collection("icmp_history")
+	return d.Database.Collection("l3_devices")
 }
 
 func (d *Database) NmapTcpUdpCollection() *mongo.Collection {
-	return d.Database.Collection("nmap_tcp_udp_history")
+	return d.Database.Collection("l3_devices")
 }
 
 func (d *Database) NmapOsDetectionCollection() *mongo.Collection {
-	return d.Database.Collection("nmap_os_detection_history")
+	return d.Database.Collection("l3_devices")
 }
 
 func (d *Database) NmapHostDiscoveryCollection() *mongo.Collection {
-	return d.Database.Collection("nmap_host_discovery_history")
+	return d.Database.Collection("l3_devices")
 }
 
+// ── L4 (Transport layer — TCP banner grabber) ─────────────────────────────────
+
 func (d *Database) TCPCollection() *mongo.Collection {
-	return d.Database.Collection("tcp_banners")
+	return d.Database.Collection("l4_devices")
 }
 
 func (d *Database) ChangesCollection() *mongo.Collection {
-	return d.Database.Collection("change_events")
+	return d.Database.Collection("l3_devices")
 }

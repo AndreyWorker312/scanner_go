@@ -24,6 +24,7 @@ type ARPHistoryRecord struct {
 
 type ICMPHistoryRecord struct {
 	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	ScanType  string       `bson:"scan_type"  json:"-"`
 	TaskID    string       `bson:"task_id" json:"task_id"`
 	Targets   []string     `bson:"targets" json:"targets"`
 	PingCount int          `bson:"ping_count" json:"ping_count"`
@@ -35,6 +36,7 @@ type ICMPHistoryRecord struct {
 
 type NmapTcpUdpHistoryRecord struct {
 	ID          primitive.ObjectID   `bson:"_id,omitempty" json:"id"`
+	ScanType    string               `bson:"scan_type"  json:"-"`
 	TaskID      string               `bson:"task_id" json:"task_id"`
 	IP          string               `bson:"ip" json:"ip"`
 	ScannerType string               `bson:"scanner_type" json:"scanner_type"`
@@ -48,6 +50,7 @@ type NmapTcpUdpHistoryRecord struct {
 
 type NmapOsDetectionHistoryRecord struct {
 	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	ScanType  string    `bson:"scan_type"  json:"-"`
 	TaskID    string    `bson:"task_id" json:"task_id"`
 	IP        string    `bson:"ip" json:"ip"`
 	Host      string    `bson:"host" json:"host"`
@@ -63,6 +66,7 @@ type NmapOsDetectionHistoryRecord struct {
 
 type NmapHostDiscoveryHistoryRecord struct {
 	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	ScanType  string    `bson:"scan_type"  json:"-"`
 	TaskID    string    `bson:"task_id" json:"task_id"`
 	IP        string    `bson:"ip" json:"ip"`
 	Host      string    `bson:"host" json:"host"`
@@ -77,6 +81,7 @@ type NmapHostDiscoveryHistoryRecord struct {
 
 type TCPHistoryRecord struct {
 	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	ScanType     string    `bson:"scan_type"  json:"-"`
 	TaskID       string    `bson:"task_id" json:"task_id"`
 	Host         string    `bson:"host" json:"host"`
 	Port         string    `bson:"port" json:"port"`

@@ -25,7 +25,7 @@ func Load() *Config {
 		ScannerName:   getEnv("SCANNER_NAME", "tcp_service"),
 		MongoURI:      getEnv("MONGODB_URI", "mongodb://mongodb:27017"),
 		MongoDB:       getEnv("MONGODB_DATABASE", "network_scanner"),
-		MongoColl:     getEnv("TCP_MONGO_COLLECTION", "tcp_banners"),
+		MongoColl:     getEnv("TCP_MONGO_COLLECTION", "l4_raw_tcp"),
 		MinIOEndpoint: getEnv("MINIO_ENDPOINT", "minio:9000"),
 		MinIOAccess:   getEnv("MINIO_ACCESS_KEY", "minioadmin"),
 		MinIOSecret:   getEnv("MINIO_SECRET_KEY", "minioadmin"),

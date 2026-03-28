@@ -42,7 +42,7 @@ func storeApp(a *application.App) {
 
 func main() {
 	rabbitMQURL := getEnv("RABBITMQ_URL", "amqp://guest:guest@rabbitmq:5672/")
-	mongoURI    := getEnv("MONGODB_URI",   "mongodb://mongodb:27017")
+	mongoURI    := getEnv("MONGODB_URI",      "mongodb://mongodb:27017")
 	mongoDB     := getEnv("MONGODB_DATABASE", "network_scanner")
 
 	// ── MongoDB ──────────────────────────────────────────────────────────────
